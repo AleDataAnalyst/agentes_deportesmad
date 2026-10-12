@@ -1,0 +1,8 @@
+# Dependencias previstas. Elegir y fijar versiones al implementar.
+# langgraph
+# streamlit
+# google-genai
+# pydantic
+# python-dotenv
+# httpx
+# Pillow
