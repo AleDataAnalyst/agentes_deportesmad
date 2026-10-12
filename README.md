@@ -1,39 +1,163 @@
-# PB02 · Estructura inicial de proyecto
+# agentes_deportesmad
 
-Estructura de inicio sin implementación. Cada `.py` contiene únicamente un
-docstring con responsabilidades, entradas/salidas y límites. No hay imports,
-funciones, clases, llamadas, fixtures con datos ni pruebas desarrolladas.
-Los nombres y contratos son propuestas para acordar antes de integrar.
+Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
-## Mapa de módulos
+El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervisor,
+especialistas, herramientas controladas, aprobación humana, memoria y clientes
+CLI y Streamlit.
 
-| Carpeta / módulo | Responsabilidad |
+## Estado del proyecto
+
+Inicio de desarrollo sobre una **estructura base**. Los módulos con docstrings
+indican responsabilidades previstas; no acreditan implementación ni pruebas.
+El RAG se incorporará en `rag/` tras adaptar su integración.
+
+Las capacidades descritas en este README son objetivos del PB02, no una
+confirmación de que ya funcionan. Los comandos de ejecución, dependencias
+operativas y evidencias se documentarán al integrar cada parte.
+
+## Reparto acordado — 12 de octubre de 2026
+
+Este reparto sustituye la propuesta anterior. Las responsabilidades pendientes
+no se consideran asignadas automáticamente a quien inicia el grafo.
+
+| Responsable | Responsabilidad confirmada | Alcance inicial |
+|---|---|---|
+| Alejandra | Supervisor y esqueleto ejecutable del grafo | Definir rutas, límites y fallback; conectar nodos simulados para desbloquear el desarrollo. |
+| Héctor | Especialista que conecta el RAG y adaptación del RAG existente | Preparar el especialista documental, el conector y los ajustes necesarios de imports, rutas, dependencias y contrato de consulta. |
+| David | Streamlit | Construir el cliente del agente: chat, fuentes, imagen, aprobación/rechazo, nueva conversación y debug, conforme al contrato común. |
+| Miguel | Tareas por concretar | Acordar un bloque específico según disponibilidad y carga pendiente. No hay un módulo crítico asignado todavía. |
+
+Cuando Héctor termine la integración del especialista RAG, compartirá parte de
+las responsabilidades de la lógica del agente con quien inicia supervisor y
+grafo. Las tareas concretas de esa segunda etapa se acordarán y registrarán
+antes de empezar a editarlas.
+
+Las tools restantes y otras tareas se repartirán progresivamente con Miguel y
+David conforme tengan capacidad. David mantiene Streamlit como responsabilidad
+confirmada; cualquier ampliación requiere un acuerdo explícito.
+
+## Módulos del trabajo inicial
+
+Los paths son los previstos por la estructura base modular y deben confirmarse
+si se cambia la organización de archivos.
+
+| Bloque | Módulos principales | Dependencias y coordinación |
+|---|---|---|
+| Supervisor y grafo | `agentes/nodes/supervisor.py`, `agentes/async_graph.py` | Preparar contratos y estado mínimo en `agentes/contracts.py` y `agentes/state.py`; revisar con Héctor y David las interfaces que consumen. |
+| Especialista documental y conexión RAG | `agentes/nodes/documental.py`, `agentes/tools/rag.py`, `rag/` | Héctor desarrolla contra el contrato de resultado acordado; conservar respuesta, fuentes, abstención y error. |
+| Streamlit | `app.py`, `clientes/streamlit_app.py`, `clientes/hitl.py`, `clientes/debug.py` | David puede avanzar contra resultados simulados del contrato cliente sin esperar al backend terminado. |
+| Tarea de Miguel | Pendiente de definir | Registrar alcance, módulos, entradas/salidas y aceptación cuando se asigne. |
+
+La adaptación del RAG se centra primero en lo necesario para conectarlo. No
+rehacer ingesta, chunking o embeddings salvo necesidad demostrada. Comprobar
+que sigue respondiendo después de ajustar imports, rutas y entorno.
+
+## Responsabilidades aún por repartir
+
+- Segundo especialista y sus instrucciones/herramientas.
+- Fuente externa con fallback local real y fechado.
+- Herramienta auxiliar determinista.
+- Tool multimodal de imagen a texto.
+- Registro de tools, allowlist y validación de argumentos.
+- Síntesis del plan.
+- Backend HITL, nodo aplicar y checkpointer.
+- API común de clientes y CLI.
+- Pruebas de integración y concurrencia.
+
+Los **botones HITL de Streamlit** pertenecen al cliente de David. La pausa,
+validación de la decisión y reanudación del grafo pertenecen al backend,
+cuya asignación detallada queda pendiente.
+
+Cada responsable incluye pruebas y documentación de su parte. El informe y la
+presentación se construyen con aportaciones de todos; no se asigna todo el cierre
+a una única persona.
+
+## Primer hito compartido
+
+1. Acordar estado mínimo, entradas/salidas de nodos y tools y contrato de clientes.
+2. Montar supervisor y grafo con especialistas, síntesis y aplicar simulados.
+3. Verificar el recorrido pedido → especialistas → plan → pausa antes de aplicar.
+4. Sustituir el especialista documental simulado por el de Héctor cuando esté listo.
+5. Conectar Streamlit y repartir la siguiente tanda de tareas concretas.
+
+Las simulaciones se identifican explícitamente y cumplen los mismos contratos
+que las implementaciones reales. No sustituyen las tools reales de la entrega
+final. Deben existir al menos dos especialistas reales al cerrar el PB02.
+
+## Contratos para avanzar con autonomía
+
+Documentarlos en `docs/specs/contratos.md`:
+
+- Campos del estado, propietario de cada actualización y reset por pedido.
+- Resultados de tools: datos, evidencias, abstención, error y metadatos.
+- Actualización devuelta por cada nodo.
+- Operaciones de cliente: enviar mensaje, registrar imagen, consultar estado,
+  aprobar/rechazar y nueva conversación.
+- Semántica de `thread_id`, `request_id`, `plan_id`, `done` y fase HITL.
+
+No hace falta que otra persona termine su implementación para probar un módulo:
+se trabaja contra ejemplos del contrato y se integra progresivamente.
+
+## Estructura prevista
+
+| Carpeta o módulo | Responsabilidad |
 |---|---|
-| agentes/contracts.py y state.py | Contratos compartidos y estado |
-| agentes/settings.py y llm.py | Configuración y proveedor |
-| agentes/async_graph.py y agent.py | Grafo asyncio y API común |
-| agentes/nodes/ | Supervisor, especialistas, coordinador, síntesis y aplicar |
-| agentes/tools/ | Allowlist, conector RAG, HTTP, visión y auxiliares |
-| clientes/ | CLI, Streamlit, HITL y debug |
-| rag/ | Punto de montaje del RAG existente, sin contenidos |
-| scripts/ | Preparación y verificación futuras |
-| tests/ | Espacios para las pruebas futuras |
-| data/, storage/, assets/ | Carpetas vacías para datos, índice e imágenes |
-| docs/specs/ y entregables/ | Acuerdos y evidencia pendientes |
+| `agentes/contracts.py`, `state.py` | Contratos y estado compartido |
+| `agentes/settings.py`, `llm.py` | Configuración y proveedor de modelos |
+| `agentes/async_graph.py`, `agent.py` | Grafo y API común |
+| `agentes/nodes/` | Supervisor, especialistas, coordinador, síntesis y aplicar |
+| `agentes/tools/` | Registro, conector RAG, externa, visión y auxiliares |
+| `clientes/` | CLI, Streamlit y presentación de HITL/debug |
+| `rag/` | RAG PB1 reutilizado |
+| `scripts/` | Preparación y comprobaciones aisladas |
+| `tests/` | Pruebas de contratos, tools, grafo y clientes |
+| `docs/specs/` | Especificaciones y criterios de aceptación |
+| `entregables/` | Informe y evidencias |
 
-## Orden para empezar
+La concurrencia se incorpora para consultas independientes cuando sus contratos
+y recorrido sean estables. Dentro de cada especialista, las llamadas que dependen
+de resultados previos mantienen el orden. No se comparte estado mutable entre ramas.
 
-1. Acordar alcance y contratos en docs/specs/contratos.md.
-2. Definir state.py y settings.py.
-3. Preparar ejemplos de contrato en tests/fixtures/, identificados como simulados.
-4. Implementar tools y nodos por separado.
-5. Conectar grafo, concurrencia e HITL.
-6. Implementar API y clientes; verificar recorridos reales.
+## Flujo Git del PB02
 
-Cada responsable puede desarrollar su nodo/tool contra ejemplos acordados.
-El coordinador asíncrono combina ramas independientes; cada especialista conserva
-el orden de llamadas que dependan de resultados anteriores.
+- `main`: base inicial y, posteriormente, código estable de entrega.
+- `develop`: integración del equipo.
+- `feature/...`: ramas de trabajo creadas desde `develop`.
+- Integrar mediante PR hacia `develop`; resolver conflictos en la rama de trabajo.
+- Cada integrante debe acreditar al menos una PR revisada y mergeada.
+- Pasar a `main` cuando la entrega esté integrada y CLI/Streamlit sean ejecutables.
 
-Esta estructura inicial no se ejecuta como aplicación ni acredita ningún requisito funcional.
-requirements contiene comentarios orientativos, no un entorno instalable.
-No se han creado datos de fallback, imágenes ni contenido del RAG.
+Ramas iniciales sugeridas:
+
+| Trabajo | Rama |
+|---|---|
+| Supervisor y grafo | `feature/supervisor-grafo` |
+| Especialista y conector RAG | `feature/especialista-rag` |
+| Streamlit | `feature/streamlit-ui` |
+| Nueva tarea acordada | `feature/nombre-de-la-tarea` |
+
+Cada PR indica alcance, módulos, contrato afectado, comprobaciones realizadas y
+limitaciones. Separar comentarios BLOQUEANTE, PREGUNTA y SUGERENCIA. Los cambios
+de contrato requieren revisión de sus consumidores. Aprobar el último commit
+antes de integrar; registrar sustituciones del revisor cuando sean necesarias.
+
+## Configuración y archivos excluidos
+
+Versionar `README.md`, `.gitignore`, `requirements.txt`,
+`requirements-dev.txt` y `.env.example`. Las versiones de dependencias y valores
+operativos se concretarán durante la implementación.
+
+No subir `.env`, claves, entornos virtuales ni índices vectoriales pesados.
+Documentar cómo preparar el índice del RAG y cómo ejecutar el proyecto cuando
+esas operaciones estén verificadas.
+
+## Criterios de cierre
+
+- Supervisor, al menos dos especialistas, síntesis y aplicar con HITL.
+- RAG completo, fuente externa con fallback, auxiliar y multimodal reales.
+- Allowlist y límites controlados en Python.
+- Checkpointer y continuidad mediante `thread_id`.
+- Aprobación/rechazo, fuentes y debug desde CLI y Streamlit.
+- README reproducible, informe de decisiones, evidencias y presentación.
+- Contribuciones y revisiones individuales acreditadas en Git.
