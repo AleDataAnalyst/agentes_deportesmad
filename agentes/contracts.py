@@ -30,10 +30,10 @@ class Evidence:
     En API externa, puede venir de una URL, dataset o fallback local.
     """
 
-source: str
-content: str
-score: float | None = None
-metadata: dict[str, Any] = field(default_factory=dict)
+    source: str
+    content: str
+    score: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class ToolResult:
@@ -42,11 +42,11 @@ class ToolResult:
     respuesta, estado, evidencias y error opcional.
     """
     
-status: ToolStatus
-answer: str
-evidence: list[Evidence] = field(default_factory=list)
-error: str | None = None
-data: dict[str, Any] = field(default_factory=dict)
+    status: ToolStatus
+    answer: str
+    evidence: list[Evidence] = field(default_factory=list)
+    error: str | None = None
+    data: dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class SupervisorDecision:

@@ -39,7 +39,7 @@ def decide_with_rules(message: str) -> SupervisorDecision:
         
     if any(word in text for word in ["instalación", "polideportivo", "piscina", "actividad", "horario"]):
         return SupervisorDecision(
-            specialist="documental",
+            specialist="instalaciones",
             reason="La consulta parece necesitar datos de instalaciones o actividades.",
         )
         
@@ -55,10 +55,23 @@ def decide_with_rules(message: str) -> SupervisorDecision:
         reason="No se detectó todavía un especialista claro.",
 )
         
-def supervisor_node(state: AgentState) -> AgentStaate:
-    """Añade al estado la decisión del supervisor."""
+def supervisor_node(state: AgentState) -> AgentState:
+    """Devuelve la decisión y la traza actualizada.
+    
+    LangGraph incorpora estos campos al estado compartido.
+    
+    Creamos una lista nueva para no modificar directamente la traza
+    recibida. No necesitamos deepcopy porque se añade un texto y
+    no se modifican los elementos anteriores."""
     
     decision = decide_with_rules(state["user_message"])
-    state["supervisor_decision"] = decision
-    state.setdefault("debug_trace", []).append(f"supervisor -> {decision.specialist}: {decision.reason}")
-    return state
+    
+    trace = [
+        *state.get("debug_trace", []),
+        f"supervisor -> {decision.specialist}: {decision.reason}",
+    ]
+    
+    return {
+        "supervisor_decision": decision,
+        "debug_trace": trace,
+    }
