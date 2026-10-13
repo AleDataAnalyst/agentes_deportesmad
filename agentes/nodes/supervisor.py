@@ -1,77 +1,59 @@
-"""Supervisor de enrutado y finalización de la fase de consultas.
+"""Supervisor sincrono con proveedor inyectable y limites en Python.
 
-Responsabilidad:
-- Leer la petición del usuario.
-- Decidir qué especialista debe intervenir.
-- No ejecutar tools directamente.
-
-Mientras `llm.py` no esté cerrado con Héctor, este supervisor usa reglas simples
-por palabras clave. Eso permite probar el grafo sin bloquearse.
-
-TODO cuando esté listo `llm.py`:
-- Sustituir `decide_with_rules` por una llamada al LLM con salida estructurada.
-- Mantener el mismo contrato `SupervisorDecision` para no romper el grafo.
-
-Entradas: pedido, roles pendientes, resultados actuales y contadores.
-Salidas: siguiente rol o síntesis, razón de ruta, contador y evento de traza.
-Validar propuesta del modelo y aplicar fallback determinista en Python.
-No repetir indefinidamente especialistas ni permitir nombres desconocidos.
-Puede autorizar consultas independientes en paralelo; no establece done por sí solo.
-Dependencias: modelo, estado, contratos y límites de configuración.
+No ejecuta tools, no redacta el plan ni aprueba el pedido. El proveedor podrá
+adaptar el LLM cuando se acuerde su interfaz. Las reglas permiten usar dobles.
 """
+from collections.abc import Callable
+from agentes.contracts import ROUTE_NAMES, SPECIALIST_NAMES, SupervisorDecision
+from agentes.state import AgentState, plan_is_ready
 
-from agentes.contracts import SupervisorDecision
-from agentes.state import AgentState
+ROLES = SPECIALIST_NAMES
+RouteProvider = Callable[[AgentState], SupervisorDecision]
 
-def decide_with_rules(message: str) -> SupervisorDecision:
-    """Decide especialista con reglas simples y explicables.
-    
-    Esto no pretende ser inteligente todavía; pretende desbloquear la integración.
+
+def fallback_decision(state: AgentState) -> SupervisorDecision:
+    """La presencia de resultado cuenta como intento, incluso error/abstained."""
+    results = state.get("specialist_results", {})
+    for role in ROLES:
+        if role not in results:
+            return SupervisorDecision(role, f"Falta el resultado de {role}.")
+    if not plan_is_ready(state):
+        return SupervisorDecision("sintetizar", "Preparar respuesta y plan con los resultados disponibles.")
+    return SupervisorDecision("FINISH", "Respuesta y plan listos para la decision humana.")
+
+
+def supervisor_node(
+    state: AgentState, *, route_provider: RouteProvider | None = None, max_iter: int = 8,
+) -> AgentState:
+    """Devuelve decision, contador y traza como actualizacion parcial.
+
+    El tope fuerza FINISH. El router pasa por sintesis si falta el plan y luego
+    por la pausa. Una sintesis invalida falla explicitamente en el grafo.
     """
-    
-    text = message.lower()
-    
-    if any(word in text for word in ["rag", "documento", "normativa", "requisito","fuente"]):
-        return SupervisorDecision(
-            specialist="documental",
-            reason="La consulta parece necesitar evidencia documental o RAG.",
-        )
-        
-    if any(word in text for word in ["instalación", "polideportivo", "piscina", "actividad", "horario"]):
-        return SupervisorDecision(
-            specialist="instalaciones",
-            reason="La consulta parece necesitar datos de instalaciones o actividades.",
-        )
-        
-    if any(word in text for word in ["plan", "agenda", "fisioterapia", "rutina"]):
-        return SupervisorDecision(
-            specialist="planificador",
-            reason="La consulta parece pedir organización o planificación deportiva.",
-            needs_approval=True,
-        )
-        
-    return SupervisorDecision(
-        specialist="desconocido",
-        reason="No se detectó todavía un especialista claro.",
-)
-        
-def supervisor_node(state: AgentState) -> AgentState:
-    """Devuelve la decisión y la traza actualizada.
-    
-    LangGraph incorpora estos campos al estado compartido.
-    
-    Creamos una lista nueva para no modificar directamente la traza
-    recibida. No necesitamos deepcopy porque se añade un texto y
-    no se modifican los elementos anteriores."""
-    
-    decision = decide_with_rules(state["user_message"])
-    
-    trace = [
-        *state.get("debug_trace", []),
-        f"supervisor -> {decision.specialist}: {decision.reason}",
-    ]
-    
+    if type(max_iter) is not int or max_iter < 1:
+        raise ValueError("max_iter debe ser un entero positivo")
+    iteration = state.get("iterations", 0) + 1
+    if iteration >= max_iter:
+        decision = SupervisorDecision("FINISH", "Limite de iteraciones alcanzado.")
+    else:
+        decision = None
+        if route_provider is not None:
+            try:
+                proposed = route_provider(state)
+                if (isinstance(proposed, SupervisorDecision)
+                        and proposed.specialist in ROUTE_NAMES
+                        and isinstance(proposed.reason, str)
+                        and (proposed.specialist not in ROLES
+                             or proposed.specialist not in state.get("specialist_results", {}))):
+                    decision = proposed
+            except Exception:
+                # La indisponibilidad del proveedor activa las reglas locales.
+                pass
+        if decision is None:
+            decision = fallback_decision(state)
     return {
         "supervisor_decision": decision,
-        "debug_trace": trace,
+        "iterations": iteration,
+        "debug_trace": [*state.get("debug_trace", []),
+                        f"iter {iteration}: supervisor -> {decision.specialist}: {decision.reason}"],
     }
