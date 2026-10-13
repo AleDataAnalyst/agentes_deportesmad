@@ -2,56 +2,47 @@
 
 Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
-El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervisor,
-especialistas, herramientas controladas, aprobación humana, memoria y clientes
-CLI y Streamlit.
+El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervisor, especialistas, herramientas controladas, aprobación humana, memoria y clientes CLI y Streamlit.
 
 ## Estado del proyecto
 
-Inicio de desarrollo sobre una **estructura base**. Los módulos con docstrings
-indican responsabilidades previstas; no acreditan implementación ni pruebas.
+Inicio de desarrollo sobre una **estructura base**. Los módulos con docstrings indican responsabilidades previstas; no acreditan implementación ni pruebas.
 El RAG se incorporará en `rag/` tras adaptar su integración.
 
 Las capacidades descritas en este README son objetivos del PB02, no una
 confirmación de que ya funcionan. Los comandos de ejecución, dependencias
 operativas y evidencias se documentarán al integrar cada parte.
 
-## Reparto acordado — 12 de octubre de 2026
+## Reparto acordado — 13 de octubre de 2026
 
-Este reparto sustituye la propuesta anterior. Las responsabilidades pendientes
-no se consideran asignadas automáticamente a quien inicia el grafo.
+Este reparto sustituye la propuesta anterior. Las responsabilidades pendientes no se consideran asignadas automáticamente a quien inicia el grafo.
 
 | Responsable | Responsabilidad confirmada | Alcance inicial |
 |---|---|---|
 | Alejandra | Supervisor y esqueleto ejecutable del grafo | Definir rutas, límites y fallback; conectar nodos simulados para desbloquear el desarrollo. |
 | Héctor | Especialista que conecta el RAG y adaptación del RAG existente | Preparar el especialista documental, el conector y los ajustes necesarios de imports, rutas, dependencias y contrato de consulta. |
 | David | Streamlit | Construir el cliente del agente: chat, fuentes, imagen, aprobación/rechazo, nueva conversación y debug, conforme al contrato común. |
-| Miguel | Tareas por concretar | Acordar un bloque específico según disponibilidad y carga pendiente. No hay un módulo crítico asignado todavía. |
+| Miguel | Especialista de Instalaciones y avisos | Continuar el especialista con el handoff del catálogo y las fichas oficiales; concretar módulos y contratos compartidos antes de integrar. |
 
-Cuando Héctor termine la integración del especialista RAG, compartirá parte de
-las responsabilidades de la lógica del agente con quien inicia supervisor y
-grafo. Las tareas concretas de esa segunda etapa se acordarán y registrarán
-antes de empezar a editarlas.
+Cuando Héctor termine la integración del especialista RAG, compartirá parte de las responsabilidades de la lógica del agente con quien inicia supervisor y grafo. Las tareas concretas de esa segunda etapa se acordarán y registrarán antes de empezar a editarlas.
 
-Las tools restantes y otras tareas se repartirán progresivamente con Miguel y
-David conforme tengan capacidad. David mantiene Streamlit como responsabilidad
-confirmada; cualquier ampliación requiere un acuerdo explícito.
+Las tools restantes y otras tareas se repartirán progresivamente con Miguel y David conforme tengan capacidad. David mantiene Streamlit como responsabilidad confirmada; cualquier ampliación requiere un acuerdo explícito.
 
 ## Módulos del trabajo inicial
 
-Los paths son los previstos por la estructura base modular y deben confirmarse
-si se cambia la organización de archivos.
+Los paths corresponden a la estructura base. Si cambia la organización,
+actualizaremos esta tabla junto con los contratos de integración.
 
 | Bloque | Módulos principales | Dependencias y coordinación |
 |---|---|---|
-| Supervisor y grafo | `agentes/nodes/supervisor.py`, `agentes/graph.py` | Preparar contratos y estado mínimo en `agentes/contracts.py` y `agentes/state.py`; revisar con Héctor y David las interfaces que consumen. |
-| Especialista documental y conexión RAG | `agentes/nodes/documental.py`, `agentes/tools/rag.py`, `rag/` | Héctor desarrolla contra el contrato de resultado acordado; conservar respuesta, fuentes, abstención y error. |
-| Streamlit | `app.py`, `clientes/streamlit_app.py`, `clientes/hitl.py`, `clientes/debug.py` | David puede avanzar contra resultados simulados del contrato cliente sin esperar al backend terminado. |
-| Tarea de Miguel | Pendiente de definir | Registrar alcance, módulos, entradas/salidas y aceptación cuando se asigne. |
+| Supervisor y grafo síncrono | `agentes/nodes/supervisor.py`, `agentes/graph.py` | Alejandra avanza con `agentes/contracts.py` y `agentes/state.py`; revisar las interfaces que consumen Héctor y David. |
+| Especialista documental y conexión RAG | `agentes/nodes/documental.py`, `agentes/tools/rag.py`, `rag/` | Héctor prepara la conexión contra el contrato compartido; conservar respuesta, fuentes, abstención y error. |
+| Streamlit | `app.py`, `clientes/streamlit_app.py`, `clientes/hitl.py`, `clientes/debug.py` | David puede trabajar con resultados simulados del contrato de cliente mientras avanza el backend. |
+| Handoff de Instalaciones y avisos | `docs/decisiones/Handoff_Miguel_Especialista_Instalaciones.md` | Inventario de la API del catálogo y las fichas municipales para Miguel. Los módulos de implementación y sus contratos se concretarán antes de integrar. |
 
 La adaptación del RAG se centra primero en lo necesario para conectarlo. No
-rehacer ingesta, chunking o embeddings salvo necesidad demostrada. Comprobar
-que sigue respondiendo después de ajustar imports, rutas y entorno.
+rehacer ingesta, chunking o embeddings salvo que se demuestre que hace falta.
+Comprobar que sigue respondiendo después de ajustar imports, rutas y entorno.
 
 ## Responsabilidades aún por repartir
 
