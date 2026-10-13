@@ -24,4 +24,38 @@ Acotar contexto sin perder procedencia. No incluir corpus, embeddings, índice
 ni implementación RAG. No indexar durante cada consulta ni alterar sys.path.
 """
 
-import os
+
+from __future__ import annotations
+
+from typing import Any
+
+from rag.logic import responder
+
+
+def rag_preguntar(consulta: str) -> dict[str, Any]:
+    """Busca en el corpus RAG y devuelve el resultado completo.
+    
+    Args:
+        consulta: pregunta del agente (texto).
+
+    Returns:
+        dict con respuesta, fuentes, abstained y error.
+    """
+    try:
+        resultado = responder(consulta)
+    except Exception as e:  # noqa: BLE001 — la tool no rompe al agente
+        return {
+            "respuesta": "",
+            "fuentes": [],
+            "abstained": False,
+            "error": f"Error interno del RAG: {e}",
+        }
+        
+    return {
+        "respuesta": resultado.get("respuesta", ""),
+        "fuentes": list(resultado.get("fuentes", [])),
+        "abstained": bool(resultado.get("abstained", False)),
+        "error": resultado.get("error"),
+    }
+    
+    
