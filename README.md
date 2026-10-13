@@ -44,7 +44,7 @@ si se cambia la organización de archivos.
 
 | Bloque | Módulos principales | Dependencias y coordinación |
 |---|---|---|
-| Supervisor y grafo | `agentes/nodes/supervisor.py`, `agentes/async_graph.py` | Preparar contratos y estado mínimo en `agentes/contracts.py` y `agentes/state.py`; revisar con Héctor y David las interfaces que consumen. |
+| Supervisor y grafo | `agentes/nodes/supervisor.py`, `agentes/graph.py` | Preparar contratos y estado mínimo en `agentes/contracts.py` y `agentes/state.py`; revisar con Héctor y David las interfaces que consumen. |
 | Especialista documental y conexión RAG | `agentes/nodes/documental.py`, `agentes/tools/rag.py`, `rag/` | Héctor desarrolla contra el contrato de resultado acordado; conservar respuesta, fuentes, abstención y error. |
 | Streamlit | `app.py`, `clientes/streamlit_app.py`, `clientes/hitl.py`, `clientes/debug.py` | David puede avanzar contra resultados simulados del contrato cliente sin esperar al backend terminado. |
 | Tarea de Miguel | Pendiente de definir | Registrar alcance, módulos, entradas/salidas y aceptación cuando se asigne. |
@@ -63,7 +63,7 @@ que sigue respondiendo después de ajustar imports, rutas y entorno.
 - Síntesis del plan.
 - Backend HITL, nodo aplicar y checkpointer.
 - API común de clientes y CLI.
-- Pruebas de integración y concurrencia.
+- Pruebas de integración del flujo síncrono del MVP.
 
 Los **botones HITL de Streamlit** pertenecen al cliente de David. La pausa,
 validación de la decisión y reanudación del grafo pertenecen al backend,
@@ -105,7 +105,7 @@ se trabaja contra ejemplos del contrato y se integra progresivamente.
 |---|---|
 | `agentes/contracts.py`, `state.py` | Contratos y estado compartido |
 | `agentes/settings.py`, `llm.py` | Configuración y proveedor de modelos |
-| `agentes/async_graph.py`, `agent.py` | Grafo y API común |
+| `agentes/graph.py`, `agent.py` | Grafo y API común |
 | `agentes/nodes/` | Supervisor, especialistas, coordinador, síntesis y aplicar |
 | `agentes/tools/` | Registro, conector RAG, externa, visión y auxiliares |
 | `clientes/` | CLI, Streamlit y presentación de HITL/debug |
@@ -115,9 +115,8 @@ se trabaja contra ejemplos del contrato y se integra progresivamente.
 | `docs/specs/` | Especificaciones y criterios de aceptación |
 | `entregables/` | Informe y evidencias |
 
-La concurrencia se incorpora para consultas independientes cuando sus contratos
-y recorrido sean estables. Dentro de cada especialista, las llamadas que dependen
-de resultados previos mantienen el orden. No se comparte estado mutable entre ramas.
+El MVP prioriza un grafo síncrono. La asincronía y el paralelismo no se han acordado
+con el equipo y quedan fuera del alcance actual; podrían valorarse después.
 
 ## Flujo Git del PB02
 
@@ -161,3 +160,11 @@ esas operaciones estén verificadas.
 - Aprobación/rechazo, fuentes y debug desde CLI y Streamlit.
 - README reproducible, informe de decisiones, evidencias y presentación.
 - Contribuciones y revisiones individuales acreditadas en Git.
+
+## Adenda — handoff de instalaciones y avisos (13 de octubre de 2026)
+
+En la actualización del reparto, Miguel continuará el especialista de **Instalaciones y avisos**. Alejandra sigue con supervisor y grafo; Héctor, con la conexión del RAG; David, con Streamlit. Coordinar con Héctor y Alejandra los contratos antes de integrar módulos compartidos.
+
+La comprobación registró la API CKAN del catálogo (82 registros) y las URLs `CONTENT-URL` de las fichas municipales. Las 82 fichas respondieron HTTP 200 en las consultas del 13/10/2026; en 12 se detectó un encabezado “Aviso a usuarios/as” (13 bloques). Las páginas de avisos son HTML; este resultado no valida vigencia, una integración del proyecto ni la ausencia de incidencias en las demás fichas.
+
+El inventario de IDs, distritos, URLs y resultados observados está en [el handoff técnico del especialista](docs/decisiones/viabilidad_especialista_instalaciones_avisos.md). Esta adenda registra el reparto y la evidencia disponible; no amplía el alcance a otras tools o especialistas.
