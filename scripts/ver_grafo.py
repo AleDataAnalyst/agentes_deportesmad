@@ -8,6 +8,7 @@ from agentes.demo import crear_servicio_demo
 def main():
     servicio = crear_servicio_demo()
     dibujo = servicio._graph.get_graph().draw_ascii()
+    dibujo = "\n".join(linea.rstrip() for linea in dibujo.splitlines()) + "\n"
 
     # Calcula la ruta desde el archivo, independientemente
     # de la carpeta desde la que ejecutes el comando.
@@ -15,7 +16,7 @@ def main():
     destino = raiz / "docs" / "specs" / "grafo_actual.txt"
 
     destino.parent.mkdir(parents=True, exist_ok=True)
-    destino.write_text(dibujo, encoding="utf-8")
+    destino.write_text(dibujo, encoding="utf-8", newline="\n")
 
     print(dibujo)
     print(f"\nGuardado en: {destino}")
