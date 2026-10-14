@@ -80,5 +80,5 @@ def supervisor_node(
     return {
         "supervisor_decision": decision,
         "iterations": iteration,
-        "debug_trace": [*state.get("debug_trace", []), event],
+        "debug_trace": [event],
     }

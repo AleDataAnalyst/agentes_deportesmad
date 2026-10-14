@@ -53,7 +53,7 @@ def _aplicar_checked(state: AgentState, *, node: Node) -> dict:
     return {
         **update,
         "debug_trace": [
-            *update.get("debug_trace", state.get("debug_trace", [])),
+            *update.get("debug_trace", []),
             "HITL -> " + ("plan aprobado" if state["approved"] else "plan rechazado"),
         ],
     }
@@ -68,7 +68,8 @@ def build_graph(
 
     Ejecutar con config={"configurable": {"thread_id": ...}}. Para resolver
     la pausa, guardar approved con update_state y reanudar con invoke(None,
-    config). Cada pedido nuevo debe limpiar el estado con initial_state.
+    config). Cada pedido nuevo reinicia los datos operativos con initial_state
+    y añade su marca de inicio a la traza del hilo mediante el acumulador.
     MemorySaver conserva checkpoints solo durante la vida del proceso.
     """
     if type(max_iter) is not int or max_iter < 1:

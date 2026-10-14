@@ -2,13 +2,19 @@
 
 Mantiene user_message, final_answer y los otros nombres de la primera versión.
 Cada nodo devuelve una actualización parcial; LangGraph fusiona esas claves.
-No hay reducers: las listas y diccionarios se reemplazan, no se acumulan solos.
+Solo debug_trace tiene un acumulador: conserva los eventos de la conversación
+al reutilizar thread_id. Antes la traza se sustituía por pedido. Los demás
+campos siguen reemplazándose y sus datos operativos se reinician por pedido.
 """
 
 from copy import deepcopy
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
 
 from agentes.contracts import PendingAction, SupervisorDecision, ToolResult
+
+def _acumular(actual: list, nuevo: list) -> list:
+    return (actual or []) + (nuevo or [])
+
 
 class AgentState(TypedDict, total=False):
     """Campos compartidos. TypedDict documenta tipos, no valida en ejecución.
@@ -16,7 +22,7 @@ class AgentState(TypedDict, total=False):
     Entrada: user_message/thread_id. Supervisor: decisión, iterations y traza.
     Especialistas: specialist_results. Síntesis: final_answer/plan/pending_action.
     Humano: approved (None antes de decidir). Aplicar: done y cierre/reset.
-    Cada nodo puede extender debug_trace devolviendo una lista nueva.
+    Cada nodo devuelve solo sus eventos nuevos; LangGraph acumula debug_trace.
     """
 
     user_message: str
@@ -29,7 +35,7 @@ class AgentState(TypedDict, total=False):
     approved: bool | None
     iterations: int
     done: bool
-    debug_trace: list[str]
+    debug_trace: Annotated[list[str], _acumular]
 
 def initial_state(user_message: str, thread_id: str = "demo") -> AgentState:
     """Crea colecciones independientes y reinicia los datos de un pedido.
@@ -37,6 +43,8 @@ def initial_state(user_message: str, thread_id: str = "demo") -> AgentState:
     No necesita deepcopy: cada llamada construye listas y dict nuevos. También
     reinicia la decisión y la aprobación para no reutilizar las del pedido anterior.
     thread_id aquí es informativo; el checkpoint se identifica en configurable.
+    La traza aporta solo la marca de inicio: el acumulador conserva la anterior
+    en el mismo hilo; un hilo nuevo comienza con una traza independiente.
     TODO clientes: conservar historial de conversación fuera de este estado mínimo
     o acordar el campo correspondiente antes de incorporarlo.
     """
@@ -55,7 +63,7 @@ def initial_state(user_message: str, thread_id: str = "demo") -> AgentState:
         "approved": None,
         "iterations": 0,
         "done": False,
-        "debug_trace": ["estado inicial creado"],
+        "debug_trace": ["inicio de pedido"],
     }
 
 def state_from_graph(
@@ -68,6 +76,8 @@ def state_from_graph(
     las referencias que recibió el grafo. Copia también cada valor nuevo;
     copiar solo base no separaría los objetos que llegan en resultado.
     No escribe ni reanuda checkpoints. Conserva campos de presentación de base.
+    La salida ya está acumulada por LangGraph: aquí se copia, no se acumula.
+    El acumulador combina eventos; deepcopy aísla estructuras anidadas.
     """
     nuevo = deepcopy(base) if base is not None else initial_state("")
     for clave in AgentState.__annotations__:
