@@ -147,7 +147,7 @@ clientes HTTP, sesiones, generadores, conexiones ni el índice vectorial complet
 | Lectura | `user_message` y los campos de contexto acordados en la ficha |
 | Escritura principal | `specialist_results[rol] = resultado_normalizado` |
 | Conservación | Mantener resultados de otros roles; no sustituirlos por un dict de un solo rol |
-| Traza opcional | Devolver lista completa nueva en `debug_trace`, porque no hay reducer acumulativo |
+| Traza opcional | Devolver solo eventos nuevos en `debug_trace`; el acumulador del estado los combina en LangGraph |
 | Mutabilidad | No modificar el estado recibido ni colecciones de otros nodos |
 | Finalización del rol | Registrar un resultado también en abstención o fallo técnico esperado |
 | Campos ajenos | No escribir `approved`, `done`, decisiones del supervisor, contador, plan o respuesta final |
@@ -162,11 +162,21 @@ return {
         rol: resultado,
     },
     "debug_trace": [
-        *state.get("debug_trace", []),
         f"{rol}: {resultado.status}",
     ],
 }
 ```
+
+El acumulador de `debug_trace` conserva los eventos de la conversación mientras
+se reutiliza el mismo `thread_id`. Cada pedido añade una marca de inicio y
+reinicia resultados, respuesta, plan, aprobación y contador. Un hilo nuevo
+tiene una traza independiente. Esto cambia el comportamiento anterior, que
+sustituía la traza por pedido. Ningún otro campo tiene acumulador.
+`state_from_graph` conserva `deepcopy` para aislar estructuras anidadas; copia
+una salida ya acumulada, sin volver a combinar eventos. Un `dict.update(...)`
+de Python puro reemplaza la lista y no reproduce el acumulador de LangGraph.
+El envoltorio de aplicar conserva los eventos nuevos del nodo y añade una sola
+decisión HITL; el nodo inyectado debe dejar ese evento HITL al envoltorio.
 
 El supervisor cuenta la presencia de la clave como intento completado. Un error
 esperado no debe dejar esa clave ausente y provocar repeticiones. Una salida que

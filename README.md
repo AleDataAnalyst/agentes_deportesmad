@@ -13,6 +13,86 @@ Las capacidades descritas en este README son objetivos del PB02, no una
 confirmación de que ya funcionan. Los comandos de ejecución, dependencias
 operativas y evidencias se documentarán al integrar cada parte.
 
+### Avance verificado — backend síncrono con dobles
+
+Implementados estado, contratos internos provisionales, supervisor con fallback
+y límite, grafo con nodos inyectados y `AgentService` compartido entre turnos.
+Las pruebas usan especialistas, síntesis y aplicar simulados explícitamente:
+comprueban pausa, aprobación/rechazo, reset, aislamiento de hilos e idempotencia.
+Esto no acredita especialistas ni tools reales, CLI o Streamlit funcionales.
+`MAX_ITER` se configura desde el entorno (default 8); `settings.py` no carga
+`.env` automáticamente. Los contratos externos y el proveedor LLM siguen pendientes.
+
+En un entorno virtual, instalar y comprobar este backend desde la raíz:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Versiones utilizadas en la comprobación: LangGraph 1.2.11 y pytest 8.4.2.
+Los imports del backend también se comprobaron en Python 3.12. Estos comandos
+ejecutan pruebas sin claves ni red; aún no arrancan el producto CLI/Streamlit.
+El contrato de cliente está en [docs/specs/contratos.md](docs/specs/contratos.md)
+y la correspondencia con el enunciado en
+[docs/specs/seguimiento_pb02.md](docs/specs/seguimiento_pb02.md).
+
+### Demostración del grafo sin servicios externos
+
+Desde la raíz, con las dependencias del backend instaladas:
+
+```powershell
+python -m agentes.demo
+python -m agentes.demo --decision aprobar
+python -m agentes.demo --decision rechazar
+python -m agentes.demo --escenario abstained
+python -m agentes.demo --escenario error
+python -m agentes.demo --interactivo
+```
+
+El comando sin decisión muestra el plan pendiente. La salida JSON identifica
+todos los datos como **demo simulada**. El modo interactivo pide aprobar,
+rechazar o salir; ninguna aprobación se toma por defecto. Estos comandos
+demuestran el esqueleto y no sustituyen la CLI final ni el RAG/tools reales.
+Los checkpoints se pierden al finalizar el proceso.
+
+Para conectar un cliente de prueba, conservar el servicio entre turnos:
+
+```python
+from agentes.demo import crear_servicio_demo
+
+servicio = crear_servicio_demo()  # conservar esta instancia en el cliente
+hilo = servicio.nueva_conversacion()
+estado = servicio.procesar_turno("Pedido de prueba", hilo)
+# Después de que la persona decida; True aprueba y False rechaza:
+estado = servicio.resolver_plan(hilo, True, plan_id=estado["plan_id"])
+```
+
+En Streamlit, conservar `servicio` e `hilo` entre reruns, mostrar el plan antes
+de resolverlo y usar los botones para enviar la decisión. No ejecutar la línea
+de resolución automáticamente al recibir el plan. David integra esa UI.
+La [especificación de demo](docs/specs/demo.md) describe escenarios y aceptación.
+
+## Visualización del grafo
+
+La explicación del recorrido síncrono, el supervisor, el router y la pausa
+de aprobación humana está en
+[Flujo de supervisor y grafo](docs/specs/flujo_supervisor_grafo.md).
+
+Para generar el dibujo ASCII del grafo con los nodos simulados:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m scripts.ver_grafo
+```
+
+El script muestra el dibujo en la terminal y lo guarda en
+`docs/specs/grafo_actual.txt`. La visualización utiliza `grandalf`,
+incluido en las dependencias de desarrollo.
+
+Este dibujo representa las conexiones del grafo; no ejecuta consultas
+al RAG ni a la API y no acredita su integración.
+
 ## Reparto acordado — 13 de octubre de 2026
 
 Este reparto sustituye la propuesta anterior. Las responsabilidades pendientes no se consideran asignadas automáticamente a quien inicia el grafo.
@@ -79,6 +159,10 @@ final. Deben existir al menos dos especialistas reales al cerrar el PB02.
 ## Contratos para avanzar con autonomía
 
 Documentarlos en `docs/specs/contratos.md`:
+
+La recepción e integración de las interfaces de Héctor y Miguel se prepara con
+la [especificación de integración de especialistas](docs/specs/integracion_especialistas.md).
+Completar su ficha y mapeo con el contrato real antes de implementar cada adaptador.
 
 - Campos del estado, propietario de cada actualización y reset por pedido.
 - Resultados de tools: datos, evidencias, abstención, error y metadatos.
