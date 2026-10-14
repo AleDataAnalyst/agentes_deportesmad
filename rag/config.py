@@ -79,6 +79,9 @@ MAX_CHUNKS: int = int(os.getenv("MAX_CHUNKS", "5"))
 
 # --- Generación (online) ---
 GEN_TEMPERATURE: float = float(os.getenv("GEN_TEMPERATURE", "0.2"))
+# Tope de tokens de salida del LLM generador (RAG online).
+GEN_MAX_TOKENS: int = int(os.getenv("GEN_MAX_TOKENS", "1024"))
+
 ABSTENTION_MESSAGE: str = os.getenv(
     "ABSTENTION_MESSAGE",
     "No dispongo de esa información en los documentos proporcionados.",
@@ -111,7 +114,8 @@ TAG_SCORING_DEDUP: bool = os.getenv("TAG_SCORING_DEDUP", "true").lower() == "tru
 # Tope de tokens de salida del LLM de etiquetado. Debe cubrir el razonamiento
 # interno del modelo (p. ej. Gemini destina crédito de token al razonamiento)
 # más el JSON final; MAX_256 provocaba el JSON truncado (finishReason MAX_TOKENS).
-TAG_MAX_TOKENS: int = int(os.getenv("TAG_MAX_TOKENS", "1536"))
+TAG_MAX_TOKENS: int = int(os.getenv("TAG_MAX_TOKENS", "1024"))
+
 
 DEDUP_UMBRAL: float = float(os.getenv("DEDUP_UMBRAL", "0.93"))  # punto de partida para all-minilm-l6-v2
 # Auditoría de pares descartados: una línea JSON por descarte (coseno/clave,
@@ -128,7 +132,7 @@ MAX_QUESTIONS: int = int(os.getenv("MAX_QUESTIONS", "1"))
 # Ruta del JSONL de salida (una línea por texto con sus preguntas).
 QUESTION_SET_RUTA: str = os.getenv("QUESTION_SET_RUTA", "output/question_set.json")
 # Timeout por llamada al chat del LLM generador.
-GEN_TIMEOUT: int = int(os.getenv("GEN_TIMEOUT", "120"))
+GEN_TIMEOUT: int = int(os.getenv("GEN_TIMEOUT", "140"))
 
 # --- ChromaDB ---
 CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./output/chroma_db")
