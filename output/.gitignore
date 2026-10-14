@@ -1,0 +1,4 @@
+/chromadb
+*.json
+*.jsonl
+informe_index*.md
