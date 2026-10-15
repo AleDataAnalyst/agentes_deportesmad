@@ -71,6 +71,10 @@ def _embed_ollama(textos: list[str], model: str | None = None,
             payload["dimensions"] = dim
         t_lote = time.time()
         resp = session.post(url, json=payload, timeout=EMBED_TIMEOUT)
+        if resp.status_code >= 400:
+            raise RuntimeError(
+                f"Ollama {resp.status_code} en /api/embed (lote {i}): {resp.text[:500]}"
+            )
         resp.raise_for_status()
         data = resp.json()
         if "embeddings" not in data:
