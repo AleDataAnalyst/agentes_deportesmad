@@ -26,7 +26,7 @@ python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/c
 
 #### IMPORTANTE:  
 
-Si lo que se quiere hacer es una reindexación (porque ya se ha hecho la indexación) es preciso indicarlo con el parámetro recreate_index=True en la llamada al final del comando porque sino dará **error de dimensiones en ChromaDB**:
+Si lo que se quiere hacer es una reindexación (porque ya se ha hecho la indexación) es preciso indicarlo con el parámetro recreate_index=True en la llamada al final del comando, porque de lo contrario dará **error de dimensiones en ChromaDB**:
 
 ```bash  
 python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/corpus', recreate_index=True)"
@@ -63,9 +63,9 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 ### COmportamientos de grounding y abstención
 
 - **Dos capas de abstención independientes:**
-  - Guardrail de distancia: si la mejor distancia coseno > UMBRAL_ABSTENCION (0.65) → `abstained=True` sin llamar al LLM.
-  - Abstención del LLM: si no hay evidencia suficiente devuelve literalmente `ABSTENTION_MESSAGE` y se marca `abstained=True`.
--   `rag_preguntar` nunca lanza: en error devuelve `ABSTENTION_MESSAGE` (no rompe la cadena del agente).
+  - **Guardrail de distancia:** si la mejor distancia coseno > UMBRAL_ABSTENCION (0.65) → `abstained=True` sin llamar al LLM.
+  - **Abstención del LLM:** si no hay evidencia suficiente devuelve literalmente `ABSTENTION_MESSAGE` y se marca `abstained=True`.
+- `rag_preguntar` nunca lanza: en error devuelve `ABSTENTION_MESSAGE` (no rompe la cadena del agente).
 - `recuperar` sí lanza `ValueError` (pregunta vacía, `top_k <= 0`) y devuelve `[]` si la colección está vacía.
 - **Sin estado:** cada llamada es independiente (segura para llamarla varias veces en un ciclo de agente).
 

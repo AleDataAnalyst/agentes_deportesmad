@@ -10,7 +10,7 @@ porque un TSV con primer campo repetido (p. ej. ``Codigo_temporada``) el
 advisor lo clasificaría ``entity_doc`` y la dedup ``exact_key`` colapsaría
 todas las filas en un único documento.
 """
-
+import urllib.parse
 import hashlib
 import os
 from pathlib import Path
@@ -122,7 +122,8 @@ def _load_txt(path: str) -> list[Document]:
     """
     if _es_tabular(path):
         columnas, filas = leer_filas_csv(path)
-        source = os.path.basename(path)
+        # Implementación de urllib.parse.unquote
+        source = urllib.parse.unquote(Path(path).name)
         advice = CsvAdvice(
             source=source,
             csv_kind="tabular_txt",

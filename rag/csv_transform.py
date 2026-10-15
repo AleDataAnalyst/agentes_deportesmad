@@ -33,10 +33,22 @@ def limpiar_valor(valor: object) -> str:
 
 
 def _base_texto(row: dict[str, str], columnas: list[str]) -> str:
-    """Texto plano de una fila: 'k: v | k: v | ...' (solo valores no vacíos)."""
-    return " | ".join(
-        f"{c}: {row[c]}" for c in columnas if row.get(c)
-    )
+    """
+    Convierte una fila de datos (diccionario) en una cadena de texto densa
+    formato: NombreColumna: Valor | NombreColumna2: Valor2
+    """
+    partes = []
+    for col_name in columnas:
+        # Recuperamos el valor usando el nombre de la columna (key)
+        val = row.get(col_name) 
+        
+        # 1. Filtrado de ruido: No añadimos entradas si el valor es None o está vacío.
+        if val is not None and str(val).strip() != "":
+            # 2. Formato enriquecido: Etiqueta: Dato
+            partes.append(f"{col_name}: {val}")
+            
+    # 3. Concatenación: Unir todas las partes con un separador limpio
+    return " | ".join(partes)
 
 
 def entidad_a_documento(

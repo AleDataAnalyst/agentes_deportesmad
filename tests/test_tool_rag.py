@@ -18,13 +18,15 @@ from agentes.tools.rag import rag_preguntar
 
 CLAVES_CONTRATO = {"respuesta", "fuentes", "abstained", "error"}
 
-# --- Set de evaluación (22 preguntas; 4 fuera de corpus) ---
+# Set de evaluación (22 preguntas; 4 fuera de corpus) 
 _RUTA_EVAL = pathlib.Path(__file__).parent / "evaluation_questions.json"
-EVALS: list[tuple[str, bool]] = []
+EVALS: list[tuple[str, bool, str | None]] = []
 if _RUTA_EVAL.exists():
     _qs = json.loads(_RUTA_EVAL.read_text(encoding="utf-8"))
-    EVALS = [(q["pregunta"], bool(q.get("out_of_corpus"))) for q in _qs]
-
+    EVALS = [
+        (q["pregunta"], bool(q.get("out_of_corpus")), q.get("fuente_esperada"))
+        for q in _qs
+    ]
 
 def _indice_disponible() -> bool:
     from rag.retrieve import obtener_coleccion
@@ -34,7 +36,7 @@ def _indice_disponible() -> bool:
 INDICE_OK = _indice_disponible()
 
 
-# --- Forma del dict (no requiere índice) ---
+# Forma del dict (no requiere índice) 
 
 def test_claves_de_contrato():
     r = rag_preguntar("¿Cuánto cuesta el abono anual?")
@@ -45,7 +47,7 @@ def test_claves_de_contrato():
     assert r["error"] is None or isinstance(r["error"], str)
 
 
-# --- Validación pre-LLM (no requiere índice) ---
+# Validación pre-LLM (no requiere índice) 
 
 def test_consulta_vacia_devuelve_error():
     r = rag_preguntar("")
@@ -55,7 +57,7 @@ def test_consulta_vacia_devuelve_error():
     assert r["fuentes"] == []
 
 
-# --- Robustez: la tool nunca lanza ---
+# Robustez: la tool nunca lanza 
 
 def test_error_interno_no_lanza(monkeypatch):
     import agentes.tools.rag as mod
@@ -72,12 +74,12 @@ def test_error_interno_no_lanza(monkeypatch):
     assert r["abstained"] is False
 
 
-# --- Integración contra el índice (22 preguntas de evaluación) ---
+# Integración contra el índice (22 preguntas de evaluación) 
 
 @pytest.mark.skipif(not EVALS, reason="falta evaluation_questions.json")
 @pytest.mark.skipif(not INDICE_OK, reason="índice no indexado (ejecutar_pipeline)")
-@pytest.mark.parametrize("pregunta, out_of_corpus", EVALS)
-def test_eval_set(pregunta, out_of_corpus):
+@pytest.mark.parametrize("pregunta, out_of_corpus, fuente_esperada", EVALS)
+def test_eval_set(pregunta, out_of_corpus, fuente_esperada):
     r = rag_preguntar(pregunta)
     assert r["error"] is None
     if out_of_corpus:
@@ -86,3 +88,6 @@ def test_eval_set(pregunta, out_of_corpus):
         assert r["abstained"] is False
         assert r["respuesta"].strip()
         assert r["fuentes"], "debe citar al menos una fuente"
+        if fuente_esperada:
+            assert fuente_esperada in r["fuentes"], \
+                f"debe citar {fuente_esperada}; fuentes={r['fuentes']}"

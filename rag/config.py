@@ -58,6 +58,9 @@ EMBED_MODEL: str = _resolver(EMBED_PROVIDER, OLLAMA_EMBED_MODEL, HF_EMBED_MODEL,
 GEN_MODEL: str = _resolver(GEN_PROVIDER, OLLAMA_GEN_MODEL, HF_GEN_MODEL, GOOGLE_GEN_MODEL, "GEN_PROVIDER")
 TAG_MODEL: str = _resolver(TAG_PROVIDER, OLLAMA_TAG_MODEL, HF_TAG_MODEL, GOOGLE_TAG_MODEL, "TAG_PROVIDER")
 
+# --- Modo de recuperación con BM25 (especie de reranking encontrado)
+RETRIEVAL_MODE: str = os.getenv("RAG_RETRIEVAL_MODE", "hibrido") # "vectorial" | "híbrido"
+
 # --- Ollama (offline, compartido por los 3 interruptores) ---
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 
