@@ -32,3 +32,6 @@ faiss-cpu>=1.15.1
 requests>=2.34.2
 pypdf>=6.20.1
 langchain-ollama>=1.1.0
+-r requirements.txt
+pytest==8.4.2
+grandalf
