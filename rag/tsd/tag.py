@@ -15,10 +15,16 @@ from langchain_core.documents import Document
 
 from transformers import pipeline
 
-from config import (
+from ..config import (
     OLLAMA_BASE_URL,
-    TAG_PROVIDER, TAG_MODEL, HF_TAG_MODEL, GOOGLE_TAG_MODEL,
-    HF_DEVICE, HF_TOKEN, GOOGLE_API_KEY, TAG_MAX_TOKENS,
+    TAG_PROVIDER, 
+    TAG_MODEL, 
+    HF_TAG_MODEL, 
+    GOOGLE_TAG_MODEL,
+    HF_DEVICE, 
+    HF_TOKEN, 
+    GOOGLE_API_KEY, 
+    TAG_MAX_TOKENS,
 )
 
 PROMPT = """Clasifica este documento sobre deporte municipal de Madrid.

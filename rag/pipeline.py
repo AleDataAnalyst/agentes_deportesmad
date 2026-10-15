@@ -10,7 +10,7 @@ parámetros aplicados y las métricas de la ejecución para la toma de decisione
 import json
 import statistics
 import time
-from collections import Counter
+# from collections import Counter
 from pathlib import Path
 
 import numpy as np
