@@ -33,12 +33,13 @@ from .config import (
     GEN_MODEL,
     GEN_PROVIDER,
     MAX_CHUNKS,
+    RETRIEVAL_MODE,
     TOP_K,
 )
 from .generate import generar
 from .logging_utils import log_error, log_info, log_consulta, medir_tiempo
 from .prompts import construir_prompt_desde_chunks
-from .retrieve import recuperar
+from .retrieve import recuperar, recuperar_hibrido
 
 
 # Umbral de distancia coseno por encima del cual consideramos "sin evidencia".
@@ -113,11 +114,15 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
 
     pregunta = pregunta.strip()
     metricas: dict[str, float] = {}
-
+    metricas["retrieval_mode"] = RETRIEVAL_MODE
+    
     # 2) Retrieval
     try:
         with medir_tiempo("retrieval", metricas):
-            chunks = recuperar(pregunta, top_k=k)
+            if RETRIEVAL_MODE == "hibrido":
+                chunks = recuperar_hibrido(pregunta, top_k=k)
+            else:
+                chunks = recuperar(pregunta, top_k=k)
     except Exception as e:
         log_error(f"Fallo en retrieval: {e}")
         return _resultado_error(f"Error recuperando contexto: {e}")
