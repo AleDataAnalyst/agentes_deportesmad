@@ -31,7 +31,7 @@ def construir_grafo_documental():
 _grafo = None
 
 def obtener_grafo_documental():
-    """Singleton: el cliente usa esto, nunca nodo_documental directamente."""
+    """El cliente usa esto, nunca nodo_documental directamente."""
     global _grafo
     if _grafo is None:
         _grafo = construir_grafo_documental()
