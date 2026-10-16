@@ -33,20 +33,22 @@
   {
     "id": 6,
     "pregunta": "¿El abono de piscina es ilimitado o tiene un número máximo de días?",
-    "categoria_esperada": "abonos",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
-  },
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },  
   {
     "id": 7,
     "pregunta": "¿Puedo comprar el abono online o tengo que ir a la instalación?",
     "categoria_esperada": "abonos",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
+    "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
   },
   {
     "id": 8,
     "pregunta": "¿Puedo reservar siendo no empadronado?",
-    "categoria_esperada": "reservas",
-    "fuente_esperada": "reglamento_instalaciones.pdf"
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
   },
   {
     "id": 9,
@@ -70,8 +72,9 @@
   {
     "id": 12,
     "pregunta": "¿Puedo usar las instalaciones si no soy residente de Madrid?",
-    "categoria_esperada": "normativa",
-    "fuente_esperada": "reglamento_instalaciones.pdf"
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
   },
   {
     "id": 13,
@@ -114,7 +117,7 @@
     "id": 19,
     "pregunta": "¿Cuándo se celebran los Juegos Deportivos Municipales 2026-2027?",
     "categoria_esperada": "agenda",
-    "fuente_esperada": "211549-0-juegos-deportivos-actual.txt"
+    "fuente_esperada": "BasesDeportesEquipo47jdm_1Sp.pdf"
   },
   {
     "id": 20,

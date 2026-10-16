@@ -124,6 +124,24 @@ def grupo_a_documento(
             "chunking_hint": "light_chunk",
         },
     )
+    
+def fila_a_documento_enriquecido(
+    fila: dict[str, str], nombre_fuente: str) -> list[Document]:
+    """
+    Convierte una fila de diccionario (CSV) en un documento de texto denso,
+    etiquetando cada valor con su nombre de columna.
+    """
+    partes_enriquecidas: list[str] = []
+    
+    for col_name, value in fila.items():
+        # 1. filtrado de ruido: ignorar nulos o vacíos
+        if value is None or str(value).strip() == "":
+            continue
+        # 2. Formato enriquecido: Columna: Valor
+        partes_enriquecidas.append(f"{col_name}: {value}")
+        
+    # 3. Concatenación: Unir todas las partes con un separador claro (Pipe |)
+    return f"Fuente: {nombre_fuente} | " + " | ".join(partes_enriquecidas)
 
 
 def filas_a_documentos(
@@ -132,6 +150,10 @@ def filas_a_documentos(
     """Fila por documento (row_as_doc: tablas textuales o unknown_csv)."""
     docs: list[Document] = []
     for i, row in enumerate(rows):
+        # aplicar la solución enriquecida
+        page_content = fila_a_documento_enriquecido(row, source)
+        
+        # añadir al documento que ya tenía construído
         docs.append(
             Document(
                 page_content=_base_texto(row, columnas),

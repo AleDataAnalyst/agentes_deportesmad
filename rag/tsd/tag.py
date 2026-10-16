@@ -154,7 +154,7 @@ def etiquetar(documentos: list[Document]) -> list[Document]:
     
     t0 = time.time()
     for fuente, doc in por_fuente.items():
-        prompt = PROMPT.replace("{text}", doc.page_content[:8000])  # DOCUMENTAR: el tag solo ve los primeros 6000 caracterers del documento fuente
+        prompt = PROMPT.replace("{text}", doc.page_content[:8000])  # DOCUMENTAR: el tag solo ve los primeros 8000 caracterers del documento fuente
         try:
             d = _parse_json(fn_chat(prompt, modelo))
             if not isinstance(d, dict):

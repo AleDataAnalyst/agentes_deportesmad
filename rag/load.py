@@ -124,6 +124,7 @@ def _load_txt(path: str) -> list[Document]:
         columnas, filas = leer_filas_csv(path)
         # Implementación de urllib.parse.unquote
         source = urllib.parse.unquote(Path(path).name)
+        print(f"source: {source}")
         advice = CsvAdvice(
             source=source,
             csv_kind="tabular_txt",
