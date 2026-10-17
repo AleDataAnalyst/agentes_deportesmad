@@ -1,5 +1,11 @@
 # Base de infraestructura de síntesis y aplicar
 
+Actualización del 17/10/2026: las guardias descritas aquí conservan sus firmas.
+Ya existen las implementaciones deterministas `sintetizar(state)` y
+`aplicar(state)`, documentadas con su montaje y verificación vigente en
+[síntesis y resolución del plan](sintetizar_aplicar.md). Los apartados siguientes
+recogen el alcance de la extracción original y sus comprobaciones históricas.
+
 Alcance autorizado el 15/10/2026: extraer las guardias existentes del grafo
 a módulos reutilizables. La lógica completa y la integración de los nodos
 reales quedan pendientes de confirmación. No cambia el contrato del estado,
