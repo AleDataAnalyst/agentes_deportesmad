@@ -48,3 +48,28 @@ python -m pytest -q
 incluido el rechazo previo a ejecutar una implementación y la propagación
 de sus errores. Las pruebas del servicio y la demo comprueban el recorrido
 integrado, la pausa y la resolución con las envolturas extraídas.
+
+### Importaciones tras integrar develop (17/10/2026)
+
+Los paquetes `agentes.nodes` y `agentes.tools` resuelven sus exportaciones
+documentales cuando se solicitan, mediante `__getattr__`. Conservan los
+callables públicos `nodo_documental` y `rag_preguntar`. Importar el supervisor,
+síntesis, aplicar o la demo ya no importa automáticamente el especialista
+documental y sus dependencias de modelos. Solicitar o importar directamente
+el especialista sigue requiriendo sus dependencias reales.
+
+Verificación con Python 3.14 del sistema (la `.venv` local no tenía pytest):
+
+```powershell
+python -m pytest -q tests/test_import_boundaries.py tests/test_infra_sintetizar_aplicar.py tests/test_sync_integration.py tests/test_agent_service.py tests/test_state.py tests/test_supervisor.py tests/test_demo.py tests/test_contracts.py tests/test_async.py tests/test_graph_hitl.py tests/test_clients.py
+```
+
+Resultado: 198 pruebas superadas. La regresión de importaciones se ejecuta en
+procesos nuevos y bloquea explícitamente la carga documental/RAG mientras
+comprueba la demo hasta la pausa HITL. Las exportaciones se comprueban con
+dobles explícitos; no se acredita la ejecución del RAG.
+
+`python -m pytest -q` sigue bloqueado durante la colección de
+`test_node_documental.py`, `test_tool_rag.py` y `test_tools.py` por falta de
+`sentence_transformers`. No se ejecutó la suite completa ni se omitieron o
+modificaron esas pruebas. La validación del entorno y del RAG queda pendiente.
