@@ -9,6 +9,11 @@ El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervis
 Inicio de desarrollo sobre una **estructura base**. Los módulos con docstrings indican responsabilidades previstas; no acreditan implementación ni pruebas.
 El RAG se incorporará en `rag/` tras adaptar su integración.
 
+La [base de infraestructura de síntesis y aplicar](docs/specs/infra_sintetizar_aplicar.md)
+está separada del montaje del grafo: valida las implementaciones inyectadas
+y conserva la pausa HITL. La lógica de esos nodos y la conexión de especialistas
+reales siguen pendientes de confirmación; la demo continúa usando dobles.
+
 Las capacidades descritas en este README son objetivos del PB02, no una
 confirmación de que ya funcionan. Los comandos de ejecución, dependencias
 operativas y evidencias se documentarán al integrar cada parte.
