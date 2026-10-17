@@ -1,4 +1,10 @@
-"""Herramientas del agente, accesibles mediante el registro autorizado.
+# agentes/tools/__init__.py
+"""agentes.tools — tools para el agente de IA, accesibles mediante
+registro autorizado.
 
-Separar adaptadores RAG, HTTP, visión y utilidades deterministas.
+API pública:
+    rag_preguntar(consulta: str) -> dict
 """
+from .rag import rag_preguntar
+
+__all__ = ["rag_preguntar"]
