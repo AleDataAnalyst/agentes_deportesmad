@@ -24,13 +24,27 @@ def _init_session():
 def render():
     _init_session()
 
+    estado = st.session_state.estado
+    thread_id = st.session_state.thread_id
+    
     # Sidebar
     with st.sidebar:
         st.header("Conversación")
+        st.caption(f"**thread_id:** `{thread_id}`")
         if st.button("Nueva conversación", use_container_width=True):
             st.session_state.messages = []
             st.session_state.estado = None
+            st.session_state.thread_id = "demo-simulado"  # Simulación de nuevo de thread_id; en producción, se generaría uno nuevo desde el backend.
             st.rerun()
+
+        st.divider()
+
+        # Controles HITL
+        if estado and estado.get("pendiente_hitl"):
+            render_hitl(
+                estado=estado,
+                on_aprobar=lambda: st.toast("Solicitud aprobada."),
+                on_rechazar=lambda: st.toast("Solicitud rechazada.")) 
 
     # Título
     st.title("🏟️ Asistente Deporte Municipal Madrid")
@@ -46,3 +60,6 @@ def render():
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
+    #debug
+    if estado:
+        render_debug(estado=estado, thread_id=thread_id)
