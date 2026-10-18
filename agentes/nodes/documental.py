@@ -82,8 +82,7 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
     pedido = str(state.get("pedido") or "").strip()
     contexto_permitido: list[str] | None = state.get("contexto_permitido")
     image_id = state.get("image_id")
-    # Cero es un límite explícito: no debe convertirse en el valor por defecto.
-    presupuesto = int(state.get("presupuesto_tools", PRESUPUESTO_DEFECTO))
+    presupuesto = int(state.get("presupuesto_tools") or PRESUPUESTO_DEFECTO)
     preparar_borrador = bool(state.get("preparar_borrador", False))
 
     errores: list[str] = []

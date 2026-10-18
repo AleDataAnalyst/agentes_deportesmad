@@ -1,70 +1,31 @@
-# Conectar el documental real al grafo supervisor síncrono
+# Conectar el documental real al grafo supervisor
 
-Borrador para revisión manual. Destino: `develop`. La PR #5 sigue abierta;
-si se trasladan estos commits a `feature/supervisor-grafo`, este texto puede
-sustituir su descripción. Si se conserva `integration/especialistas-reales`,
-abrir una PR desde esa rama y coordinar el solapamiento con #5 antes del merge.
-No se ha publicado ni actualizado ninguna PR.
+Borrador manual hacia `develop`. La PR #5 seguía abierta al consultar GitHub.
+No se publica ni modifica automáticamente ninguna PR.
 
-## Problema y comportamiento resultante
+El grafo admitía especialistas inyectados, pero faltaba un montaje con el
+documental real. `crear_servicio_real()` conecta
+`obtener_grafo_documental().invoke` al adaptador existente y a `AgentService`.
+Reutiliza supervisor, router, síntesis y aplicar, con la pausa HITL y resolución
+del plan vigente. La construcción no lanza consultas y no hay fallback a demo.
 
-El backend tenía síntesis y cierre informativos, pero su montaje solo ofrecía
-especialistas simulados. Este cambio conecta los nodos al grafo y al supervisor;
-los clientes quedan fuera del alcance y Streamlit corresponde a David.
+Instalaciones se declara no disponible desde el montaje hasta que su responsable
+publique el nodo o una operación pública consumible. No se implementa su
+especialista ni se utilizan datos simulados. CLI y Streamlit quedan intactos.
 
-Se añade un montaje real reutilizable que conecta la puerta pública
-`obtener_grafo_documental().invoke` con el adaptador documental y `AgentService`.
-Reutiliza el supervisor, la síntesis y aplicar existentes. Construir el servicio
-no consulta el RAG. Se conserva la pausa HITL y la resolución con el plan vigente.
-La demo permanece como modo explícito,
-sin sustituciones automáticas cuando falla el RAG.
+La PR no modifica internamente los nodos, el pipeline RAG, sus dependencias ni
+sus pruebas. Los fallos de esas implementaciones se trasladan a sus responsables.
 
-El montaje declara instalaciones no disponibles: la rama inspeccionada contiene
-la consulta CKAN privada, pero todavía no una operación pública ni el nodo
-consumible. No se utiliza un centro arbitrario ni información simulada.
+La verificación del montaje usa una tool RAG doble explícita y comprueba rutas,
+traducción de contratos, fuentes, errores, pausa, aprobación, rechazo,
+idempotencia, plan antiguo y aislamiento. No certifica recuperación real.
+El diagnóstico real queda bloqueado por ausencia del índice configurado y se
+detiene antes de invocar el RAG, para no crear almacenamiento automáticamente.
 
-`app.py`, `main.py`, `clientes/` y sus pruebas permanecen como en `e36b563`.
+Resultado: **299 pruebas del backend y montaje superadas**. Se excluyen
+expresamente las tres suites de especialistas; permanecen intactas y sus fallos
+internos siguen pendientes de sus responsables. No se afirma éxito de la suite
+completa ni de consultas reales con recuperación documental.
 
-## Compatibilidad
-
-Se corrigen fallos pequeños reproducidos: monkeypatch de REGISTRY, presupuesto
-cero y constructor HuggingFace con variables sin definir. La carga del pipeline
-se retrasa hasta la consulta y los errores de dependencias viajan por la tool.
-Consultar Chroma exige un índice y colección existentes; no crea almacenamiento.
-La colección de pruebas no consulta Chroma y las evaluaciones con modelos son
-opt-in, conservando sus aserciones.
-
-No se han modificado la calidad de retrieval, prompts, chunking ni la política
-de aprobación. El cierre continúa siendo informativo, sin acciones externas.
-
-## Validación y límites
-
-- Suite del backend: **314 pruebas superadas y 44 evaluaciones con modelos
-  omitidas explícitamente**.
-- `pip check` correcto en Python 3.14.2.
-- RAG real: cuatro entradas observadas a tool, pipeline y retrieval híbrido,
-  sin dobles. Todas devuelven `RAG_INDEX_MISSING`, sin fuentes recuperadas ni
-  llamadas a embeddings/generación. No se afirma éxito de recuperación.
-- Servicio real: pausa, aprobación, rechazo, siguiente pedido, plan antiguo,
-  idempotencia e hilos aislados verificados con ese error real.
-- Las pruebas del montaje comprueban también el orden de rutas del supervisor:
-  documental, instalaciones, sintetizar y FINISH, antes de reanudar aplicar.
-- HTTP municipal: pendiente por falta de operación pública del especialista.
-
-Los resultados exactos, comandos y evidencia de llamadas a funciones originales
-están en [integración real](integracion_real.md) y
-[evidencia real](evidencia_integracion_real.json). Las pruebas con tool doble
-se identifican como montaje mixto y no certifican el RAG ni HTTP reales.
-
-El entorno carece del índice configurado. La prueba real debe distinguir una
-llamada efectiva al pipeline que devuelve error de una recuperación y generación
-exitosas. No se ha generado ni reindexado un corpus para ocultar ese requisito.
-
-## Arranque
-
-```powershell
-.\.venv\Scripts\python.exe -m scripts.smoke_real
-```
-
-Los cambios locales anteriores del dataset golden y otros documentos se
-mantienen fuera de los commits de esta integración.
+Detalle de archivos, comandos y resultados en
+[conexión del supervisor](integracion_real.md).

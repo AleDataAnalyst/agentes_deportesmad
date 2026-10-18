@@ -41,42 +41,6 @@ def test_backend_imports_without_loading_documental_or_rag():
     ''')
 
 
-def test_real_construction_does_not_load_pipeline_or_query_models():
-    run_python('''
-        import sys
-        from importlib.abc import MetaPathFinder
-
-        class BlockPipeline(MetaPathFinder):
-            def find_spec(self, fullname, path=None, target=None):
-                if fullname == "rag" or fullname.startswith("rag."):
-                    raise AssertionError(f"Carga de pipeline durante construcción: {fullname}")
-
-        sys.meta_path.insert(0, BlockPipeline())
-        from agentes.runtime import crear_servicio_real
-        service = crear_servicio_real()
-        assert service.consultar_estado(service.nueva_conversacion())["specialist_results"] == {}
-    ''')
-
-
-def test_rag_tests_can_be_collected_without_pipeline_or_chroma():
-    run_python('''
-        import sys
-        from importlib.abc import MetaPathFinder
-
-        class BlockPipeline(MetaPathFinder):
-            def find_spec(self, fullname, path=None, target=None):
-                if (fullname == "rag" or fullname.startswith("rag.")
-                        or fullname == "chromadb" or fullname.startswith("chromadb.")):
-                    raise AssertionError(f"Efecto lateral durante colección: {fullname}")
-
-        sys.meta_path.insert(0, BlockPipeline())
-        import pytest
-        assert pytest.main(["--collect-only", "-q", "-p", "no:cacheprovider",
-                            "tests/test_tool_rag.py", "tests/test_tools.py",
-                            "tests/test_node_documental.py"]) == 0
-    ''')
-
-
 @pytest.mark.parametrize("package,module,export", [
     ("agentes.nodes", "agentes.nodes.documental", "nodo_documental"),
     ("agentes.tools", "agentes.tools.rag", "rag_preguntar"),

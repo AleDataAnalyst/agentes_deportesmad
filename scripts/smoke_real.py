@@ -42,6 +42,17 @@ def comprobar():
         "env_presence": {key: bool(getattr(config, key)) for key in ("GOOGLE_API_KEY", "HF_TOKEN")},
         "http_instalaciones": "no ejecutado: sin operación pública integrada",
     }
+    # El RAG del especialista puede crear una colección al abrirla. Este
+    # preflight pertenece al diagnóstico de integración y evita invocarlo sin
+    # almacenamiento preparado; no modifica su implementación ni configuración.
+    if not report["index_file_present"]:
+        report.update({
+            "blocked": "RAG_INDEX_MISSING: falta el índice configurado",
+            "rag_executed": False,
+            "retrieval_generation_success": False,
+            "original_calls": {},
+        })
+        return report
     previous = sys.getprofile()
     try:
         sys.setprofile(observe)

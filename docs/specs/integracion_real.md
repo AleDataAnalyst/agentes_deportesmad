@@ -1,108 +1,56 @@
-# Integración de especialistas reales
+# Conexión real del grafo supervisor
 
-Revisión del 18/10/2026. Rama local `integration/especialistas-reales`, creada
-desde `feature/supervisor-grafo` en `e36b563`. No se han hecho merges, pushes
-ni cambios de ramas de compañeros.
+Alcance confirmado: montaje e integración del grafo supervisor. Los nodos de
+Héctor y Miguel y los clientes de David permanecen bajo su responsabilidad.
 
-## Estado de Git contrastado después del fetch
+## Qué se conecta
 
-Se ejecutó `git fetch origin --prune`. El sandbox requirió permiso de escritura
-para `FETCH_HEAD`; se repitió con permiso y terminó correctamente.
+`agentes/runtime.py::crear_servicio_real()` obtiene la puerta pública
+`obtener_grafo_documental()` y pasa su método `invoke` al adaptador existente.
+El nodo adaptado se inyecta en `AgentService`, junto a las implementaciones
+existentes `sintetizar` y `aplicar`. Pasar el método no ejecuta una consulta.
 
-| Referencia | Estado observado |
-|---|---|
-| `origin/develop` y `develop` | `6e60890`, PR #4 documental integrada; coinciden, sin fast-forward pendiente |
-| Rama inicial y su remoto | `e36b563`, sin divergencia, siete commits sobre develop |
-| `origin/feature/especialista-documental` | `0420402`, ya ancestro de develop; no se repite su integración |
-| `origin/feature/instalaciones-avisos` | `d8c168a`, herramienta privada CKAN y documentación, fuera de develop |
-| `origin/feature/streamlit-ui` | `c6052b3`, presentación y callbacks provisionales, fuera de develop |
-| PR #5 | Abierta y `merged=false`; base develop `6e60890`, head `e36b563` |
+El adaptador conserva respuesta, fuentes, errores, abstención, limitaciones,
+eventos y correlación en `specialist_results`. Su lógica ya existía: solo se
+actualiza su explicación para indicar el montaje real.
 
-Los siete commits existentes de la rama inicial se conservan. Develop ya es
-ancestro del HEAD inicial, por lo que incorporarlo otra vez no aportaría cambios.
-No ha sido necesario un worktree ni mover archivos: no había integración Git
-pendiente que entrase en conflicto con el árbol modificado.
+`AgentService`, `graph.py` y el supervisor ya admitían la inyección. Se utiliza
+su topología existente: supervisor → documental → supervisor → instalaciones
+→ supervisor → sintetizar → supervisor → FINISH → pausa antes de aplicar.
+La aprobación sigue en `resolver_plan`, con `update_state` e `invoke(None)`.
+Las guardias y eventos HITL se aplican una sola vez en el grafo principal.
 
-Se conservan fuera de los commits de esta entrega los cambios previos de
-`README.md`, `docs/specs/coordinacion_fase_integracion.md`,
-`docs/specs/golden_graph.md`, `docs/specs/revision_entorno_rag.md`,
-`output/debug_trace.diff`, `tests/data/` y `tests/test_golden_graph.py`.
-La prueba golden local se incluye en la verificación cuando se ejecuta toda la
-carpeta tests; esto no convierte ese trabajo previo en parte de esta entrega.
-No se encontraron archivos `AGENTS.md` aplicables en el repositorio o sus ancestros.
+Miguel todavía no publica un nodo ni una operación pública consumible en las
+referencias inspeccionadas. El montaje devuelve una abstención con
+`available=False` y una limitación explícita. Esa función queda en runtime,
+como declaración de ausencia; no implementa el especialista ni llama a su
+consulta privada CKAN. No hay datos simulados ni integración HTTP certificada.
 
-## Montaje ejecutable y alcance
+`crear_servicio(modo='real'|'demo')` selecciona explícitamente el montaje.
+Un fallo real no activa la demo. Construir el componente puede importar sus
+dependencias actuales; no se promete carga diferida del pipeline del especialista.
 
-`agentes.runtime.crear_servicio_real()` construye un `AgentService` con:
+## Archivos que pertenecen a esta integración
 
-- Documental: `obtener_grafo_documental()` de Héctor → método `invoke` →
-  `crear_adaptador_documental` → `specialist_results['documental']`.
-- Instalaciones: declaración explícita de capacidad no disponible, sin datos
-  ficticios ni llamadas HTTP. No se presenta como especialista funcional.
-- Síntesis: `sintetizar` determinista ya existente, con fuentes, restricciones,
-  errores y abstenciones. Aplicación: `aplicar` real ya existente, cierre
-  informativo; ninguna reserva, pago o acción externa.
+- `agentes/runtime.py`: montaje y declaración de instalaciones no disponibles.
+- `agentes/documental_adapter.py`: actualización de su docstring, sin cambios lógicos.
+- `tests/test_runtime.py`: pruebas del montaje con tool RAG doble explícita.
+- `scripts/smoke_real.py`: diagnóstico manual acotado, con preflight de índice.
+- Documentación de integración, handoff, evidencia y borrador de PR.
 
-Pasar `invoke` no lo ejecuta durante la construcción. El pipeline se carga al
-consultar. El adaptador existente mantiene respuesta, fuentes, errores,
-abstención, limitaciones, eventos y `request_id` nuevo por pedido. No escribe
-decisiones del supervisor ni aprobación. No se copia el especialista ni el RAG.
+Los archivos internos `agentes/nodes/`, `agentes/tools/rag.py`, `rag/`,
+`requirements.txt` y las pruebas originales de los especialistas coinciden con
+`e36b563`. También se mantienen intactos `app.py`, `main.py` y `clientes/`.
+Se retiraron del diff las correcciones internas y sus regresiones añadidas.
 
-El grafo supervisor continúa siendo el principal: supervisor, router,
-especialistas, síntesis, FINISH, checkpointer y
-`interrupt_before=['aplicar']`. `resolver_plan` escribe la decisión booleana
-mediante `update_state` y reanuda con `invoke(None)`. Las guardias se aplican
-una sola vez en `build_graph`; el montaje recibe las implementaciones concretas.
+Los problemas de presupuesto cero, constructor HuggingFace, monkeypatch sobre
+REGISTRY y acceso a Chroma durante colección siguen pendientes de sus responsables.
+No se corrigen ni se eliminan sus pruebas para presentar una suite completa verde.
 
-El supervisor conserva su política determinista actual; no se añade un LLM de
-enrutamiento. El estado y los checkpoints viven en memoria del proceso.
+## Uso y verificación
 
-### Instalaciones: bloqueo del contrato ejecutable
-
-En develop y la rama inicial, `agentes/nodes/instalaciones.py` y
-`agentes/tools/externa.py` eran documentación sin implementación ejecutable.
-La rama de Miguel añade `_consultar_catalogo_ckan()` y su normalización privada,
-pero no publica una función de consulta ni implementa el nodo. Los avisos HTML
-y fallback fechado figuran en contratos y documentación, sin ejecución vigente.
-`scripts/probar_api_municipal.py` es un diagnóstico separado de ocupación; no
-constituye la interfaz pública del catálogo o del especialista.
-
-Por la restricción de consumir exclusivamente operaciones públicas ya
-implementadas, no se importa su función privada ni se copia la herramienta.
-Se necesita que Miguel publique la operación/contrato. Hasta entonces el nodo
-devuelve `status='abstained'`, `available=False` y una limitación explícita.
-No elige un centro ni inventa filtros. No hay integración HTTP certificada.
-
-### Alcance del backend
-
-El alcance confirmado es conectar los nodos al grafo y al supervisor. Los cambios
-de clientes incorporados en la primera entrega se han retirado mediante un
-commit adicional, sin reescribir el historial. `app.py`, `main.py`, `clientes/`
-y `tests/test_clients.py` vuelven a su versión inicial `e36b563`. Streamlit
-corresponde a David y no se incorpora su rama en esta entrega.
-
-La conexión se concreta en `crear_servicio_real`: inyecta las implementaciones
-en `AgentService`, que llama a `build_graph`. La topología y el supervisor ya
-admitían esa inyección; no necesitan duplicar nodos ni nuevas decisiones.
-Las pruebas comprueban el recorrido documental → supervisor → instalaciones →
-supervisor → sintetizar → supervisor → FINISH → pausa previa a aplicar.
-
-## Entorno y arranque
-
-Se reutiliza `.venv`, Python 3.14.2, inicialmente solo con pip. La resolución
-completa de `requirements-dev.txt` terminó correctamente con ese intérprete:
-no se cambió Python ni se rebajaron los mínimos del RAG. Se declara dotenv para
-la configuración del backend. Streamlit queda fuera de las dependencias nuevas;
-el paquete instalado durante la primera entrega permanece en el entorno local.
-No se modifica el Python global.
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -m scripts.smoke_real
-```
-
-Uso programático del backend:
+Se conserva el entorno local preparado con Python 3.14.2. No se modifican las
+dependencias declaradas para esta conexión ni el Python global.
 
 ```python
 from agentes.runtime import crear_servicio_real
@@ -110,134 +58,57 @@ from agentes.runtime import crear_servicio_real
 servicio = crear_servicio_real()
 hilo = servicio.nueva_conversacion()
 estado = servicio.procesar_turno("Consulta sintética sobre un abono municipal", hilo)
-# Tras una decisión humana, usar resolver_plan(hilo, decision_bool,
-# plan_id=estado['plan_id']). El montaje no aprueba automáticamente.
+# Cuando exista una decisión humana, resolver_plan(hilo, decision_bool,
+# plan_id=estado['plan_id']) conserva el ciclo HITL del supervisor.
 ```
 
-`python -m agentes.demo` mantiene la demostración simulada independiente.
-
-La configuración del RAG sigue en `rag/config.py`: proveedores de embeddings
-y generación, modelos, directorio Chroma y colección deben corresponder al
-índice preparado por Héctor. No basta con copiar `.env.example`: algunos
-valores de ese ejemplo difieren de los defaults del código.
-Solo se inspecciona la presencia de claves; nunca se imprime `.env` ni tokens.
-No se cambia silenciosamente proveedor ni modelo para superar las pruebas.
-
-Se requiere un índice existente con `chroma.sqlite3` y colección poblada,
-creado con el mismo modelo y dimensión de embeddings. La consulta usa
-`get_collection`, no `get_or_create_collection`; si falta el almacenamiento,
-devuelve `RAG_INDEX_MISSING` sin crearlo. No se ejecuta indexación en esta entrega.
-Se actualiza también `rag/README.md`, que todavía describía un cascarón vacío;
-el indexador implementado está en `rag/pipeline.py`. El responsable debe confirmar corpus,
-modelo, dimensiones y rutas antes de ejecutar manualmente una ingesta.
-
-## Correcciones acotadas verificadas
-
-- `REGISTRY` es un diccionario: se reprodujo el `AttributeError` del
-  `monkeypatch.setattr`; sus cinco pruebas usan ahora `setitem`.
-- Se reprodujo sobre la función original que presupuesto cero generaba una
-  llamada sin limitación; se conserva ahora cero, sin convertirlo al default.
-- Constructor HuggingFace: se reprodujo `NameError: name 'modules' is not
-  defined`; usa ahora el modelo seleccionado y los kwargs device/token ya
-  preparados. Su regresión usa un constructor doble y no descarga modelos.
-- Se confirmó que ambas suites RAG abrían Chroma durante colección. Ahora la
-  evaluación requiere `--run-rag-eval`, y la fixture abre el índice al ejecutar,
-  nunca al recoger. Las pruebas de forma usan un doble explícito.
-- Las 22 evaluaciones siguen duplicadas entre `test_tools.py` y
-  `test_tool_rag.py`; se conservan sus aserciones, incluidas fuentes esperadas,
-  y ambas quedan opt-in. Consolidarlas queda para Héctor; no se ejecutaron.
-
-No se han cambiado retrieval, BM25, chunking, embeddings o prompts para mejorar
-calidad. El cambio de apertura del índice únicamente evita crearlo al consultar.
-
-## Verificación reproducible
+Pruebas del backend y montaje, excluyendo expresamente las tres suites de
+especialistas que abren almacenamiento o mantienen fallos ajenos a esta PR:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --basetemp=tmp/pytest-integracion tests
-.\.venv\Scripts\python.exe -m scripts.smoke_real --output docs/specs/evidencia_integracion_real.json
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --basetemp=tmp/pytest-supervisor tests --ignore=tests/test_node_documental.py --ignore=tests/test_tool_rag.py --ignore=tests/test_tools.py
+.\.venv\Scripts\python.exe -m scripts.smoke_real
 ```
 
-La primera orden excluye por defecto las 44 evaluaciones de corpus, sin
-eliminarlas. La segunda es una prueba explícita real, hasta cuatro llamadas
-documentales con el mismo ejemplo sintético identificado: aislado y ciclo HITL.
-No hace ingestas, no reemplaza funciones y no registra consultas privadas.
-Un perfil cuenta entradas a las funciones originales de tool, pipeline y
-retrieval. Código de salida 2 distingue una ejecución con error/abstención de
-una recuperación y generación satisfactorias (salida 0).
+Las pruebas del montaje utilizan el grafo documental, supervisor, adaptador,
+síntesis y aplicar reales, sustituyendo exclusivamente la tool RAG con un doble.
+Comprueban rutas, conservación del sobre, fuentes y errores, pausa, aprobación,
+rechazo, nuevo pedido, plan antiguo, idempotencia, traza e hilos aislados.
+No acreditan recuperación ni generación reales.
 
-Las pruebas de `test_runtime.py` usan un montaje mixto explícito:
-grafo documental, adaptación, supervisor, síntesis y aplicar reales; solo la
-tool RAG es doble. Comprueban conservación del sobre, pausa antes de aplicar,
-aprobación, rechazo, idempotencia, plan antiguo, nuevo pedido, aislamiento,
-traza sin duplicaciones y errores/abstenciones visibles. No acreditan un RAG real.
+El diagnóstico manual comprueba la presencia de `chroma.sqlite3` antes de
+invocar el especialista: la implementación original puede crear almacenamiento
+al consultar. Si falta el índice, informa `rag_executed=False` y no llama al RAG.
+Ese preflight es del diagnóstico de integración y no cambia el especialista.
+Si hay índice, usa su configuración vigente y un máximo de cuatro consultas
+sintéticas, sin ingestas, cambios de proveedor ni sustituciones por dobles.
 
-Resultado vigente del backend: **314 passed, 44 skipped**, en 16,12 s.
-La primera entrega obtuvo 317 éxitos incluyendo tres pruebas de clientes
-ahora retiradas. Las 44 omisiones
-son las dos baterías de 22 evaluaciones opt-in; no se ejecutaron consultas de
-corpus en pytest. Hubo tres avisos de deprecación de dependencias, sin fallos.
-`pip check`: `No broken requirements found`. La compilación Python también pasó.
-Las ejecuciones transitorias mientras pip todavía copiaba paquetes fallaron
-por módulos aún ausentes; la verificación final se hizo con la instalación
-completa.
+Falta el índice configurado `output/chroma_db/chroma.sqlite3`. La recuperación
+y generación reales siguen bloqueadas. La evidencia anterior obtenida con
+correcciones internas se retira de la PR; no valida esta versión final.
+Resultado de esta versión: **299 pruebas del backend y montaje superadas**, con
+tres avisos de deprecación de dependencias. Las tres suites de especialistas
+se excluyen explícitamente del comando anterior; no se afirma que pase la suite
+completa. Sus archivos y aserciones se han restaurado sin cambios.
+El [diagnóstico actual](evidencia_conexion_supervisor.json) confirma índice
+ausente, `rag_executed=False` y ninguna llamada al pipeline. Esa ejecución es
+un preflight bloqueado y no una prueba de recuperación real.
 
-| Categoría | Evidencia y límite |
-|---|---|
-| a) Unitarias sin modelos/red | Contratos, estado, supervisor, adaptador y regresiones de compatibilidad |
-| b) Integración con dobles | Grafo supervisor y componente documental reales, tool RAG doble explícita; fuentes no vacías, errores, abstención y ciclo HITL verificados |
-| c) RAG real aislado e integrado | Cuatro entradas a `rag.logic.responder`, `recuperar_hibrido` y `obtener_coleccion`; sin dobles. Las cuatro devuelven `RAG_INDEX_MISSING` |
-| d) HTTP municipal real | No ejecutado: no hay operación pública del especialista integrada; no se atribuye el diagnóstico separado de Miguel al servicio |
-| e) Clientes | Fuera del alcance confirmado; se han retirado los cambios y pruebas añadidos a CLI y Streamlit |
+## Git y entrega
 
-El [informe JSON](evidencia_integracion_real.json) registra las entradas a
-funciones originales mediante `sys.setprofile`, sin monkeypatch. La consulta
-aislada, aprobación y rechazo en pedidos separados, siguiente pedido,
-rechazo de plan antiguo, idempotencia, traza e aislamiento se ejecutaron con
-el servicio real. El error queda en `specialist_results` y la síntesis lo
-presenta. Los callbacks de síntesis/aplicar no usan dobles.
+El fetch solicitado confirmó `origin/develop=6e60890`, ya incluido en la rama
+inicial `feature/supervisor-grafo=e36b563`, con siete commits propios. Develop
+local ya coincidía con su remoto. La PR #5 seguía abierta y sin integrar.
+La rama documental ya estaba integrada; las ramas de instalaciones y Streamlit
+seguían separadas. No se repiten merges ni se modifican ramas de compañeros.
 
-**Bloqueo exacto:** `Error recuperando contexto: RAG_INDEX_MISSING: falta el
-índice Chroma configurado`. Falta `output/chroma_db/chroma.sqlite3` con los
-defaults actuales. No existe `.env` local y la configuración efectiva conserva
-embeddings y generación `ollama`; las claves GOOGLE_API_KEY y HF_TOKEN no están
-presentes. No se cambió al modelo/proveedor del ejemplo ni se consultó otro índice.
-No se ejecutaron embeddings ni generación: el retrieval se detuvo antes.
-La presencia de fuentes reales y la calidad de las respuestas siguen sin
-certificar. El ciclo HITL funciona también con el resultado de error; aprobar
-solo cierra un plan informativo, no convierte el error en evidencia útil.
+La rama local `integration/especialistas-reales` conserva el historial y añade
+commits que retiran del diff los cambios fuera de alcance, sin reescribirlo.
+Para revisión, comparar el resultado final con `e36b563`; los commits iniciales
+contenían trabajo posteriormente retirado. No hay push ni actualización de PR.
 
-Versiones directas instaladas y contrastadas:
+Los cambios previos de README, dataset golden, documentos locales y
+`output/debug_trace.diff` permanecen fuera de nuestros commits. Las pruebas
+incluyen el golden local existente, sin atribuir su creación a esta entrega.
 
-```text
-Python 3.14.2; langgraph 1.2.11; pytest 8.4.2; streamlit 1.66.0;
-python-dotenv 1.2.4; google-genai 2.31.0; numpy 2.5.4; chromadb 1.5.9;
-sentence-transformers 6.1.0; torch 2.14.1; langchain-core 1.6.12;
-langchain-text-splitters 1.1.3; langchain-community 0.4.2; nltk 3.10.3;
-rank-bm25 0.2.2; faiss-cpu 1.15.1; requests 2.34.2; pypdf 6.21.1;
-langchain-ollama 1.1.0.
-```
-
-LangGraph emitió además avisos sobre tipos dataclass del checkpoint y su
-compatibilidad futura. La deserialización y el ciclo HITL funcionan con la
-versión instalada; no se ha modificado el serializador en esta integración.
-
-## Commits preparados
-
-1. Compatibilidad: `agentes/nodes/documental.py`, `agentes/tools/rag.py`,
-   `rag/embed.py`, `rag/retrieve.py`, `tests/test_node_documental.py`,
-   `tests/test_tool_rag.py`, `tests/test_tools.py`, `tests/conftest.py`,
-   `tests/test_rag_compatibility.py`.
-2. Montaje del backend: `agentes/runtime.py`, `agentes/documental_adapter.py`,
-   `agentes/nodes/instalaciones.py`, `requirements.txt`.
-3. Pruebas y documentación: `tests/test_runtime.py`, `tests/test_import_boundaries.py`,
-   `scripts/smoke_real.py`, este documento, evidencia JSON, actualización de
-   `integracion_grafo_documental.md`, `handoff_backend_integracion.md` y borrador
-   de PR y `rag/README.md`. Los archivos locales previos se dejan fuera.
-
-Los tres commits iniciales se conservan como historial. Un cuarto commit retira
-los cambios de clientes y actualiza estas descripciones al alcance del backend.
-
-Se propone actualizar la PR #5 al llevar estos commits a su rama de origen,
-o abrir una nueva hacia develop desde esta rama si se mantiene separada.
-El texto está en [borrador de PR](pr_integracion_real.md); no se publica
-ni modifica ninguna PR automáticamente.
+El [borrador de PR](pr_integracion_real.md) describe solo el resultado final.

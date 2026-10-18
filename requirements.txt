@@ -1,11 +1,11 @@
 # Dependencia del backend síncrono.
 langgraph==1.2.11
-python-dotenv==1.2.4
 
 # Pendientes de acordar al integrar sus módulos:
 # streamlit
 
 # pydantic
+# python-dotenv
 # httpx
 # Pillow
 
