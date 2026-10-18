@@ -15,7 +15,8 @@ from typing import Any
 
 from .config import CHROMA_DIR, COLLECTION_NAME
 from .embed import embeddear_consulta
-from .index import obtener_cliente_chroma, crear_coleccion
+from .index import obtener_cliente_chroma
+from pathlib import Path
 
 import re
 from rank_bm25 import BM25Okapi
@@ -183,11 +184,13 @@ def obtener_coleccion(
     Returns:
         Colección ChromaDB.
     """
-    client = obtener_cliente_chroma(persist_dir or CHROMA_DIR)
-    return crear_coleccion(
-        client,
-        collection_name or COLLECTION_NAME,
-    )
+    directorio = Path(persist_dir or CHROMA_DIR)
+    # Consultar no es indexar. PersistentClient crea almacenamiento si falta;
+    # se comprueba primero el archivo para no generar un índice vacío.
+    if not (directorio / "chroma.sqlite3").is_file():
+        raise FileNotFoundError("RAG_INDEX_MISSING: falta el índice Chroma configurado")
+    client = obtener_cliente_chroma(str(directorio))
+    return client.get_collection(name=collection_name or COLLECTION_NAME)
 
 
 def recuperar(

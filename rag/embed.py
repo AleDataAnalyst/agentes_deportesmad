@@ -97,11 +97,7 @@ def _embed_huggingface(textos: list[str], model: str | None = None,
         kwargs: dict[str, str] = {"device": HF_DEVICE}
         if HF_TOKEN:  # solo para modelos gated
             kwargs["token"] = HF_TOKEN
-        _HF_CACHE[nombre] = SentenceTransformer(
-                                modules=list(modules),          # convert str → list
-                                prompts=dict(prompts),          # convert str → dict
-                                trust_remote_code=bool(trust_remote_code),  # convert str → bool
-                            )
+        _HF_CACHE[nombre] = SentenceTransformer(nombre, **kwargs)
     # normalize_embeddings=True: vectores unitarios, coherente con la métrica de coseno de Chroma
     # truncate_dim: slice del prefijo (MRL-first para modelos Matryoshka); None si dim >= dim nativa
     # encode() hace una única llamada (batch internal del backend): se avisa de

@@ -23,7 +23,7 @@ def _obs_ok():
 
 
 def test_salida_solo_campo_autorizado(monkeypatch):
-    monkeypatch.setattr(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
     out = nodo_documental({"request_id": "r1", "pedido": "¿Cuánto cuesta el abono?"})
     assert set(out) == {"documental"}
     assert set(out["documental"]) == CLAVES_DOCUMENTAL
@@ -35,7 +35,7 @@ def test_salida_solo_campo_autorizado(monkeypatch):
 
 
 def test_imagen_prevista_no_disponible(monkeypatch):
-    monkeypatch.setattr(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
     out = nodo_documental({"request_id": "r2", "pedido": "¿Qué dice el cartel?", "image_id": "img_1"})
     d = out["documental"]
     assert any("imagen" in l for l in d["limitaciones"])
@@ -43,7 +43,7 @@ def test_imagen_prevista_no_disponible(monkeypatch):
 
 
 def test_presupuesto_agotado(monkeypatch):
-    monkeypatch.setattr(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
     out = nodo_documental({"request_id": "r3", "pedido": "x", "presupuesto_tools": 0})
     d = out["documental"]
     assert d["eventos"] == []
@@ -52,7 +52,7 @@ def test_presupuesto_agotado(monkeypatch):
 
 
 def test_contexto_permitido_filtra_fuentes(monkeypatch):
-    monkeypatch.setattr(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
     out = nodo_documental({"request_id": "r4", "pedido": "x", "contexto_permitido": ["otro.pdf"]})
     d = out["documental"]
     assert d["fuentes"] == []
@@ -63,7 +63,7 @@ def test_contexto_permitido_filtra_fuentes(monkeypatch):
 def test_error_de_tool_no_lanza(monkeypatch):
     def _falla(consulta):
         raise RuntimeError("boom")
-    monkeypatch.setattr(nod.REGISTRY, "rag", _falla)
+    monkeypatch.setitem(nod.REGISTRY, "rag", _falla)
     out = nodo_documental({"request_id": "r5", "pedido": "x"})
     d = out["documental"]
     assert d["errores"]

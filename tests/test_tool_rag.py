@@ -28,17 +28,17 @@ if _RUTA_EVAL.exists():
         for q in _qs
     ]
 
-def _indice_disponible() -> bool:
-    from rag.retrieve import obtener_coleccion
-    return obtener_coleccion().count() > 0
-
-
-INDICE_OK = _indice_disponible()
+# El índice se abre únicamente en la fixture opt-in indice_real.
 
 
 # Forma del dict (no requiere índice) 
 
-def test_claves_de_contrato():
+def test_claves_de_contrato(monkeypatch):
+    # Forma del contrato con doble explícito; no es una evaluación del RAG.
+    import agentes.tools.rag as mod
+    monkeypatch.setattr(mod, "responder", lambda consulta: {
+        "respuesta": "Respuesta simulada", "fuentes": ["test://fuente"],
+        "abstained": False, "error": None})
     r = rag_preguntar("¿Cuánto cuesta el abono anual?")
     assert set(r) == CLAVES_CONTRATO
     assert isinstance(r["respuesta"], str)
@@ -77,9 +77,9 @@ def test_error_interno_no_lanza(monkeypatch):
 # Integración contra el índice (22 preguntas de evaluación) 
 
 @pytest.mark.skipif(not EVALS, reason="falta evaluation_questions.json")
-@pytest.mark.skipif(not INDICE_OK, reason="índice no indexado (ejecutar_pipeline)")
+@pytest.mark.rag_eval
 @pytest.mark.parametrize("pregunta, out_of_corpus, fuente_esperada", EVALS)
-def test_eval_set(pregunta, out_of_corpus, fuente_esperada):
+def test_eval_set(pregunta, out_of_corpus, fuente_esperada, indice_real):
     r = rag_preguntar(pregunta)
     assert r["error"] is None
     if out_of_corpus:
