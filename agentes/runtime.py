@@ -31,10 +31,14 @@ def _instalaciones_no_disponibles(state):
 
 
 def crear_servicio_real(*, settings: AgentSettings | None = None) -> AgentService:
-    """Respeta la puerta pública documental y conserva el supervisor principal.
+    """Construye el montaje sin enviar una consulta documental.
 
-    Se pasa el método invoke, sin llamarlo: compilar no consulta documentos ni
-    modelos. El adaptador traduce los contratos; las guardias de síntesis y
+    Los imports pueden cargar dependencias del RAG. Se pasa el método invoke
+    sin llamarlo; la consulta se ejecuta cuando el grafo principal llama al
+    nodo documental adaptado. Se respeta la puerta pública documental y se
+    conserva el supervisor principal.
+
+    El adaptador traduce los contratos; las guardias de síntesis y
     aplicar ya pertenecen a build_graph y no se envuelven aquí otra vez.
     """
     from agentes.grafo_documental import obtener_grafo_documental
