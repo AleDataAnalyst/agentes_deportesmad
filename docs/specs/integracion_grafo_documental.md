@@ -1,5 +1,11 @@
 # Convivencia del componente documental y el grafo principal
 
+> Actualización 18/10/2026: el montaje real ya está implementado en
+> `agentes/runtime.py`, mediante `obtener_grafo_documental().invoke` y el
+> adaptador existente. Ver [montaje y verificación actuales](integracion_real.md).
+> El resto de este documento conserva la revisión histórica del 17/10;
+> sus referencias a conexión pendiente describen aquel estado anterior.
+
 Revisión local: 17/10/2026, rama `feature/supervisor-grafo`.
 
 Estado: traducción provisional con callable inyectable obligatorio, sin montaje

@@ -1,5 +1,9 @@
 # Handoff del backend mientras se validan los especialistas
 
+> Actualización 18/10/2026: el montaje compartido y los clientes ya están
+> conectados. Ver [integración real](integracion_real.md) para comandos, alcance,
+> procedencia de Streamlit y evidencia. Las notas siguientes son históricas.
+
 17/10/2026. Rama `feature/supervisor-grafo`; implementación de síntesis/aplicar en commit `1b5c250`. Este avance queda local para revisión, sin publicar ni modificar la PR automáticamente.
 
 ## Qué puede probar David
