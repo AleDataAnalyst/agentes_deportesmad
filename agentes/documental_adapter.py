@@ -1,8 +1,8 @@
 """Adaptación optativa del especialista documental al nodo del grafo principal.
 
 La ejecución se recibe como callable explícito; importar este módulo no carga
-el RAG. La llamada directa al nodo debe coordinarse con Héctor, cuyo módulo
-propone el grafo documental como puerta pública. No hay conexión automática.
+el RAG. El montaje real de agentes.runtime pasa invoke desde la puerta pública
+obtener_grafo_documental. El adaptador conserva separados ambos contratos.
 """
 
 from copy import deepcopy
