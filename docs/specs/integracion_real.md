@@ -73,44 +73,48 @@ Se necesita que Miguel publique la operación/contrato. Hasta entonces el nodo
 devuelve `status='abstained'`, `available=False` y una limitación explícita.
 No elige un centro ni inventa filtros. No hay integración HTTP certificada.
 
-### Clientes y procedencia
+### Alcance del backend
 
-CLI y Streamlit usan `crear_servicio(modo='real'|'demo')`. Solo una petición
-explícita selecciona la demo. Los errores del montaje real no cambian de modo.
+El alcance confirmado es conectar los nodos al grafo y al supervisor. Los cambios
+de clientes incorporados en la primera entrega se han retirado mediante un
+commit adicional, sin reescribir el historial. `app.py`, `main.py`, `clientes/`
+y `tests/test_clients.py` vuelven a su versión inicial `e36b563`. Streamlit
+corresponde a David y no se incorpora su rama en esta entrega.
 
-La UI conserva el diseño de David de `origin/feature/streamlit-ui@c6052b3`:
-sidebar, chat, componentes HITL y debug. Se incorporan sus componentes
-identificando el origen en comentarios; se reemplazan el hilo fijo
-`demo-simulado` y los toast de simulación por llamadas al servicio. Se añaden
-los imports de componentes que faltaban. Su rama no se modifica ni se mergea.
-
-La instancia del servicio, hilo y mensajes permanecen en `session_state` entre
-reruns. Una nueva conversación utiliza `nueva_conversacion`; no hay caché global.
-La entrada de chat queda bloqueada durante HITL. Los botones resuelven el plan
-vigente con `True`/`False`; los errores se muestran sin fabricar respuestas.
-La síntesis presenta fuentes y limitaciones, y el componente HITL muestra el plan.
-La CLI conserva igualmente una sola instancia y bloquea pedidos incompatibles.
+La conexión se concreta en `crear_servicio_real`: inyecta las implementaciones
+en `AgentService`, que llama a `build_graph`. La topología y el supervisor ya
+admitían esa inyección; no necesitan duplicar nodos ni nuevas decisiones.
+Las pruebas comprueban el recorrido documental → supervisor → instalaciones →
+supervisor → sintetizar → supervisor → FINISH → pausa previa a aplicar.
 
 ## Entorno y arranque
 
 Se reutiliza `.venv`, Python 3.14.2, inicialmente solo con pip. La resolución
 completa de `requirements-dev.txt` terminó correctamente con ese intérprete:
-no se cambió Python ni se rebajaron los mínimos del RAG. Streamlit y dotenv se
-declaran para que el arranque sea reproducible; los paquetes se instalan dentro
-de `.venv`, sin modificar el Python global.
+no se cambió Python ni se rebajaron los mínimos del RAG. Se declara dotenv para
+la configuración del backend. Streamlit queda fuera de las dependencias nuevas;
+el paquete instalado durante la primera entrega permanece en el entorno local.
+No se modifica el Python global.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe main.py --modo real
-.\.venv\Scripts\python.exe -m streamlit run app.py
+.\.venv\Scripts\python.exe -m scripts.smoke_real
 ```
 
-CLI: `/aprobar`, `/rechazar`, `/nueva`, `/salir`. Se lee la decisión humana,
-sin autoaprobar. Demo explícita: `main.py --modo demo` o abrir Streamlit con
-`?modo=demo` en una sesión nueva. El modo se fija durante la sesión para
-evitar mezclar mensajes simulados y reales. `python -m agentes.demo` mantiene
-la demostración histórica independiente.
+Uso programático del backend:
+
+```python
+from agentes.runtime import crear_servicio_real
+
+servicio = crear_servicio_real()
+hilo = servicio.nueva_conversacion()
+estado = servicio.procesar_turno("Consulta sintética sobre un abono municipal", hilo)
+# Tras una decisión humana, usar resolver_plan(hilo, decision_bool,
+# plan_id=estado['plan_id']). El montaje no aprueba automáticamente.
+```
+
+`python -m agentes.demo` mantiene la demostración simulada independiente.
 
 La configuración del RAG sigue en `rag/config.py`: proveedores de embeddings
 y generación, modelos, directorio Chroma y colección deben corresponder al
@@ -161,35 +165,36 @@ Un perfil cuenta entradas a las funciones originales de tool, pipeline y
 retrieval. Código de salida 2 distingue una ejecución con error/abstención de
 una recuperación y generación satisfactorias (salida 0).
 
-Las pruebas de `test_runtime.py` y de clientes usan un montaje mixto explícito:
+Las pruebas de `test_runtime.py` usan un montaje mixto explícito:
 grafo documental, adaptación, supervisor, síntesis y aplicar reales; solo la
 tool RAG es doble. Comprueban conservación del sobre, pausa antes de aplicar,
 aprobación, rechazo, idempotencia, plan antiguo, nuevo pedido, aislamiento,
 traza sin duplicaciones y errores/abstenciones visibles. No acreditan un RAG real.
 
-Resultado completo: **317 passed, 44 skipped**, en 43,55 s. Las 44 omisiones
+Resultado vigente del backend: **314 passed, 44 skipped**, en 16,12 s.
+La primera entrega obtuvo 317 éxitos incluyendo tres pruebas de clientes
+ahora retiradas. Las 44 omisiones
 son las dos baterías de 22 evaluaciones opt-in; no se ejecutaron consultas de
 corpus en pytest. Hubo tres avisos de deprecación de dependencias, sin fallos.
 `pip check`: `No broken requirements found`. La compilación Python también pasó.
 Las ejecuciones transitorias mientras pip todavía copiaba paquetes fallaron
 por módulos aún ausentes; la verificación final se hizo con la instalación
-completa. Se corrigieron en las nuevas pruebas de cliente la ruta absoluta de
-AppTest y el punto de monkeypatch; no se debilitaron sus aserciones.
+completa.
 
 | Categoría | Evidencia y límite |
 |---|---|
-| a) Unitarias sin modelos/red | Contratos, estado, supervisor, adaptador y regresiones de compatibilidad; incluidas en los 317 éxitos |
+| a) Unitarias sin modelos/red | Contratos, estado, supervisor, adaptador y regresiones de compatibilidad |
 | b) Integración con dobles | Grafo supervisor y componente documental reales, tool RAG doble explícita; fuentes no vacías, errores, abstención y ciclo HITL verificados |
 | c) RAG real aislado e integrado | Cuatro entradas a `rag.logic.responder`, `recuperar_hibrido` y `obtener_coleccion`; sin dobles. Las cuatro devuelven `RAG_INDEX_MISSING` |
 | d) HTTP municipal real | No ejecutado: no hay operación pública del especialista integrada; no se atribuye el diagnóstico separado de Miguel al servicio |
-| e) Clientes | AppTest verifica reruns, HITL y errores con montaje mixto explícito; CLI verificada con ese montaje y además con un pedido real, error del índice visible y aprobación informativa |
+| e) Clientes | Fuera del alcance confirmado; se han retirado los cambios y pruebas añadidos a CLI y Streamlit |
 
 El [informe JSON](evidencia_integracion_real.json) registra las entradas a
 funciones originales mediante `sys.setprofile`, sin monkeypatch. La consulta
 aislada, aprobación y rechazo en pedidos separados, siguiente pedido,
 rechazo de plan antiguo, idempotencia, traza e aislamiento se ejecutaron con
 el servicio real. El error queda en `specialist_results` y la síntesis lo
-presenta; la CLI real lo confirmó. Los callbacks de síntesis/aplicar no usan dobles.
+presenta. Los callbacks de síntesis/aplicar no usan dobles.
 
 **Bloqueo exacto:** `Error recuperando contexto: RAG_INDEX_MISSING: falta el
 índice Chroma configurado`. Falta `output/chroma_db/chroma.sqlite3` con los
@@ -222,13 +227,15 @@ versión instalada; no se ha modificado el serializador en esta integración.
    `rag/embed.py`, `rag/retrieve.py`, `tests/test_node_documental.py`,
    `tests/test_tool_rag.py`, `tests/test_tools.py`, `tests/conftest.py`,
    `tests/test_rag_compatibility.py`.
-2. Montaje y clientes: `agentes/runtime.py`, `agentes/documental_adapter.py`, `agentes/nodes/instalaciones.py`,
-   `clientes/cli.py`, `clientes/streamlit_app.py`, `clientes/hitl.py`,
-   `clientes/debug.py`, `app.py`, `main.py`, `requirements.txt`.
-3. Pruebas y documentación: `tests/test_runtime.py`, `tests/test_clients.py`, `tests/test_import_boundaries.py`,
+2. Montaje del backend: `agentes/runtime.py`, `agentes/documental_adapter.py`,
+   `agentes/nodes/instalaciones.py`, `requirements.txt`.
+3. Pruebas y documentación: `tests/test_runtime.py`, `tests/test_import_boundaries.py`,
    `scripts/smoke_real.py`, este documento, evidencia JSON, actualización de
    `integracion_grafo_documental.md`, `handoff_backend_integracion.md` y borrador
    de PR y `rag/README.md`. Los archivos locales previos se dejan fuera.
+
+Los tres commits iniciales se conservan como historial. Un cuarto commit retira
+los cambios de clientes y actualiza estas descripciones al alcance del backend.
 
 Se propone actualizar la PR #5 al llevar estos commits a su rama de origen,
 o abrir una nueva hacia develop desde esta rama si se mantiene separada.

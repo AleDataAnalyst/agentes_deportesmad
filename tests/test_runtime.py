@@ -58,6 +58,13 @@ def test_mixed_lifecycle_and_preserved_envelope(mixed, approved):
     assert "Instalaciones no disponibles" in pending["final_answer"]
     assert pending["pendiente_hitl"] and pending["approved"] is None
     assert pending["done"] is False
+    # Verifica la conexión de los nodos al supervisor principal: el componente
+    # documental devuelve el control antes de instalaciones, síntesis y FINISH.
+    decisions = [line for line in pending["debug_trace"] if ": supervisor ->" in line]
+    assert decisions == [
+        f"iter {i}: supervisor -> {role}; origen=reglas"
+        for i, role in enumerate(("documental", "instalaciones", "sintetizar", "FINISH"), 1)
+    ]
     assert not any("HITL ->" in line for line in pending["debug_trace"])
     with pytest.raises(ValueError, match="HITL_PENDING"):
         service.procesar_turno("No debe llamar a RAG", tid)

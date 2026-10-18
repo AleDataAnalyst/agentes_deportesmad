@@ -10,7 +10,7 @@ Instalar desde la raíz en el entorno virtual del proyecto:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe main.py --modo real
+.\.venv\Scripts\python.exe -m scripts.smoke_real
 ```
 
 La configuración está en `rag/config.py`, con carga opcional de `.env`.
