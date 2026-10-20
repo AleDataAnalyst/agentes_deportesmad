@@ -9,13 +9,16 @@ El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervis
 El backend síncrono dispone de supervisor, grafo y servicio, además de síntesis
 determinista y resolución del plan informativo. Otros módulos siguen siendo
 estructura base: sus docstrings no acreditan implementación ni pruebas.
-El RAG está en `rag/`; su conexión y validación real siguen pendientes.
+El montaje documental está conectado mediante `agentes/runtime.py`. La validación
+con recuperación y generación reales sigue pendiente de un índice compatible;
+ver [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md).
 
 La [base de infraestructura de síntesis y aplicar](docs/specs/infra_sintetizar_aplicar.md)
 está separada del montaje del grafo: valida las implementaciones inyectadas
 y conserva la pausa HITL. Las implementaciones `sintetizar` y `aplicar` están
 disponibles mediante la inyección existente; ver [montaje y pruebas](docs/specs/sintetizar_aplicar.md).
-La conexión de especialistas reales sigue pendiente; la demo continúa usando dobles.
+El especialista de instalaciones y la validación documental real siguen
+pendientes; la demo continúa usando dobles explícitos.
 
 Las capacidades descritas en este README son objetivos del PB02, no una
 confirmación de que ya funcionan. Los comandos de ejecución, dependencias
@@ -62,6 +65,9 @@ python -m scripts.export_evidence --output output/evidencia_backend_simulado.jso
 El JSON declara qué componentes están simulados y no acredita RAG, HTTP ni
 clientes reales. El [handoff de integración](docs/specs/handoff_backend_integracion.md)
 recoge el montaje para David, los acuerdos pendientes y el comando completo de pruebas.
+
+El [golden del grafo](docs/specs/golden_graph.md) conserva 12 escenarios sintéticos
+con 24 pruebas de orquestación; no valida el corpus ni la calidad real del RAG.
 
 ### Demostración del grafo sin servicios externos
 
@@ -118,6 +124,9 @@ incluido en las dependencias de desarrollo.
 
 Este dibujo representa las conexiones del grafo; no ejecuta consultas
 al RAG ni a la API y no acredita su integración.
+
+La [vista explicativa](docs/specs/grafo_visual.md) distingue clientes, montaje y
+pausa humana. El mismo script exporta Mermaid y SVG sin ejecutar consultas.
 
 ## Reparto acordado — 13 de octubre de 2026
 
