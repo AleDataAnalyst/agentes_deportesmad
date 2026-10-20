@@ -5,6 +5,7 @@ y la validacion de plan vigente siguen siendo responsabilidades del servicio.
 """
 from collections.abc import Callable
 from functools import partial
+from agentes.node_guards import especialista_protegido
 from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
 from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
 from agentes.state import AgentState, plan_is_ready
@@ -58,8 +59,8 @@ def build_graph(
 
     builder = StateGraph(AgentState)
     builder.add_node("supervisor", partial(supervisor_node, route_provider=route_provider, max_iter=max_iter))
-    builder.add_node("documental", documental_node)
-    builder.add_node("instalaciones", instalaciones_node)
+    builder.add_node("documental", partial(especialista_protegido, rol="documental", node=documental_node))
+    builder.add_node("instalaciones", partial(especialista_protegido, rol="instalaciones", node=instalaciones_node))
     builder.add_node("sintetizar", partial(_sintetizar_checked, node=sintetizar_node))
     builder.add_node("aplicar", partial(_aplicar_checked, node=aplicar_node))
     builder.add_edge(START, "supervisor")
