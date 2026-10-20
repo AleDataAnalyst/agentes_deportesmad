@@ -5,6 +5,8 @@ y la validacion de plan vigente siguen siendo responsabilidades del servicio.
 """
 from collections.abc import Callable
 from functools import partial
+from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
+from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
 from agentes.state import AgentState, plan_is_ready
 from agentes.nodes.supervisor import ROLES, RouteProvider, fallback_decision, supervisor_node
 
@@ -25,38 +27,6 @@ def router_supervisor(state: AgentState) -> str:
     if fallback == "FINISH":
         return "aplicar" if plan_is_ready(state) else "sintetizar"
     return fallback
-
-
-def _sintetizar_checked(state: AgentState, *, node: Node) -> dict:
-    """Exige respuesta y plan validos sin aprobacion ni cierre automaticos."""
-    if state.get("approved") is not None or state.get("done", False) is not False:
-        raise ValueError("SYNTHESIS_CONTRACT: el pedido debe estar pendiente y sin cerrar")
-    update = node(state)
-    if (not isinstance(update, dict)
-            or "final_answer" not in update or "plan" not in update
-            or not plan_is_ready({**state, **update})):
-        raise ValueError("SYNTHESIS_CONTRACT: sintetizar debe devolver final_answer y plan no vacios")
-    if update.get("approved") is not None or update.get("done", False) is not False:
-        raise ValueError("SYNTHESIS_CONTRACT: la sintesis no puede aprobar ni cerrar el pedido")
-    return update
-
-
-def _aplicar_checked(state: AgentState, *, node: Node) -> dict:
-    """None es pendiente; False es una decision humana de rechazo."""
-    if type(state.get("approved")) is not bool:
-        raise ValueError("HITL_DECISION_REQUIRED: guardar approved=True/False antes de reanudar")
-    if not plan_is_ready(state):
-        raise ValueError("HITL_PLAN_REQUIRED: aplicar requiere respuesta y plan validos")
-    update = node(state)
-    if not isinstance(update, dict) or update.get("done") is not state["approved"]:
-        raise ValueError("APPLY_CONTRACT: aplicar debe devolver done=True al aprobar y done=False al rechazar")
-    return {
-        **update,
-        "debug_trace": [
-            *update.get("debug_trace", []),
-            "HITL -> " + ("plan aprobado" if state["approved"] else "plan rechazado"),
-        ],
-    }
 
 
 def build_graph(

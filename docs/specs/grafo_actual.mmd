@@ -1,0 +1,25 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	supervisor(supervisor)
+	documental(documental)
+	instalaciones(instalaciones)
+	sintetizar(sintetizar)
+	aplicar(aplicar<hr/><small><em>__interrupt = before</em></small>)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> supervisor;
+	documental --> supervisor;
+	instalaciones --> supervisor;
+	sintetizar --> supervisor;
+	supervisor -.-> aplicar;
+	supervisor -.-> documental;
+	supervisor -.-> instalaciones;
+	supervisor -.-> sintetizar;
+	aplicar --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

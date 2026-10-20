@@ -6,8 +6,19 @@ El proyecto reutilizará el RAG del equipo como herramienta y añadirá supervis
 
 ## Estado del proyecto
 
-Inicio de desarrollo sobre una **estructura base**. Los módulos con docstrings indican responsabilidades previstas; no acreditan implementación ni pruebas.
-El RAG se incorporará en `rag/` tras adaptar su integración.
+El backend síncrono dispone de supervisor, grafo y servicio, además de síntesis
+determinista y resolución del plan informativo. Otros módulos siguen siendo
+estructura base: sus docstrings no acreditan implementación ni pruebas.
+El montaje documental está conectado mediante `agentes/runtime.py`. La validación
+con recuperación y generación reales sigue pendiente de un índice compatible;
+ver [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md).
+
+La [base de infraestructura de síntesis y aplicar](docs/specs/infra_sintetizar_aplicar.md)
+está separada del montaje del grafo: valida las implementaciones inyectadas
+y conserva la pausa HITL. Las implementaciones `sintetizar` y `aplicar` están
+disponibles mediante la inyección existente; ver [montaje y pruebas](docs/specs/sintetizar_aplicar.md).
+El especialista de instalaciones y la validación documental real siguen
+pendientes; la demo continúa usando dobles explícitos.
 
 Las capacidades descritas en este README son objetivos del PB02, no una
 confirmación de que ya funcionan. Los comandos de ejecución, dependencias
@@ -17,25 +28,46 @@ operativas y evidencias se documentarán al integrar cada parte.
 
 Implementados estado, contratos internos provisionales, supervisor con fallback
 y límite, grafo con nodos inyectados y `AgentService` compartido entre turnos.
-Las pruebas usan especialistas, síntesis y aplicar simulados explícitamente:
-comprueban pausa, aprobación/rechazo, reset, aislamiento de hilos e idempotencia.
+Las pruebas incluyen síntesis/aplicar reales con especialistas simulados:
+comprueban fuentes, restricciones, pausa, aprobación/rechazo, reset, aislamiento
+de hilos e idempotencia. Las pruebas históricas de infraestructura y la demo
+conservan sus dobles explícitos.
 Esto no acredita especialistas ni tools reales, CLI o Streamlit funcionales.
 `MAX_ITER` se configura desde el entorno (default 8); `settings.py` no carga
 `.env` automáticamente. Los contratos externos y el proveedor LLM siguen pendientes.
 
-En un entorno virtual, instalar y comprobar este backend desde la raíz:
+Con las dependencias del backend y pytest instalados, comprobar desde la raíz:
 
 ```powershell
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
+python -m pytest -q -p no:cacheprovider tests/test_sintetizar_aplicar.py tests/test_documental_adapter.py tests/test_export_evidence.py
+python -m scripts.export_evidence --scenario partial
 ```
 
 Versiones utilizadas en la comprobación: LangGraph 1.2.11 y pytest 8.4.2.
 Los imports del backend también se comprobaron en Python 3.12. Estos comandos
-ejecutan pruebas sin claves ni red; aún no arrancan el producto CLI/Streamlit.
+no consultan modelos ni servicios; aún no arrancan el producto CLI/Streamlit.
+`requirements-dev.txt` incluye también dependencias RAG. Ejecutar toda la suite
+no equivale a una comprobación aislada del backend: algunos tests acceden al
+índice durante la colección. No se ha establecido una incompatibilidad de Python
+por encontrar dependencias sin instalar. La preparación reproducible del RAG
+debe contrastarse con el entorno y proveedor usados por Héctor.
 El contrato de cliente está en [docs/specs/contratos.md](docs/specs/contratos.md)
 y la correspondencia con el enunciado en
 [docs/specs/seguimiento_pb02.md](docs/specs/seguimiento_pb02.md).
+
+Para exportar diez recorridos con síntesis/aplicar reales y especialistas y
+decisiones simulados:
+
+```powershell
+python -m scripts.export_evidence --output output/evidencia_backend_simulado.json
+```
+
+El JSON declara qué componentes están simulados y no acredita RAG, HTTP ni
+clientes reales. El [handoff de integración](docs/specs/handoff_backend_integracion.md)
+recoge el montaje para David, los acuerdos pendientes y el comando completo de pruebas.
+
+El [golden del grafo](docs/specs/golden_graph.md) conserva 12 escenarios sintéticos
+con 24 pruebas de orquestación; no valida el corpus ni la calidad real del RAG.
 
 ### Demostración del grafo sin servicios externos
 
@@ -92,6 +124,9 @@ incluido en las dependencias de desarrollo.
 
 Este dibujo representa las conexiones del grafo; no ejecuta consultas
 al RAG ni a la API y no acredita su integración.
+
+La [vista explicativa](docs/specs/grafo_visual.md) distingue clientes, montaje y
+pausa humana. El mismo script exporta Mermaid y SVG sin ejecutar consultas.
 
 ## Reparto acordado — 13 de octubre de 2026
 
