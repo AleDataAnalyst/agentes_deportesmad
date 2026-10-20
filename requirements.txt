@@ -1,8 +1,28 @@
-# Dependencias previstas. Elegir y fijar versiones al implementar.
-# langgraph
-# streamlit
-# google-genai
+# Dependencia del backend síncrono.
+langgraph==1.2.11
+
+# Cliente web
+streamlit
+
+# Pendientes de acordar al integrar sus módulos:
 # pydantic
 # python-dotenv
 # httpx
 # Pillow
+
+
+# RAG # 
+google-genai>=2.30.1
+numpy>=2.5.4
+chromadb>=1.5.9
+sentence-transformers>=6.1.0
+torch>=2.14.1
+langchain-core>=1.6.10
+langchain_text_splitters>=1.1.3
+langchain_community>=0.4.2
+nltk>=3.10.3
+rank-bm25>=0.2.2
+faiss-cpu>=1.15.1
+requests>=2.34.2
+pypdf>=6.20.1
+langchain-ollama>=1.1.0
