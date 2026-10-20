@@ -232,7 +232,8 @@ def test_main_help_does_not_import_backend():
         from importlib.abc import MetaPathFinder
         class Block(MetaPathFinder):
             def find_spec(self, fullname, path=None, target=None):
-                if fullname == "agentes" or fullname.startswith("agentes."):
+                if (fullname.startswith("agentes.")
+                        and fullname not in {"agentes.validation", "agentes.secret_filter"}):
                     raise AssertionError("El help no debe cargar el backend")
         sys.meta_path.insert(0, Block())
         from main import main

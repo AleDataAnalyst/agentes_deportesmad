@@ -9,10 +9,17 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 from difflib import get_close_matches
-import re
 import sys
-import unicodedata
 from typing import TYPE_CHECKING
+
+from agentes.secret_filter import sin_secretos as _sin_secretos
+from agentes.validation import (
+    MAX_ENTRADA,
+    validar_entrada as _validar_entrada,
+    validar_estado as _validar_estado,
+    validar_id as _validar_id,
+    validar_mensaje as _validar_mensaje,
+)
 
 if TYPE_CHECKING:
     from agentes.agent import AgentService
@@ -28,54 +35,6 @@ ALIAS_COMANDOS = {palabra: "/" + palabra for palabra in (
 ALIAS_COMANDOS["nuevo"] = "/nueva"
 MAX_TRAZA = 30
 MAX_EVENTOS_TOOL = 10
-MAX_ENTRADA = 8000
-
-
-def _validar_entrada(texto: str) -> None:
-    if not isinstance(texto, str):
-        raise ValueError("La entrada debe ser texto.")
-    if len(texto) > MAX_ENTRADA:
-        raise ValueError(f"Entrada demasiado larga: máximo {MAX_ENTRADA} caracteres; no se ha enviado.")
-    if any(unicodedata.category(c) in ("Cc", "Cf") for c in texto):
-        raise ValueError("Entrada con caracteres de control o formato invisible; no se ha enviado.")
-
-
-def _validar_id(valor: object) -> None:
-    if (not isinstance(valor, str) or not valor.strip() or len(valor) > 256
-            or any(c.isspace() or unicodedata.category(c) in ("Cc", "Cf") for c in valor)):
-        raise ValueError("Identificador inválido devuelto por el servicio.")
-
-
-def _validar_estado(estado: dict, hilo: str) -> dict:
-    """Falla antes de sustituir el estado conocido o mostrar un plan de otro hilo."""
-    if not isinstance(estado, dict) or estado.get("thread_id") != hilo:
-        raise ValueError("Estado incompatible con la conversación actual.")
-    if type(estado.get("pendiente_hitl")) is not bool:
-        raise ValueError("Estado HITL inválido: se requiere un booleano.")
-    if estado["pendiente_hitl"]:
-        _validar_id(estado.get("plan_id"))
-        plan = estado.get("plan")
-        if (not isinstance(plan, list) or not plan
-                or any(not isinstance(p, str) or not p.strip() for p in plan)):
-            raise ValueError("Plan pendiente inválido; no se permite decidir.")
-    return estado
-
-
-def _sin_secretos(valor: object) -> str:
-    """Oculta credenciales reconocibles sin leer .env ni volcar configuración."""
-    texto = str(valor)
-    # Eliminar OSC/CSI antes del filtrado: no permitir enlaces, portapapeles,
-    # borrado de terminal ni credenciales partidas por códigos de color.
-    texto = re.sub(r"(?:\x1b\]|\x9d)[^\x07\x1b\x9c]*(?:\x07|\x1b\\|\x9c|$)", "", texto)
-    texto = re.sub(r"(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]", "", texto)
-    texto = "".join(c for c in texto if c in "\n\t" or unicodedata.category(c) not in ("Cc", "Cf"))
-    texto = re.sub(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
-                   "[CLAVE PRIVADA OCULTA]", texto, flags=re.DOTALL)
-    texto = re.sub(r"(?i)\b(Bearer|Basic)\s+[^\s,;]+", r"\1 [OCULTO]", texto)
-    texto = re.sub(r"(?i)\b([a-z0-9_-]*api[_-]?key|[a-z0-9_-]*token|[a-z0-9_-]*secret|password|authorization|key)\b[\"']?\s*[:=]\s*(?:[\"'][^\"']*[\"']|[^\s,;&}]+)",
-                   r"\1=[OCULTO]", texto)
-    texto = re.sub(r"\b(?:AIza[\w-]{20,}|sk-[\w-]{16,})", "[OCULTO]", texto)
-    return re.sub(r"(https?://)[^\s/@]+:[^\s/@]+@", r"\1[OCULTO]@", texto)
 
 
 def _breve(valor, limite: int = 240) -> str:
@@ -256,11 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.mensaje is not None:
         try:
-            _validar_entrada(args.mensaje)
+            _validar_mensaje(args.mensaje)
         except ValueError as exc:
             parser.error(str(exc))
-    if args.mensaje is not None and not args.mensaje.strip():
-        parser.error("--mensaje no puede estar vacío")
     if args.menu:
         try:
             while True:

@@ -41,6 +41,43 @@ def test_backend_imports_without_loading_documental_or_rag():
     ''')
 
 
+def test_common_client_helpers_without_ui_backend_or_io():
+    run_python('''
+        import sys
+        from importlib.abc import MetaPathFinder
+
+        class BlockDependencies(MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname.split('.')[0] in {"streamlit", "clientes", "langgraph", "rag"}:
+                    raise AssertionError(f"Carga inesperada: {fullname}")
+                if fullname in {"agentes.agent", "agentes.runtime", "agentes.graph"}:
+                    raise AssertionError(f"Carga inesperada: {fullname}")
+
+        sys.meta_path.insert(0, BlockDependencies())
+        from agentes.validation import (
+            validar_entrada, validar_mensaje, validar_decision, validar_id, validar_estado,
+        )
+        from agentes.secret_filter import sin_secretos
+
+        def block_io(event, args):
+            if event in {"open", "builtins.input", "socket.connect", "socket.getaddrinfo"}:
+                raise AssertionError(f"IO inesperado: {event}")
+
+        sys.addaudithook(block_io)
+        validar_entrada("Consulta")
+        validar_mensaje("Consulta")
+        validar_decision(False)
+        validar_id("hilo")
+        estado = {"thread_id": "hilo", "pendiente_hitl": True,
+                  "plan_id": "plan", "plan": ["Paso"]}
+        assert validar_estado(estado, "hilo") is estado
+        assert sin_secretos("Basic dXNlcjpwYXNz") == "Basic [OCULTO]"
+        valor = {"datos": [{"password": ["privado", "otro privado"]}]}
+        assert "privado" not in sin_secretos(valor)
+        assert valor["datos"][0]["password"] == ["privado", "otro privado"]
+    ''')
+
+
 @pytest.mark.parametrize("package,module,export", [
     ("agentes.nodes", "agentes.nodes.documental", "nodo_documental"),
     ("agentes.tools", "agentes.tools.rag", "rag_preguntar"),

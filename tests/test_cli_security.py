@@ -252,3 +252,30 @@ def test_secret_in_creation_failure_is_not_printed(monkeypatch, capsys):
     salida = capsys.readouterr()
     assert "VALOR_PRIVADO_987" not in salida.out + salida.err
     assert "[OCULTO]" in salida.err
+
+def test_basic_context_in_cli_response_and_debug(sesion):
+    servicio, _ = sesion
+    estado = servicio.procesar_turno("Consulta", servicio.nueva_conversacion())
+    estado["final_answer"] = "El plan Basic incluye piscina. Basic dXNlcjpwYXNz"
+    estado["debug_trace"] = ["Authorization: Basic dXNlcjpwYXNz"]
+    salida = []
+    cli.mostrar_estado(estado, debug=True, escribir=salida.append)
+    texto = "\n".join(salida)
+    assert "El plan Basic incluye piscina." in texto
+    assert "dXNlcjpwYXNz" not in texto
+    assert "[OCULTO]" in texto
+
+
+def test_debug_filters_nested_secrets_without_mutating_state(sesion):
+    servicio, _ = sesion
+    estado = servicio.procesar_turno("Consulta", servicio.nueva_conversacion())
+    estado["debug_trace"] = [{"evento": {"password": ["PRIVADO_UNO", "PRIVADO_DOS"]},
+                              "nota": "Basic incluye piscina"}]
+    antes = deepcopy(estado)
+    salida = []
+    cli.mostrar_estado(estado, debug=True, escribir=salida.append)
+    texto = "\n".join(salida)
+    assert "PRIVADO" not in texto and "[OCULTO]" in texto
+    assert "Basic incluye piscina" in texto
+    assert estado == antes
+
