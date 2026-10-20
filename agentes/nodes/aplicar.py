@@ -38,7 +38,8 @@ def aplicar_node(
 
     None significa pendiente y False es un rechazo explícito. La implementación
     devuelve done=True al aprobar o done=False al rechazar y solo sus eventos
-    nuevos; esta envoltura añade la marca de decisión HITL.
+    nuevos; esta envoltura añade la marca de decisión HITL. Al aprobar,
+    final_answer solo puede conservarse o ampliarse al final.
     """
     if type(state.get("approved")) is not bool:
         raise ValueError("HITL_DECISION_REQUIRED: guardar approved=True/False antes de reanudar")
@@ -51,6 +52,9 @@ def aplicar_node(
         raise ValueError("APPLY_CONTRACT: aplicar debe devolver done=True al aprobar y done=False al rechazar")
     if "final_answer" in update and not isinstance(update["final_answer"], str):
         raise ValueError("APPLY_CONTRACT: final_answer debe ser texto")
+    if (state["approved"] and "final_answer" in update
+            and not update["final_answer"].startswith(state["final_answer"])):
+        raise ValueError("APPLY_CONTRACT: al aprobar solo se permite añadir texto al final de final_answer")
     # Se puede conservar el plan/evidencia aprobados o limpiarlos al rechazar.
     # No se autoriza introducir otro plan, resultados o acciones en el cierre.
     for campo, vacio in (("plan", []), ("specialist_results", {})):

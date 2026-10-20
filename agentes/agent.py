@@ -66,6 +66,8 @@ class AgentService:
         state = state_from_graph(snapshot.values, initial_state("", thread_id))
         pending = "aplicar" in (snapshot.next or ())
         state["pendiente_hitl"] = pending
+        # Diagnóstico de lectura, derivado del checkpoint; no reanuda ni borra trabajo.
+        state["ejecucion_incompleta"] = bool(snapshot.next) and not pending
         state["plan_id"] = self._plan_ids.get(thread_id)
         if pending:
             state["done"] = False

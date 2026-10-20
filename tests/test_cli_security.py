@@ -253,6 +253,7 @@ def test_secret_in_creation_failure_is_not_printed(monkeypatch, capsys):
     assert "VALOR_PRIVADO_987" not in salida.out + salida.err
     assert "[OCULTO]" in salida.err
 
+
 def test_basic_context_in_cli_response_and_debug(sesion):
     servicio, _ = sesion
     estado = servicio.procesar_turno("Consulta", servicio.nueva_conversacion())
@@ -279,3 +280,26 @@ def test_debug_filters_nested_secrets_without_mutating_state(sesion):
     assert "Basic incluye piscina" in texto
     assert estado == antes
 
+
+@pytest.mark.parametrize("codigo,orientacion", [
+    ("REQUEST_INCOMPLETE", "usa /nueva"), ("HITL_PENDING", "/aprobar o /rechazar"),
+    ("PLAN_NOT_CURRENT", "plan ya no es el vigente"),
+    ("PLAN_ALREADY_RESOLVED", "decisión ya se aplicó"),
+    ("HITL_NOT_PENDING", "No hay un plan pendiente"),
+])
+@pytest.mark.parametrize("detalle", ["Detalle original", "Different wording"])
+def test_cli_error_guidance_uses_code_and_keeps_secret_filter(sesion, monkeypatch, codigo, orientacion, detalle):
+    servicio, _ = sesion
+
+    def fallar(*args):
+        raise ValueError(f"{codigo}: {detalle}; api_key=PRIVADO_ERROR")
+
+    monkeypatch.setattr(servicio, "procesar_turno", fallar)
+    _, salida = conversar(servicio, ["Consulta", "/salir"])
+    assert f"Error: {codigo}:" in salida and detalle in salida
+    assert orientacion in salida and "PRIVADO_ERROR" not in salida
+
+
+def test_unknown_error_is_shown_without_guessing_a_code():
+    mensaje = cli._mensaje_error(RuntimeError("Otro fallo: REQUEST_INCOMPLETE"))
+    assert mensaje == "Otro fallo: REQUEST_INCOMPLETE"

@@ -167,6 +167,86 @@ def test_approved_close_cannot_replace_human_decision_plan_or_action(patch):
         aplicar_node(state, node=lambda s: {'done': True, **patch})
 
 
+@pytest.mark.parametrize('respuesta', [
+    'Texto arbitrario', '', '[DOBLE] Borrador'[:-1],
+    'Prefacio\n[DOBLE] Borrador', '[DOBLE] Borrador'.replace('Borrador', 'Respuesta'),
+])
+def test_approved_answer_cannot_be_replaced_truncated_or_prefixed(respuesta):
+    state = {**estado_pendiente(), 'approved': True}
+    before = deepcopy(state)
+    with pytest.raises(ValueError, match='APPLY_CONTRACT.*final_answer'):
+        aplicar_node(state, node=lambda s: {'done': True, 'final_answer': respuesta})
+    assert state == before
+
+
+@pytest.mark.parametrize('patch', [
+    {}, {'final_answer': '[DOBLE] Borrador'},
+    {'final_answer': '[DOBLE] Borrador\nCierre informativo.'},
+])
+def test_approved_answer_can_be_omitted_preserved_or_extended(patch):
+    state = {**estado_pendiente(), 'approved': True}
+    before = deepcopy(state)
+    result = aplicar_node(state, node=lambda s: {'done': True, **patch})
+    assert result == {'done': True, **patch, 'debug_trace': ['HITL -> plan aprobado']}
+    assert state == before
+
+
+def test_mutating_injected_copy_cannot_replace_approved_answer():
+    state = {**estado_pendiente(), 'approved': True}
+    before = deepcopy(state)
+
+    def reemplazar(s):
+        s['final_answer'] = 'Texto ajeno'
+        return {'done': True, 'final_answer': s['final_answer'] + '\nCierre'}
+
+    with pytest.raises(ValueError, match='APPLY_CONTRACT.*final_answer'):
+        aplicar_node(state, node=reemplazar)
+    assert state == before
+
+
+def test_rejected_answer_can_be_replaced_by_rejection_message():
+    state = {**estado_pendiente(), 'approved': False}
+    before = deepcopy(state)
+    result = aplicar_node(state, node=lambda s: {
+        'done': False, 'final_answer': 'Propuesta rechazada.',
+        'plan': [], 'specialist_results': {},
+    })
+    assert result['final_answer'] == 'Propuesta rechazada.'
+    assert result['done'] is False and result['plan'] == [] and result['specialist_results'] == {}
+    assert state == before
+
+
+def test_service_keeps_approved_answer_when_apply_replaces_it_and_allows_valid_retry():
+    calls = []
+
+    def cerrar(state):
+        calls.append(state['final_answer'])
+        return {'done': True, 'final_answer': (
+            'RESPUESTA_NO_APROBADA' if len(calls) == 1
+            else state['final_answer'] + '\nCierre informativo.'
+        )}
+
+    service = AgentService(
+        documental_node=lambda s: {}, instalaciones_node=lambda s: {},
+        sintetizar_node=sintetizar, aplicar_node=cerrar,
+        settings=AgentSettings(max_iter=8),
+    )
+    hilo = service.nueva_conversacion()
+    pending = service.procesar_turno('Consulta simulada', hilo)
+    with pytest.raises(ValueError, match='APPLY_CONTRACT.*final_answer'):
+        service.resolver_plan(hilo, True, plan_id=pending['plan_id'])
+    failed = service.consultar_estado(hilo)
+    assert failed['pendiente_hitl'] is True and failed['done'] is False
+    assert failed['approved'] is True
+    for campo in ('final_answer', 'plan', 'specialist_results', 'debug_trace', 'plan_id'):
+        assert failed[campo] == pending[campo]
+    final = service.resolver_plan(hilo, True, plan_id=pending['plan_id'])
+    assert final['final_answer'] == pending['final_answer'] + '\nCierre informativo.'
+    assert final['done'] is True and final['pendiente_hitl'] is False
+    assert service.resolver_plan(hilo, True, plan_id=pending['plan_id']) == final
+    assert calls == [pending['final_answer'], pending['final_answer']]
+
+
 @pytest.mark.parametrize('valor', [True, 0, 'cerrado'])
 def test_rejection_cannot_publish_invalid_or_foreign_plan(valor):
     state = {**estado_pendiente(), 'approved': False}

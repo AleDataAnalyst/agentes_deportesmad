@@ -35,6 +35,17 @@ ALIAS_COMANDOS = {palabra: "/" + palabra for palabra in (
 ALIAS_COMANDOS["nuevo"] = "/nueva"
 MAX_TRAZA = 30
 MAX_EVENTOS_TOOL = 10
+AVISO_EJECUCION_INCOMPLETA = (
+    "Ejecución incompleta en este hilo: usa /nueva para continuar en otra conversación. "
+    "El hilo anterior se conserva; no se reintenta automáticamente."
+)
+AYUDA_ERRORES = {
+    "REQUEST_INCOMPLETE": AVISO_EJECUCION_INCOMPLETA,
+    "HITL_PENDING": "Hay un plan pendiente: consulta /estado y usa /aprobar o /rechazar.",
+    "PLAN_NOT_CURRENT": "El plan ya no es el vigente: consulta /estado antes de decidir.",
+    "PLAN_ALREADY_RESOLVED": "La decisión ya se aplicó y no se puede cambiar; consulta /estado.",
+    "HITL_NOT_PENDING": "No hay un plan pendiente de decisión; consulta /estado.",
+}
 
 
 def _breve(valor, limite: int = 240) -> str:
@@ -42,9 +53,16 @@ def _breve(valor, limite: int = 240) -> str:
     return texto if len(texto) <= limite else texto[:limite] + "..."
 
 
+def _mensaje_error(exc: Exception) -> str:
+    """Conserva el diagnóstico y orienta por el código, independiente del detalle."""
+    codigo, separador, _ = str(exc).partition(":")
+    ayuda = AYUDA_ERRORES.get(codigo) if separador else None
+    return _breve(exc) + (f"\n{ayuda}" if ayuda else "")
+
+
 def _mostrar_debug(estado: dict, escribir: Callable[[str], None]) -> None:
     escribir("Debug:")
-    for clave in ("thread_id", "plan_id", "pendiente_hitl", "approved", "done", "iterations"):
+    for clave in ("thread_id", "plan_id", "pendiente_hitl", "ejecucion_incompleta", "approved", "done", "iterations"):
         escribir(f"  {clave}={estado.get(clave)}")
     traza = estado.get("debug_trace", [])
     if len(traza) > MAX_TRAZA:
@@ -68,7 +86,10 @@ def mostrar_estado(
     """Presenta el contrato interno sin modificarlo ni serializar su estado entero."""
     destino = escribir
     escribir = lambda texto: destino(_sin_secretos(texto))
-    escribir("HITL: " + ("pendiente de decisión" if estado.get("pendiente_hitl") else "sin plan pendiente"))
+    if estado.get("ejecucion_incompleta"):
+        escribir("Ejecución incompleta (REQUEST_INCOMPLETE).")
+    else:
+        escribir("HITL: " + ("pendiente de decisión" if estado.get("pendiente_hitl") else "sin plan pendiente"))
     if estado.get("final_answer"):
         escribir(estado["final_answer"])
     for rol, resultado in estado.get("specialist_results", {}).items():
@@ -88,7 +109,9 @@ def mostrar_estado(
             if valor is not None and valor != [] and valor != "":
                 texto = "; ".join(str(v) for v in valor) if isinstance(valor, list) else str(valor)
                 escribir(f"  {clave}: {texto}")
-    if estado.get("pendiente_hitl"):
+    if estado.get("ejecucion_incompleta"):
+        escribir(AVISO_EJECUCION_INCOMPLETA)
+    elif estado.get("pendiente_hitl"):
         escribir(f"Plan pendiente de decisión (plan_id={estado['plan_id']}):")
         for paso in estado.get("plan", []):
             escribir(f"  - {paso}")
@@ -190,6 +213,9 @@ def ejecutar_interactivo(
                     if estado_desconocido:
                         escribir("Estado sin confirmar tras un error: usa /estado o /nueva antes de consultar.")
                         continue
+                    if estado.get("ejecucion_incompleta"):
+                        escribir(AVISO_EJECUCION_INCOMPLETA)
+                        continue
                     if estado.get("pendiente_hitl"):
                         escribir("Hay un plan pendiente: usa /aprobar, /rechazar o /salir.")
                         continue
@@ -197,8 +223,10 @@ def ejecutar_interactivo(
                 mostrar_estado(estado, debug=debug or comando == "/debug", escribir=escribir)
             except Exception as exc:
                 estado_desconocido = True
-                escribir(f"Error: {_breve(exc)}")
-                escribir("Puedes consultar /estado, iniciar /nueva o usar /salir.")
+                escribir(f"Error: {_mensaje_error(exc)}")
+                escribir("Consulta /estado para confirmar si hay un plan pendiente. "
+                         "Si la ejecución quedó incompleta, usa /nueva para continuar; "
+                         "también puedes usar /salir.")
     except (EOFError, KeyboardInterrupt):
         pass
     escribir("Salida sin decisiones automáticas. La memoria de la sesión termina con el proceso.")

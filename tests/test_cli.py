@@ -159,6 +159,55 @@ def test_cli_processing_error_allows_new_conversation(sesion, monkeypatch):
     assert len(eventos["decisiones"]) == 1
 
 
+@pytest.mark.parametrize("lectura", ["/estado", "/debug"])
+def test_failed_specialist_reports_incomplete_thread_and_recovers_with_new(lectura, monkeypatch):
+    llamadas = []
+    hilos = []
+
+    def documental(estado):
+        llamadas.append((estado["user_message"], estado["thread_id"]))
+        if estado["user_message"] == "Fallo":
+            raise RuntimeError("Fallo real dentro del nodo especialista")
+        return {"specialist_results": {"documental": ToolResult("ok", "Respuesta simulada")}}
+
+    servicio = AgentService(
+        documental_node=documental, instalaciones_node=lambda estado: {},
+        sintetizar_node=sintetizar, aplicar_node=aplicar, settings=AgentSettings(max_iter=8),
+    )
+    procesar = servicio.procesar_turno
+    pedidos = []
+
+    def contar(mensaje, hilo):
+        pedidos.append(mensaje)
+        return procesar(mensaje, hilo)
+
+    crear = servicio.nueva_conversacion
+
+    def nueva():
+        hilo = crear()
+        hilos.append(hilo)
+        return hilo
+
+    monkeypatch.setattr(servicio, "procesar_turno", contar)
+    monkeypatch.setattr(servicio, "nueva_conversacion", nueva)
+    codigo, salida = conversar(servicio, [
+        "Fallo", lectura, "No reenviar al hilo incompleto", lectura, "/aprobar",
+        "/nueva", "Recuperada", "/rechazar", "/salir",
+    ])
+    antes_de_nueva = salida.split("Nueva conversación:")[0]
+    assert codigo == 0
+    assert "Ejecución incompleta en este hilo: usa /nueva" in antes_de_nueva
+    assert "Conversación sin propuesta pendiente" not in antes_de_nueva
+    assert "Ejecución incompleta (REQUEST_INCOMPLETE)." in antes_de_nueva
+    assert "Error: REQUEST_INCOMPLETE:" not in salida
+    assert pedidos == ["Fallo", "Recuperada"]
+    assert llamadas == [("Fallo", hilos[0]), ("Recuperada", hilos[1])]
+    assert servicio.consultar_estado(hilos[0])["ejecucion_incompleta"] is True
+    assert servicio.consultar_estado(hilos[0])["approved"] is None
+    assert servicio.consultar_estado(hilos[1])["ejecucion_incompleta"] is False
+    assert "Propuesta rechazada" in salida
+
+
 def test_cli_debug_is_bounded_and_does_not_mutate_state(sesion):
     from copy import deepcopy
 
