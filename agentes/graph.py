@@ -46,6 +46,15 @@ def build_graph(
         raise ValueError("max_iter debe ser un entero positivo")
     from langgraph.graph import StateGraph, START, END
     from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+    if checkpointer is None:
+        # Tipos internos del estado: registro explícito, también en modo estricto.
+        # No se altera el serializador de un checkpoint suministrado por el cliente.
+        checkpointer = MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=[
+            ("agentes.contracts", nombre)
+            for nombre in ("SupervisorDecision", "Evidence", "ToolResult", "PendingAction")
+        ]))
 
     builder = StateGraph(AgentState)
     builder.add_node("supervisor", partial(supervisor_node, route_provider=route_provider, max_iter=max_iter))
@@ -62,6 +71,6 @@ def build_graph(
         builder.add_edge(name, "supervisor")
     builder.add_edge("aplicar", END)
     return builder.compile(
-        checkpointer=MemorySaver() if checkpointer is None else checkpointer,
+        checkpointer=checkpointer,
         interrupt_before=["aplicar"],
     )
