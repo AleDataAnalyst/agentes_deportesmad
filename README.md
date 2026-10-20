@@ -48,14 +48,23 @@ Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-2
 
 ## Ejecutar la demo sin servicios externos
 
-Desde la raíz del repositorio, con un entorno que tenga las dependencias del backend instaladas. Los siguientes comandos usan la `.venv` local existente; no instalan paquetes ni requieren modelos o un índice:
+Desde la raíz del repositorio, con las dependencias del backend instaladas, activa la `.venv` existente:
 
-```powershell
-.\.venv\Scripts\python.exe -m agentes.demo
-.\.venv\Scripts\python.exe -m agentes.demo --interactivo
-.\.venv\Scripts\python.exe -m agentes.demo --escenario abstained
-.\.venv\Scripts\python.exe -m agentes.demo --escenario error
+| Sistema y terminal | Activación |
+| --- | --- |
+| Windows (PowerShell) | `.\.venv\Scripts\Activate.ps1` |
+| macOS / Linux (bash o zsh) | `source .venv/bin/activate` |
+
+Los comandos `python` de este README usan ese entorno y son iguales en los tres sistemas. Sin activarlo, sustituye `python` por `.\.venv\Scripts\python.exe` en Windows o `./.venv/bin/python` en macOS/Linux. La demo no instala paquetes ni requiere modelos o un índice:
+
+```console
+python -m agentes.demo
+python -m agentes.demo --interactivo
+python -m agentes.demo --escenario abstained
+python -m agentes.demo --escenario error
 ```
+
+Las comprobaciones de ejecución documentadas se realizaron en Windows. Los comandos equivalentes de macOS/Linux se han revisado, pero no se han ejecutado en esos sistemas.
 
 La salida identifica los datos como simulados. El comando sin decisión muestra el plan pendiente. El modo interactivo pide aprobar, rechazar o salir y no aprueba por defecto. `--decision aprobar` y `--decision rechazar` permiten recorridos automatizados de demostración; no representan una decisión humana capturada por una UI.
 
@@ -63,17 +72,17 @@ La salida identifica los datos como simulados. El comando sin decisión muestra 
 
 `main.py` delega en `clientes/cli.py`. Para probar el cliente sin servicios externos:
 
-```powershell
-.\.venv\Scripts\python.exe -B main.py --help
-.\.venv\Scripts\python.exe -B main.py --modo demo
-.\.venv\Scripts\python.exe -B main.py --modo demo --debug --mensaje "Consulta simulada"
-.\.venv\Scripts\python.exe -B main.py --menu
+```console
+python -B main.py --help
+python -B main.py --modo demo
+python -B main.py --modo demo --debug --mensaje "Consulta simulada"
+python -B main.py --menu
 ```
 
 `--help` no construye el servicio. `--menu` permite elegir demo o real sin selección automática y no se combina con `--modo`. Sin esas opciones, el modo predeterminado es `real`; un error real no activa una demo. Para usar el montaje documental, una vez preparado el entorno y recibido un índice compatible:
 
-```powershell
-.\.venv\Scripts\python.exe -B main.py --modo real
+```console
+python -B main.py --modo real
 ```
 
 La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o genera índices. El montaje real mantiene instalaciones como no disponibles.
@@ -87,26 +96,33 @@ La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o ge
 | `/nueva` | Crear otro hilo con el mismo servicio, sin plan pendiente |
 | `/ayuda` o `/salir` | Mostrar comandos o terminar la sesión |
 
-Los comandos también funcionan sin barra; `nuevo` y `/nuevo` equivalen a `/nueva`. `--mensaje` siempre se interpreta como texto de consulta. Mientras haya un plan pendiente se bloquean nuevas consultas y el cambio de conversación. Tras un error se exige consultar `/estado` antes de volver a consultar o decidir; `/nueva` también comprueba el estado antes de cambiar de hilo. No hay reintentos ni decisiones automáticas. Salir, EOF o Ctrl+C terminan sin aprobar ni rechazar.
+Los comandos también funcionan sin barra; `nuevo` y `/nuevo` equivalen a `/nueva`. `--mensaje` siempre se interpreta como texto de consulta. Mientras haya un plan pendiente se bloquean nuevas consultas y el cambio de conversación. Tras un error se exige consultar `/estado` antes de volver a consultar o decidir; si indica ejecución incompleta, hay que usar `/nueva`. Este comando comprueba el estado antes de cambiar de hilo y conserva el anterior. No hay reintentos ni decisiones automáticas. Salir, EOF o Ctrl+C terminan sin aprobar ni rechazar.
 
-La CLI admite hasta 8.000 caracteres por entrada, rechaza controles y formato invisible, limpia secuencias de terminal y filtra credenciales reconocibles en la salida. El filtrado es heurístico y no garantiza ocultar cualquier secreto. Comprueba el hilo, el estado HITL y el plan antes de permitir una decisión.
+La CLI admite hasta 8.000 caracteres por entrada, rechaza controles y formato invisible, limpia secuencias de terminal y filtra credenciales reconocibles, también en diccionarios y colecciones anidados sin modificar los originales. El filtrado es heurístico y no garantiza ocultar cualquier secreto. Comprueba el hilo, el estado HITL y el plan antes de permitir una decisión. Conserva códigos como `REQUEST_INCOMPLETE` y añade orientación por código, sin comparar el texto completo del error. Los imports y ejemplos para David están en la [guía de utilidades compartidas](docs/handoff_validacion_david.md).
 
-Streamlit se inicia con `.\.venv\Scripts\python.exe -m streamlit run app.py` y actualmente usa el servicio demo. La integración del modo real y los ajustes de presentación pendientes pertenecen al trabajo de su cliente.
+Streamlit se inicia con `python -m streamlit run app.py` y actualmente usa el servicio demo. La integración del modo real y los ajustes de presentación pendientes pertenecen al trabajo de su cliente.
 
 ## Protecciones del backend compartido
 
 Los especialistas reciben una copia del estado y solo pueden actualizar su resultado y eventos de traza. Los campos desconocidos, resultados incompatibles y cambios de otro rol se rechazan antes de fusionar el patch. Las salidas se copian para evitar referencias mutables compartidas con el nodo.
 
-Síntesis y aplicar validan sus campos permitidos y conservan las guardias HITL. El cierre no puede sustituir el plan ni sus resultados por otros tras la decisión humana. El proveedor de rutas recibe una copia independiente del estado, incluso si falla. El checkpoint predeterminado registra explícitamente los cuatro tipos internos del contrato; los checkpoints inyectados conservan su configuración.
+Síntesis y aplicar validan sus campos permitidos y conservan las guardias HITL. El cierre no puede sustituir el plan ni sus resultados por otros tras la decisión humana. Al aprobar, `final_answer` debe conservar íntegra la respuesta revisada y solo puede añadir texto al final. El proveedor de rutas recibe una copia independiente del estado, incluso si falla. El checkpoint predeterminado registra explícitamente los cuatro tipos internos del contrato; los checkpoints inyectados conservan su configuración.
 
 Estas comprobaciones validan contratos de código Python. No aíslan efectos externos de un callable ni certifican resistencia semántica a prompt injection. Los identificadores de hilo y plan coordinan el flujo; no autentican usuarios.
 
 ## Ver el grafo
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.ver_grafo
-Start-Process .\docs\specs\grafo_visual.svg
+```console
+python -m scripts.ver_grafo
 ```
+
+Para abrir el SVG generado:
+
+| Sistema | Comando |
+| --- | --- |
+| Windows (PowerShell) | `Start-Process ./docs/specs/grafo_visual.svg` |
+| macOS | `open ./docs/specs/grafo_visual.svg` |
+| Linux (sesión gráfica con xdg-utils) | `xdg-open ./docs/specs/grafo_visual.svg` |
 
 El script muestra ASCII en terminal y genera:
 
@@ -135,22 +151,22 @@ La sonda histórica de diez recorridos fue inline. Esta entrega añade pruebas r
 
 Pruebas de CLI y guardias con especialistas dobles, sin índice ni modelos:
 
-```powershell
-.\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider tests/test_cli.py tests/test_cli_security.py tests/test_node_guards.py tests/test_rag_error_boundary.py
+```console
+python -B -m pytest -q -p no:cacheprovider tests/test_cli.py tests/test_cli_security.py tests/test_node_guards.py tests/test_rag_error_boundary.py
 ```
 
 Selección breve para comprobar el montaje y la regresión, con pytest instalado:
 
-```powershell
-.\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider tests/test_runtime.py tests/test_documental_adapter.py tests/test_backend_cierre.py tests/test_golden_graph.py
+```console
+python -B -m pytest -q -p no:cacheprovider tests/test_runtime.py tests/test_documental_adapter.py tests/test_backend_cierre.py tests/test_golden_graph.py
 ```
 
 La selección completa de 276 y los bloqueos adicionales de red/Chroma usados por su ejecutor están documentados en el [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md). No ejecutar toda la suite como sustituto: algunos tests de herramientas/RAG intentan abrir Chroma durante la colección.
 
 Para exportar diez escenarios identificados como simulados:
 
-```powershell
-.\.venv\Scripts\python.exe -m scripts.export_evidence --output output/evidencia_backend_simulado.json
+```console
+python -m scripts.export_evidence --output output/evidencia_backend_simulado.json
 ```
 
 Los contratos y el golden están versionados. Las evidencias temporales permanecen locales. La demo, los dobles y las pruebas de contratos no validan recuperación, generación, catálogo, imágenes ni calidad sobre el corpus municipal.
@@ -179,8 +195,8 @@ Los tres mantienen `qwen3-embedding:0.6b`, `EMBED_DIM=1024` y los mismos valores
 
 Validación explícita de la sonda sin llamadas reales:
 
-```powershell
-.\.venv\Scripts\python.exe -B scripts/benchmark_rag_tag.py --perfil ligero 27b_acotado hector --doble
+```console
+python -B scripts/benchmark_rag_tag.py --perfil ligero 27b_acotado hector --doble
 ```
 
 La sonda ejecuta cada perfil en un proceso independiente y en secuencia. No sobrescribe `.env`, descarga modelos ni abre colecciones Chroma. Conserva respuesta original, interpretación, parámetros, métricas y resultados de calidad. JSON válido, taxonomía, coherencia y fallback son comprobaciones diferentes; un fallback no cuenta como clasificación correcta.
@@ -202,17 +218,26 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 
-Para aceptar la integración documental real, Héctor debe facilitar el índice y su configuración reproducible. Después corresponde verificar respuesta con fuente, abstención, fallo y recorrido HITL contra ese recurso. No hace falta inventar otra puerta documental ni añadir código al montaje para simular la existencia del índice.
+Los archivos de conexión, las entregas necesarias y las pruebas de aceptación de cada responsable se mantienen en el [handoff de integración](docs/handoff_cli_backend.md). El [handoff de Miguel](docs/decisiones/Handoff_Miguel_Especialista_Instalaciones.md) conserva las fuentes y observaciones fechadas del catálogo y los avisos.
 
-El cierre completo del PB02 sigue requiriendo dos especialistas reales, clientes ejecutables, herramientas externas/auxiliares y multimodal acordadas, evidencias y aceptación sobre recursos reales. La existencia de docstrings o archivos de estructura base no acredita esas capacidades. Paralelismo, asincronía y persistencia duradera no se presentan como alcance implementado aquí.
+Para cerrar el PB02 deben comprobarse:
 
-## Referencias y flujo Git
+- Supervisor, al menos dos especialistas reales, síntesis y aplicar con HITL; RAG, fuente externa con fallback, herramienta auxiliar y multimodal reales, con allowlist y límites en Python.
+- Continuidad por `thread_id` y checkpointer; consultas, aprobación/rechazo, fuentes y debug desde CLI y Streamlit ejecutables.
+- README reproducible, informe de decisiones, evidencias y presentación, con contribuciones y revisiones individuales acreditadas en Git.
 
-- [Handoff de conexiones pendientes y TODO en Python](docs/handoff_cli_backend.md).
-- [Seguimiento del PB02](docs/specs/seguimiento_pb02.md).
+Las pruebas con dobles no sustituyen la aceptación con recursos reales. Paralelismo, asincronía y persistencia duradera no se presentan como alcance implementado aquí.
+
+## Flujo Git y revisión de PR
+
+- Crear ramas `feature/...` desde `develop` y abrir PR hacia `develop`; resolver conflictos en la rama de trabajo. `main` recibe la entrega estable mediante PR desde `develop`, una vez integrada y comprobada en CLI y Streamlit.
+- Cada PR describe alcance, módulos y contrato afectados, comprobaciones y limitaciones. Los cambios de contrato requieren revisión de sus consumidores.
+- Distinguir comentarios **BLOQUEANTE**, **PREGUNTA** y **SUGERENCIA**. Resolver los bloqueantes y aprobar el último commit antes de integrar; registrar las sustituciones de revisor.
+- Cada integrante debe acreditar al menos una PR revisada y mergeada; informe y presentación se construyen entre todos.
+
+## Referencias
+
+- [Seguimiento histórico de requisitos del PB02](docs/specs/seguimiento_pb02.md).
 - [API y handoff del backend](docs/specs/handoff_backend_integracion.md).
 - [Contratos de integración](docs/specs/contratos.md).
 - [Golden del grafo](docs/specs/golden_graph.md).
-- [Handoff de instalaciones para Miguel](docs/decisiones/Handoff_Miguel_Especialista_Instalaciones.md).
-
-`develop` es la rama de integración y `main` la de entrega estable. El trabajo se propone mediante PR con alcance, contrato, comprobaciones y limitaciones. Los cambios de contrato requieren revisión de sus consumidores. Las contribuciones y revisiones individuales se acreditan en Git; esta documentación no sustituye la revisión ni la aceptación de cada entrega.
