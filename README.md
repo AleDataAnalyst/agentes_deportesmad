@@ -208,6 +208,7 @@ El cierre completo del PB02 sigue requiriendo dos especialistas reales, clientes
 
 ## Referencias y flujo Git
 
+- [Handoff de conexiones pendientes y TODO en Python](docs/handoff_cli_backend.md).
 - [Seguimiento del PB02](docs/specs/seguimiento_pb02.md).
 - [API y handoff del backend](docs/specs/handoff_backend_integracion.md).
 - [Contratos de integración](docs/specs/contratos.md).
