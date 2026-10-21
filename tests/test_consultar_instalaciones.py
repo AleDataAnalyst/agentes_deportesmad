@@ -25,7 +25,9 @@ class TestConsultarInstalaciones(unittest.TestCase):
     def test_modo_avisos_sin_centro(self):
         r = externa.consultar_instalaciones("avisos")
         self.assertFalse(r["ok"])
-        self.assertIn("centro_id", r["error"])
+        self.assertTrue(r.get("requiere_aclaracion"))
+        self.assertEqual(r["modo"], "avisos")
+        
 
     def test_modo_invalido(self):
         r = externa.consultar_instalaciones("otro")

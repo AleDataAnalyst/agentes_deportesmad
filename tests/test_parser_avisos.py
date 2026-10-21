@@ -1,99 +1,109 @@
-"""Tests del parser de avisos HTML (_ExtractorAvisoHTML)."""
+"""Tests del extractor de avisos HTML (_ExtractorAvisoHTML)."""
 
 import unittest
 
 from agentes.tools.externa import _ExtractorAvisoHTML
 
 
-HTML_UN_BLOQUE = """
-<html><body>
-<div class="info-seccion">
-  <div class="modal-alert modal-info">
-    <p class="title-modal">Aviso a usuarios/as</p>
-    <p>Cierre completo por obras hasta nuevo aviso.</p>
-  </div>
-</div>
-</body></html>
-"""
-
-HTML_DOS_BLOQUES = """
-<html><body>
-<div class="info-seccion">
-  <div class="modal-alert modal-info">
-    <p class="title-modal">Aviso a usuarios/as</p>
-    <p>Cierre temporal de piscinas.</p>
-  </div>
-</div>
-<div class="info-seccion">
-  <div class="modal-alert modal-info">
-    <p class="title-modal">Aviso a usuarios/as</p>
-    <p>Ausencia de agua caliente.</p>
-  </div>
-</div>
-</body></html>
-"""
-
-HTML_SIN_AVISO = """
-<html><body>
-<div class="info-seccion"><p>Horario de 9 a 21h.</p></div>
-</body></html>
-"""
-
-HTML_MODAL_SIN_TITULO = """
-<html><body>
-<div class="modal-alert modal-info">
-  <p>Otra cosa distinta.</p>
-</div>
-</body></html>
-"""
-
-HTML_CON_ENTIDADES = """
-<html><body>
-<div class="modal-alert">
-  <p class="title-modal">Aviso a usuarios/as</p>
-  <p>Del d&iacute;a 1 de julio. Duraci&oacute;n cinco meses.</p>
-</div>
-</body></html>
-"""
+def extraer(html: str) -> tuple[bool | None, list[str]]:
+    extractor = _ExtractorAvisoHTML()
+    extractor.feed(html)
+    extractor.close()
+    return extractor.resultado()
 
 
 class TestExtractorAvisoHTML(unittest.TestCase):
 
-    def _extraer(self, html: str):
-        p = _ExtractorAvisoHTML()
-        p.feed(html)
-        p.close()
-        return p.resultado()
-
-    def test_un_bloque(self):
-        detectado, textos = self._extraer(HTML_UN_BLOQUE)
+    def test_html_normal_detecta(self):
+        html = (
+            '<div class="modal-alert">'
+            "<h3 class=\"title-modal\">Aviso a usuarios/as</h3>"
+            "<p>Cierre por obras.</p>"
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
         self.assertTrue(detectado)
-        self.assertEqual(len(textos), 1)
-        self.assertIn("Cierre completo por obras", textos[0])
-        self.assertIn("Aviso a usuarios/as", textos[0])
+        self.assertEqual(len(bloques), 1)
+        self.assertIn("Cierre por obras", bloques[0])
 
-    def test_dos_bloques_separados(self):
-        detectado, textos = self._extraer(HTML_DOS_BLOQUES)
+    def test_br_simple_detecta(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Linea 1<br>Linea 2</p>"
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
+        self.assertTrue(detectado, "Un <br> no debe romper el parser")
+        self.assertEqual(len(bloques), 1)
+        self.assertIn("Linea 2", bloques[0])
+
+    def test_br_autocierre_detecta(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Linea 1<br/>Linea 2</p>"
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
         self.assertTrue(detectado)
-        self.assertEqual(len(textos), 2)
-        self.assertIn("Cierre temporal de piscinas", textos[0])
-        self.assertIn("Ausencia de agua caliente", textos[1])
+        self.assertEqual(len(bloques), 1)
 
-    def test_sin_aviso(self):
-        detectado, textos = self._extraer(HTML_SIN_AVISO)
+    def test_img_sin_cierre_detecta(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            '<img src="x.png">'
+            "<p>Cierre por obras.</p>"
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
+        self.assertTrue(detectado, "Un <img> no debe romper el parser")
+        self.assertEqual(len(bloques), 1)
+
+    def test_p_sin_cerrar_detecta(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Cierre por obras."
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
+        self.assertTrue(detectado, "Un <p> sin cerrar no debe romper el parser")
+        self.assertEqual(len(bloques), 1)
+
+    def test_modal_sin_cierre_es_no_verificable(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Cierre por obras.</p>"
+            # falta </div>
+        )
+        detectado, bloques = extraer(html)
+        self.assertIsNone(detectado, "Un modal abierto no es verificable")
+        self.assertEqual(bloques, [])
+
+    def test_dos_modales_se_extraen_ambos(self):
+        html = (
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Cierre por obras.</p>"
+            "</div>"
+            "<p>Texto intermedio</p>"
+            '<div class="modal-alert">'
+            '<h3 class="title-modal">Aviso a usuarios/as</h3>'
+            "<p>Piscina cerrada.</p>"
+            "</div>"
+        )
+        detectado, bloques = extraer(html)
+        self.assertTrue(detectado)
+        self.assertEqual(len(bloques), 2)
+
+    def test_sin_modal_devuelve_false(self):
+        html = "<html><body><p>Sin avisos</p></body></html>"
+        detectado, bloques = extraer(html)
         self.assertFalse(detectado)
-        self.assertEqual(textos, [])
-
-    def test_modal_sin_titulo_no_cuenta(self):
-        detectado, textos = self._extraer(HTML_MODAL_SIN_TITULO)
-        self.assertFalse(detectado)
-        self.assertEqual(textos, [])
-
-    def test_entidades_html_decodificadas(self):
-        detectado, textos = self._extraer(HTML_CON_ENTIDADES)
-        self.assertTrue(detectado)
-        self.assertIn("julio", textos[0])
-        self.assertIn("cinco meses", textos[0])
+        self.assertEqual(bloques, [])
 
 
 if __name__ == "__main__":

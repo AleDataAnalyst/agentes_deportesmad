@@ -168,10 +168,13 @@ class TestFallbackCatalogo(unittest.TestCase):
         respuesta = externa.consultar_catalogo_con_fallback()
 
         self.assertFalse(respuesta["ok"])
+        # Se conserva el error original de la API.
         self.assertEqual(respuesta["error"], error_original["error"])
+        # Se añade una advertencia de que el fallback no se pudo usar,
+        # sin exponer el detalle interno de la excepción.
         self.assertTrue(
             any(
-                "No hay capturas válidas" in advertencia
+                "No se pudo utilizar el catálogo local" in advertencia
                 for advertencia in respuesta["advertencias"]
             )
         )

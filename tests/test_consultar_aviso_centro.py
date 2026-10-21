@@ -114,7 +114,7 @@ class TestConsultarAvisoCentro(unittest.TestCase):
         mock_fb.side_effect = RuntimeError("No hay capturas")
         r = externa.consultar_aviso_centro("114782")
         self.assertFalse(r["ok"])
-        self.assertIn("fallback", r["error"])
+        self.assertIn("captura local", r["error"])
 
 
 if __name__ == "__main__":

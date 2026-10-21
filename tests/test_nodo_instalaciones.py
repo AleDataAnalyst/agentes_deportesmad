@@ -104,13 +104,21 @@ class TestNodoInstalaciones(unittest.TestCase):
         self.assertEqual(len(tr.evidence), 1)
         self.assertIn("Cierre por obras", tr.evidence[0].content)
 
-    def test_palabras_aviso_sin_pk(self):
-        with patch.object(instalaciones, "consultar_instalaciones",
-                          return_value=_tool_result_avisos_ok()) as mock_tool:
-            state = initial_state("¿hay algún cierre por obras?")
-            instalaciones.nodo_instalaciones(state)
+    @patch.object(instalaciones, "consultar_instalaciones")
+    def test_palabras_aviso_sin_pk(self, mock_tool):
+        state = {
+            "user_message": "¿hay algún cierre por obras?",
+            "specialist_results": {},
+        }
+        resultado = instalaciones.nodo_instalaciones(state)
 
-        mock_tool.assert_called_once_with(modo="avisos", centro_id=None)
+        # Ya no se llama a la tool: se pide aclaración (abstained).
+        mock_tool.assert_not_called()
+
+        tr = resultado["specialist_results"]["instalaciones"]
+        self.assertEqual(tr.status, "abstained")
+        self.assertTrue(tr.data.get("requiere_aclaracion"))
+        self.assertIn("identificador del centro", tr.answer)
 
     def test_error_mapea_a_status_error(self):
         with patch.object(instalaciones, "consultar_instalaciones",
@@ -131,7 +139,9 @@ class TestNodoInstalaciones(unittest.TestCase):
 
         tr = patch_result["specialist_results"]["instalaciones"]
         self.assertEqual(tr.status, "error")
-        self.assertIn("boom", tr.error)
+        # El nodo no propaga el mensaje de la excepción (review de Ale).
+        self.assertNotIn("boom", tr.error)
+        self.assertIn("No se pudo completar", tr.error)
 
     def test_conserva_resultados_previos(self):
         previo = ToolResult(status="ok", answer="x", evidence=[], data={})

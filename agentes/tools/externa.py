@@ -22,7 +22,9 @@ Limitaciones:
 import json
 import logging
 import re
-from datetime import datetime
+import unicodedata
+
+from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Literal, Optional, TypedDict
@@ -50,6 +52,9 @@ LIMITE_POR_PETICION = 1000
 DIRECTORIO_FALLBACKS = (
     Path(__file__).resolve().parents[2] / "data" / "fallbacks"
 )
+
+# Antigüedad máxima para utilizar capturas históricas de avisos.
+MAX_EDAD_FALLBACK_AVISOS_DIAS = 3
 
 DOMINIOS_OFICIALES = {"madrid.es", "www.madrid.es"}
 HEADING_AVISO = "aviso a usuarios/as"
@@ -95,8 +100,6 @@ class BloqueAviso(TypedDict):
 
 
 class ToolResultInstalaciones(TypedDict):
-    """Contrato común de salida para las consultas de instalaciones."""
-
     ok: bool
     modo: Modo
     datos: list[ItemCatalogo] | list[BloqueAviso]
@@ -106,6 +109,7 @@ class ToolResultInstalaciones(TypedDict):
     fecha_captura_fallback: Optional[str]
     advertencias: list[str]
     error: Optional[str]
+    requiere_aclaracion: bool  # nuevo, opcional en la práctica
 
 
 # ---------------------------------------------------------------------------
@@ -158,8 +162,10 @@ def _crear_error_aviso(
     mensaje: str,
     fecha_consulta: str,
     advertencias: Optional[list[str]] = None,
+    *,
+    requiere_aclaracion: bool = False,
 ) -> ToolResultInstalaciones:
-    """Construye una respuesta de error para la consulta de avisos."""
+    """Construye una respuesta de error/aclaración para la consulta de avisos."""
     return {
         "ok": False,
         "modo": "avisos",
@@ -170,6 +176,8 @@ def _crear_error_aviso(
         "fecha_captura_fallback": None,
         "advertencias": list(advertencias or []),
         "error": f"Centro {centro_id}: {mensaje}",
+        # Campo extra interno; el nodo lo usa para mapear a abstained.
+        "requiere_aclaracion": requiere_aclaracion,
     }
 
 
@@ -291,6 +299,20 @@ def _normalizar_registro(registro: dict) -> ItemCatalogo:
         distrito=valores["distrito"],
         content_url=valores["content_url"],
     )
+
+def normalizar_texto(texto: str) -> str:
+    """Normaliza texto: minúsculas y sin tildes, para comparaciones."""
+    texto = (texto or "").casefold()
+    return "".join(
+        caracter
+        for caracter in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(caracter) != "Mn"
+    )
+
+
+
+
+
 
 
 def _consultar_catalogo_ckan() -> ToolResultInstalaciones:
@@ -489,9 +511,13 @@ def _cargar_fallback_catalogo(
     )
 
     if not archivos:
-        raise RuntimeError(
-            f"No hay capturas de catálogo en el directorio: {directorio}"
+        logger.warning(
+            "No hay capturas de catálogo en el directorio: %s", directorio
         )
+        raise RuntimeError(
+            "No hay capturas locales del catálogo disponibles."
+        )
+    
 
     errores: list[str] = []
 
@@ -594,11 +620,15 @@ def consultar_catalogo_con_fallback() -> ToolResultInstalaciones:
 
     try:
         centros, fecha_captura, ruta = _cargar_fallback_catalogo()
-    except RuntimeError as exc:
+    except RuntimeError:
         resultado_error = dict(resultado_api)
         advertencias = list(resultado_error.get("advertencias", []))
+        # Conservar el motivo del fallo de la API (mensaje controlado, sin
+        # rutas internas ni trazas) para que el usuario sepa qué pasó.
+        if error_api:
+            advertencias.append(error_api)
         advertencias.append(
-            "No se pudo utilizar el catálogo local: " + str(exc)
+            "No se pudo utilizar el catálogo local de respaldo."
         )
         resultado_error["advertencias"] = advertencias
         return resultado_error
@@ -629,24 +659,19 @@ def consultar_catalogo_con_fallback() -> ToolResultInstalaciones:
 # Extracción del aviso desde HTML
 # ---------------------------------------------------------------------------
 
+
 class _ExtractorAvisoHTML(HTMLParser):
     """
-    Extrae bloques de aviso del HTML real de madrid.es.
+    Extrae los bloques de aviso contenidos en elementos modal-alert.
 
-    El HTML oficial tiene esta estructura:
-        <div class="modal-alert modal-info">
-          <p class="title-modal">Aviso a usuarios/as</p>
-          <p>...contenido...</p>
-          <p>...contenido...</p>
-        </div>
+    Solo cuenta las etiquetas div para controlar la profundidad del modal.
+    Las etiquetas p, br, img y otras etiquetas HTML no modifican esa
+    profundidad, por lo que no pueden dejar el parser bloqueado.
 
-    El extractor busca contenedores con clase 'modal-alert' y, dentro de
-    cada uno, comprueba que exista un título 'Aviso a usuarios/as'. Captura
-    TODO el texto del contenedor (título + párrafos) como un bloque.
-
-    Devuelve una lista de bloques (uno por cada modal-alert con el título
-    esperado), para soportar centros con varios avisos (p.ej. María Jesús
-    Rosa tenía 2 bloques).
+    resultado() devuelve:
+      (True, bloques): se encontraron avisos.
+      (False, []): el HTML se procesó correctamente, pero no había avisos.
+      (None, []): no se pudo verificar la extracción con seguridad.
     """
 
     def __init__(self) -> None:
@@ -655,8 +680,7 @@ class _ExtractorAvisoHTML(HTMLParser):
         self._profundidad_ignorar = 0
         self._partes_bloque: list[str] = []
         self._bloques: list[str] = []
-        # Texto del contenedor que estamos capturando (para verificar título)
-        self._texto_bloque_actual: list[str] = []
+        self._modal_incompleto = False
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
         tag = tag.lower()
@@ -670,23 +694,30 @@ class _ExtractorAvisoHTML(HTMLParser):
         if self._profundidad_ignorar:
             return
 
-        if self._profundidad_modal == 0 and CLASE_CONTENEDOR_AVISO in clases:
-            # Entramos en un contenedor de aviso.
+        # Solo un div con la clase modal-alert inicia un bloque.
+        if (
+            self._profundidad_modal == 0
+            and tag == "div"
+            and CLASE_CONTENEDOR_AVISO in clases
+        ):
             self._profundidad_modal = 1
             self._partes_bloque = []
-            self._texto_bloque_actual = []
             return
 
         if self._profundidad_modal:
-            self._profundidad_modal += 1
+            # Únicamente los div anidados aumentan la profundidad.
+            if tag == "div":
+                self._profundidad_modal += 1
+
             if tag in {"p", "div", "br", "li", "tr", "section"}:
                 self._partes_bloque.append(" ")
 
     def handle_endtag(self, tag: str) -> None:
         tag = tag.lower()
 
-        if tag in {"script", "style", "noscript"} and self._profundidad_ignorar:
-            self._profundidad_ignorar -= 1
+        if tag in {"script", "style", "noscript"}:
+            if self._profundidad_ignorar:
+                self._profundidad_ignorar -= 1
             return
 
         if self._profundidad_ignorar or not self._profundidad_modal:
@@ -695,37 +726,51 @@ class _ExtractorAvisoHTML(HTMLParser):
         if tag in {"p", "div", "br", "li", "tr", "section"}:
             self._partes_bloque.append(" ")
 
+        # Las etiquetas distintas de div no alteran la profundidad.
+        if tag != "div":
+            return
+
         self._profundidad_modal -= 1
 
         if self._profundidad_modal == 0:
-            # Cerramos un modal-alert. Comprobamos si contiene el título.
-            texto_completo = re.sub(
-                r"\s+", " ", "".join(self._partes_bloque)
+            texto = re.sub(
+                r"\s+",
+                " ",
+                "".join(self._partes_bloque),
             ).strip()
-            texto_normalizado = texto_completo.casefold()
 
-            if HEADING_AVISO in texto_normalizado and texto_completo:
-                self._bloques.append(texto_completo)
+            # Se conserva el texto del bloque si contiene el encabezado.
+            if HEADING_AVISO in texto.casefold() and texto:
+                self._bloques.append(texto)
 
             self._partes_bloque = []
-            self._texto_bloque_actual = []
 
     def handle_data(self, data: str) -> None:
         if self._profundidad_ignorar or not self._profundidad_modal:
             return
+
         self._partes_bloque.append(data)
 
-    def resultado(self) -> tuple[bool, list[str]]:
+    def resultado(self) -> tuple[bool | None, list[str]]:
         """
-        Devuelve (detectado, lista_de_bloques).
+        Devuelve el estado de verificación y los bloques extraídos.
 
-        - detectado=True y lista no vacía: se encontraron uno o varios
-          bloques de aviso.
-        - detectado=False y lista vacía: la ficha se interpretó, pero no
-          apareció ningún 'modal-alert' con el título esperado.
+        None significa que quedó abierto un modal y no puede garantizarse
+        que la extracción esté completa.
         """
-        bloques = [b for b in self._bloques if b.strip()]
-        return (len(bloques) > 0, bloques)
+        if self._profundidad_modal != 0:
+            self._modal_incompleto = True
+
+        if self._modal_incompleto:
+            return None, []
+
+        bloques = [bloque for bloque in self._bloques if bloque.strip()]
+
+        if bloques:
+            return True, bloques
+
+        return False, []
+
 
 
 def _consultar_pagina_aviso(url: str) -> tuple[bool, list[str]]:
@@ -820,7 +865,10 @@ def _cargar_fallback_avisos(
     )
 
     if not archivos:
-        raise RuntimeError("No hay capturas locales de avisos.")
+        logger.warning(
+            "No hay capturas de avisos en el directorio: %s", directorio
+        )
+        raise RuntimeError("No hay capturas locales de avisos disponibles.")
 
     errores: list[str] = []
 
@@ -837,9 +885,24 @@ def _cargar_fallback_avisos(
             if not isinstance(metadata, dict):
                 raise ValueError("Faltan los metadatos de la captura.")
 
+            
             fecha = _validar_fecha_iso(metadata.get("fecha_captura"))
 
+            fecha_captura_dt = datetime.fromisoformat(fecha)
+            ahora = datetime.now(fecha_captura_dt.tzinfo)
+
+            antiguedad = ahora - fecha_captura_dt
+
+            if antiguedad > timedelta(
+                days=MAX_EDAD_FALLBACK_AVISOS_DIAS
+            ):
+                raise ValueError(
+                    "La captura supera la antigüedad máxima permitida "
+                    "para utilizar avisos históricos."
+                )
+
             if not isinstance(avisos, list) or not avisos:
+
                 raise ValueError(
                     "La lista de avisos está vacía o no es válida."
                 )
@@ -1006,13 +1069,21 @@ def consultar_aviso_centro(centro_id: str) -> ToolResultInstalaciones:
     # 1) Intentar la consulta HTML real.
     error_html_msg: Optional[str] = None
 
+    
     try:
         detectado, textos = _consultar_pagina_aviso(url)
+
+        # Si el HTML no permite verificar el resultado, usar el fallback.
+        if detectado is None:
+            raise RuntimeError(
+                "No se pudo verificar la presencia o ausencia de avisos."
+            )
 
         url_ficha = _validar_url_oficial(url)
         advertencias = list(advertencias_catalogo)
 
-        if detectado is False or not textos:
+        if detectado is False:
+
             advertencias.append(
                 "La ficha se consultó correctamente, pero no se encontró "
                 "el encabezado del aviso. Esto no garantiza que no exista "
@@ -1158,16 +1229,25 @@ def consultar_aviso_centro(centro_id: str) -> ToolResultInstalaciones:
             "error": None,
         }
 
+    
     except (RuntimeError, OSError) as error_fallback:
+        logger.warning(
+            "No se pudo consultar el aviso del centro %s ni utilizar "
+            "el fallback. Tipo de error del fallback: %s",
+            centro_id,
+            type(error_fallback).__name__,
+        )
         return _crear_error_aviso(
             centro_id,
             (
-                f"falló la consulta oficial ({error_html_msg}) y no hay "
-                f"un fallback utilizable ({error_fallback})."
+                "No se pudo consultar la ficha oficial y no hay una "
+                "captura local utilizable para verificar el estado "
+                "de los avisos."
             ),
             fecha_consulta,
             advertencias_catalogo,
         )
+
 
 # ---------------------------------------------------------------------------
 # Punto de entrada público (contrato del especialista)
@@ -1177,16 +1257,6 @@ def consultar_instalaciones(
     modo: Modo,
     centro_id: Optional[str] = None,
 ) -> ToolResultInstalaciones:
-    """
-    Punto de entrada único del especialista de instalaciones y avisos.
-
-    Args:
-        modo: "catalogo" o "avisos".
-        centro_id: obligatorio si modo="avisos".
-
-    Returns:
-        ToolResultInstalaciones con el contrato acordado.
-    """
     if modo == "catalogo":
         return consultar_catalogo_con_fallback()
 
@@ -1194,8 +1264,9 @@ def consultar_instalaciones(
         if not centro_id:
             return _crear_error_aviso(
                 "(vacío)",
-                "modo='avisos' requiere centro_id.",
+                "necesito saber de qué centro quieres consultar los avisos.",
                 _fecha_actual_iso(),
+                requiere_aclaracion=True,
             )
         return consultar_aviso_centro(centro_id)
 
@@ -1203,3 +1274,24 @@ def consultar_instalaciones(
         f"Modo no soportado: {modo!r}. Usa 'catalogo' o 'avisos'.",
         _fecha_actual_iso(),
     )
+
+def resolver_centro_por_nombre(texto: str) -> list[ItemCatalogo]:
+    """Devuelve centros cuyo nombre contenga todas las palabras de `texto`."""
+    catalogo = consultar_catalogo_con_fallback()
+    if not catalogo["ok"]:
+        return []
+    palabras = [
+        normalizar_texto(p) for p in re.split(r"\W+", texto) if p
+    ]
+    palabras = [p for p in palabras if len(p) >= 3]
+    if not palabras:
+        return []
+    coincidencias: list[ItemCatalogo] = []
+    for item in catalogo["datos"]:
+        if not isinstance(item, dict):
+            continue
+        nombre = normalizar_texto(str(item.get("nombre") or ""))
+        if all(p in nombre for p in palabras):
+            coincidencias.append(item)
+    return coincidencias
+
