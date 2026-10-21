@@ -1,5 +1,5 @@
 """
-src/informe.py
+rag/informe.py
 Genera el informe de indexación en markdown (por defecto
 ``output/informe_index_<guid8_chroma>_aaaaMMdd_hhmm.md``)
 al finalizar el pipeline: todos los parámetros aplicados y las métricas de la

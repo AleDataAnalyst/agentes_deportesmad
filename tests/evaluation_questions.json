@@ -1,19 +1,19 @@
 [
   {
     "id": 1,
-    "pregunta": "¿Cuánto cuesta el abono de piscina?",
+    "pregunta": "¿Cuánto cuesta el bono de piscina para el verano?",
     "categoria_esperada": "tarifas",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
+    "fuente_esperada": "PreciosPublicos2026.pdf"
   },
   {
     "id": 2,
-    "pregunta": "¿Hay descuentos para menores, mayores, estudiantes o personas en paro?",
+    "pregunta": "¿Hay descuentos para personas en paro?",
     "categoria_esperada": "tarifas",
     "fuente_esperada": "300097-0-deportes-descuentos.csv"
   },
   {
     "id": 3,
-    "pregunta": "¿Cuánto cuesta una entrada suelta (por día) para la piscina?",
+    "pregunta": "¿Cuánto cuesta una entrada suelta (por día) para la piscina cubierta?",
     "categoria_esperada": "tarifas",
     "fuente_esperada": "PreciosPublicos2026.pdf"
   },
@@ -28,14 +28,13 @@
     "id": 5,
     "pregunta": "¿Cómo se adquiere el Abono Deporte Madrid (ADM)?",
     "categoria_esperada": "abonos",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
+    "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
   },
   {
     "id": 6,
-    "pregunta": "¿El abono de piscina es ilimitado o tiene un número máximo de días?",
-    "categoria_esperada": "out_of_corpus",
-    "fuente_esperada": null,
-    "out_of_corpus": true
+    "pregunta": "¿El bono de piscina en verano es ilimitado o tiene un número máximo de días?",
+    "categoria_esperada": "tarifas",
+    "fuente_esperada": "PreciosPublicos2026.pdf"
   },  
   {
     "id": 7,
@@ -65,7 +64,7 @@
   },
   {
     "id": 11,
-    "pregunta": "¿Hasta qué hora se puede cancelar una reserva sin que se aplique coste?",
+    "pregunta": "¿Cuando se puede cancelar una reserva sin que se aplique coste?",
     "categoria_esperada": "reservas",
     "fuente_esperada": "DecretoAnulacionReservasConCoste.pdf"
   },
@@ -103,7 +102,7 @@
   },
   {
     "id": 17,
-    "pregunta": "¿Qué horarios tiene el polideportivo de mi barrio?",
+    "pregunta": "¿Qué horarios tiene el polideportivo de Arganzuela?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "200186-0-polideportivos.csv"
   },

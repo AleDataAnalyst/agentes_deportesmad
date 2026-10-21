@@ -1,5 +1,5 @@
 """
-src/logic.py
+rag/logic.py
 
 Orquestador del pipeline RAG online.
 

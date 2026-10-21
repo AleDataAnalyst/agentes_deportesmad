@@ -1,5 +1,4 @@
 /chromadb
+*.md
 *.json
 *.jsonl
-informe_index*.md
-/chroma

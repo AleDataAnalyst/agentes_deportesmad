@@ -1,5 +1,5 @@
 """
-config.py
+rag/config.py
 Todas las constantes del proyecto. Se leen de variables de entorno (.env)
 con valores por defecto: se cambia de proveedor sin tocar el código.
 
@@ -12,6 +12,7 @@ Cada proveedor (ollama / huggingface / google) tiene su variable de modelo
 resuelven automáticamente según el proveedor de cada interruptor.
 """
 import os
+from pathlib import Path
 
 # Carga .env si existe (python-dotenv es opcional: si no está instalado, se ignora)
 try:
@@ -75,6 +76,9 @@ GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY") or None
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "150"))
 
+# --- Checkpoint de indexación ---
+CHECKPOINT_FILE = "../output/index_checkpoint.json"
+CHECKPOINT_BATCH_SIZE: int = 200  # lotes pequeños = checkpoints frecuentes
 
 # --- Retrieval (online) ---
 TOP_K: int = int(os.getenv("TOP_K", "5"))
@@ -141,3 +145,13 @@ GEN_TIMEOUT: int = int(os.getenv("GEN_TIMEOUT", "140"))
 CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./output/chroma_db")
 COLLECTION_NAME: str = os.getenv("COLLECTION_NAME", "deporte_municipal")
 COSINE_SPACE: str = "cosine"
+
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+ASSETS_DIR = ROOT / "assets"
+
+# ← LA LÍNEA CLAVE para la visión
+IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
+
+VISION_MODEL = "gemini-2.5-flash"

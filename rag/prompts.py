@@ -1,5 +1,5 @@
 """
-src/prompts.py
+rag/prompts.py
 
 Construcción del prompt para el LLM en el pipeline RAG.
 

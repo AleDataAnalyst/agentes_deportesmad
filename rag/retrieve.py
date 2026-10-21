@@ -1,5 +1,5 @@
 """
-src/retrieve.py
+rag/retrieve.py
 
 Recuperación semántica desde ChromaDB.
 

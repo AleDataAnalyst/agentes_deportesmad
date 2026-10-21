@@ -7,7 +7,8 @@ API pública:
 """
 from .logic import rag_ask, responder
 from .pipeline import ejecutar_pipeline
+from .load import _formato_documento
 
-__all__ = ["responder", "rag_ask", "ejecutar_pipeline"]
+__all__ = ["responder", "rag_ask", "ejecutar_pipeline", "_formato_documento"]
 
 

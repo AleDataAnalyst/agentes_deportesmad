@@ -1,5 +1,5 @@
 """
-src/pipeline.py
+rag/pipeline.py
 Encadena PREFLIGHT → LOAD → CLEAN → TAG → CHUNK → EMBED → SCORING → DEDUP → INDEX.
 PREFLIGHT garantiza que EMBED_MODEL esté disponible en EMBED_PROVIDER antes de empezar.
 Es el punto de entrada que importa tu aplicación [9].

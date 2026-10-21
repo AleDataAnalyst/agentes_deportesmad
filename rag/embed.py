@@ -1,5 +1,5 @@
 """
-src/embed.py
+rag/embed.py
 Convierte texto en vectores. Soporta 3 proveedores:
   - ollama       (offline)  -> POST /api/embed
   - huggingface  (online)   -> sentence-transformers

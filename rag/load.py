@@ -1,5 +1,5 @@
 """
-src/load.py
+rag/load.py
 Abstrae el formato: PDF, TXT, MD, CSV -> lista de LangChain Documents.
 
 Los CSV se delegan a ``csv_transform.py`` / ``csv_advisor.py`` (entidad,
@@ -15,6 +15,11 @@ import hashlib
 import os
 from pathlib import Path
 from collections.abc import Callable
+from typing import List
+
+from pypdf import PdfReader
+from pdf2image import convert_from_path
+import pytesseract
 
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
@@ -24,7 +29,7 @@ from .csv_transform import filas_a_documentos, transform_csv
 
 
 _LOTES_HASH = 1 << 20  # 1 MiB por lectura en el hash
-
+OCR_AGENT = os.environ.get("OCR_AGENT", "tesseract")
 
 def _hash_file(ruta: str) -> str:
     """SHA-256 hex del contenido binario crudo del archivo (en streaming).
@@ -59,9 +64,41 @@ def _normalizar_source(documentos: list[Document], ruta: str) -> list[Document]:
     return documentos
 
 
+def pdf_con_texto(path: str) -> bool:
+    """ Detecta texto nativo y comprueba si hay texto legible """
+    try:
+        lector = PdfReader(path)
+        return any(pag.extract_text() for pag in lector.pages)
+    except Exception:
+        # al no poder leerse texto del PDF se devuelve falso para forzar OCR
+        return False
+
 def _load_pdf(path: str) -> list[Document]:
+    """
+    Lee un PDF y devuelve una lista de Document (uno por página).
+    Usa pypdf para PDFs con texto; recurre al OCR cuando el PDF es imagen.
+    """
+    if not pdf_con_texto(path):
+        print(f"[LOAD] PDF no convencional (imagen, sin texto) - Se fuerza reconocimiento OCR")
+        return carga_con_ocr(path)
     loader = PyPDFLoader(path)
     return _normalizar_source(loader.load(), path)
+
+
+def carga_con_ocr(ruta: str) -> List[Document]:
+    """OCR que convierte cada página a png y lee con Tesseract""" 
+    imagenes = convert_from_path(pdf_path = ruta)
+    docs: List[Document] = []
+    for i, imagen in enumerate(imagenes):
+        texto = pytesseract.image_to_string(imagen)
+        meta = {
+            "page": i + 1,
+            "source": os.path.basename(ruta),
+            "file_type": "pdf_ocr",
+            "ocr_agent": OCR_AGENT,
+        }
+        docs.append(Document(page_content=texto, metadata=meta))
+    return docs
 
 
 # En orden de preferencia. cp1252 mapea mejor que latin-1 los guiones y
@@ -70,12 +107,12 @@ def _load_pdf(path: str) -> list[Document]:
 _CODIFICACIONES: tuple[str, ...] = ("utf-8-sig", "cp1252", "latin-1")
 
 
-def _detectar_encoding(path: str) -> str:
+def _detectar_encoding(ruta: str) -> str:
     """
     Detecta la encoding de un archivo probando en orden:
     utf-8-sig (maneja BOM), cp1252 (Windows), latin-1 (nunca falla).
     """
-    raw = Path(path).read_bytes()
+    raw = Path(ruta).read_bytes()
     for enc in _CODIFICACIONES:
         try:
             raw.decode(enc)
@@ -92,7 +129,7 @@ _TAB_MIN_ROWAS = 50
 _TAB_MIN_COLS = 2
 
 
-def _es_tabular(path: str) -> bool:
+def _es_tabular(ruta: str) -> bool:
     """¿Es el .txt/.md realmente tabular (CSV/TSV con cabecera + muchas filas)?
 
     Reutiliza ``leer_filas_csv`` (encoding + delimitador + DictReader, el mismo
@@ -101,17 +138,17 @@ def _es_tabular(path: str) -> bool:
     completo del fichero solo para la detección.
     """
     try:
-        columnas, filas = leer_filas_csv(path, sample_size=_TAB_MIN_ROWAS)
+        columnas, filas = leer_filas_csv(ruta, sample_size=_TAB_MIN_ROWAS)
     except Exception as exc:  # noqa: BLE001 — cualquier fallo → no tabular
         print(
-            f"[LOAD] {os.path.basename(path)}: no tabular "
+            f"[LOAD] {os.path.basename(ruta)}: no tabular "
             f"({exc.__class__.__name__}): {exc}"
         )
         return False
     return len(columnas) >= _TAB_MIN_COLS and len(filas) >= _TAB_MIN_ROWAS
 
 
-def _load_txt(path: str) -> list[Document]:
+def _load_txt(ruta: str) -> list[Document]:
     """TXT/MD: si es tabular, una fila = un doc (row_as_doc forzado,
 
     sin pasar por csv_advisor); si no, texto plano (un doc. por archivo).
@@ -120,10 +157,10 @@ def _load_txt(path: str) -> list[Document]:
     repetido (p. ej. ``Codigo_temporada``) se clasificaría ``entity_doc``
     + ``exact_key`` y la dedup por clave colapsaría todas las filas en 1.
     """
-    if _es_tabular(path):
-        columnas, filas = leer_filas_csv(path)
+    if _es_tabular(ruta):
+        columnas, filas = leer_filas_csv(ruta)
         # Implementación de urllib.parse.unquote
-        source = urllib.parse.unquote(Path(path).name)
+        source = urllib.parse.unquote(Path(ruta).name)
         print(f"source: {source}")
         advice = CsvAdvice(
             source=source,
@@ -134,21 +171,41 @@ def _load_txt(path: str) -> list[Document]:
             reason="tabular .txt/.md: row_as_doc forzado (sin advisor)",
         )
         docs = filas_a_documentos(source, filas, columnas, advice)
-        return _normalizar_source(docs, path)
-    return _load_text(path)
+        return _normalizar_source(docs, ruta)
+    return _load_text(ruta)
 
-def _load_text(path: str) -> list[Document]:
-    loader = TextLoader(path, encoding=_detectar_encoding(path))
-    return _normalizar_source(loader.load(), path)
+def _load_text(ruta: str) -> list[Document]:
+    loader = TextLoader(ruta, encoding=_detectar_encoding(ruta))
+    return _normalizar_source(loader.load(), ruta)
 
 
-def _load_csv(path: str) -> list[Document]:
+def _load_csv(ruta: str) -> list[Document]:
     """
     CSV de eventos: csv_advisor.py decide el tratamiento según la estructura
     (entidad / grupo de hechos / texto plano) y csv_transform.py lo aplica.
     Aquí solo delegamos: load.py es un lector, no inventa transformaciones.
     """
-    return _normalizar_source(transform_csv(path), path)
+    return _normalizar_source(transform_csv(ruta), ruta)
+
+# Router de formato (metadato)
+def _formato_documento(source: str) -> str:
+    """Devuelve el formato de un documento según su nombre de archivo.
+
+    Args:
+        source: valor de metadata.source (normalmente el basename del fichero).
+
+    Returns:
+        Uno de: 'pdf', 'csv', 'json', 'txt', 'md', 'otro'.
+    """
+    ext = Path(source).suffix.lower().lstrip(".")
+    return {
+        "pdf": "pdf",
+        "csv": "csv",
+        "json": "json",
+        "txt": "txt",
+        "md": "md",
+    }.get(ext, "otro")
+
 
 # Registro extensión -> loader. .txt/.md comparten el loader tabular-aware:
 # si el fichero es realmente tabular (TSV/CSV disfrazado), 1 fila = 1 doc.
@@ -202,6 +259,7 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
             d.metadata["doc_id"] = i
             d.metadata.setdefault("source", os.path.basename(archivo))
             d.metadata.setdefault("file_hash", file_hash)
+            d.metadata.setdefault("format", _formato_documento(os.path.basename(archivo)))
         documentos.extend(docs)
 
     return documentos
