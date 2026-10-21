@@ -5,7 +5,9 @@ registro autorizado.
 API pública:
     rag_preguntar(consulta: str) -> dict
 """
-__all__ = ["rag_preguntar"]
+def __all__():
+    """Nombres públicos exportados por RAG."""
+    return ["rag_preguntar"]
 
 
 def __getattr__(name: str):

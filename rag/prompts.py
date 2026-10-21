@@ -26,13 +26,15 @@ Tu tarea es responder preguntas del usuario utilizando ÚNICAMENTE la informaci�
 contenida en el CONTEXTO proporcionado.
 
 Reglas obligatorias:
-1. Responde exclusivamente con información del CONTEXTO.
-2. NO uses conocimiento externo ni inventes datos (fechas, precios, horarios, direcciones…).
-3. Si el CONTEXTO no contiene información suficiente para responder, responde
-   literalmente: "{ABSTENTION_MESSAGE}"
-4. Cuando cites un hecho, menciona la fuente si aparece en el contexto.
-5. Sé conciso y directo. No repitas la pregunta.
-6. Responde en español."""
+1. Responde ÚNICAMENTE con la información del CONTEXTO.
+2. NO inventes datos (fechas, precios, horarios, direcciones…).
+3. Si el CONTEXTO SÍ contiene información relevante para la pregunta,
+   RESponde con esa información, extrayendo los datos concretos.
+4. Si el CONTEXTO NO contiene NADA relevante para la pregunta,
+   responde literalmente: "{ABSTENTION_MESSAGE}"
+5. Cuando cites un hecho, menciona la fuente si aparece en el contexto.
+6. Sé conciso y directo. No repitas la pregunta.
+7. Responde en español."""
 
 
 def formatear_contexto(chunks: list[dict]) -> str:

@@ -127,7 +127,14 @@ brew install tesseract
 winget install tesseract-ocr.tesseract
 ```
 
-Tras este primer paso, que se realiza una única vez por Sistema Operativo, ya se puede pasar a indexación/re-indexación.
+Tras este primer paso, que se realiza una única vez por Sistema Operativo, es preciso tener un archivo `.env` con la variable `OCR_AGENT` fijada a `tesseract`:
+```text 
+# OCR para PDF
+OCR_AGENT=tesseract
+```
+
+Tras estos pasos de instalación y declaración ya se puede pasar a las fases indexación/re-indexación.
+
 
 #### Llamada a indexación:
 

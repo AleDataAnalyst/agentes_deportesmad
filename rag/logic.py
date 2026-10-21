@@ -90,6 +90,14 @@ def _hay_evidencia(chunks: list[dict], umbral: float = UMBRAL_ABSTENCION) -> boo
     mejor_dist = min(c.get("distance", 1.0) for c in chunks)
     return mejor_dist <= umbral
 
+def _mejor_distancia(chunks: list[dict]) -> float:
+    """Devuelve la distancia coseno más baja entre la pregunta y los chunks.
+
+    Si no hay chunks, devuelve 1.0 (equivalente a "lejos de todo").
+    """
+    if not chunks:
+        return 1.0
+    return min(c.get("distance", 1.0) for c in chunks)
 
 def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
     """
@@ -126,6 +134,22 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
     except Exception as e:
         log_error(f"Fallo en retrieval: {e}")
         return _resultado_error(f"Error recuperando contexto: {e}")
+
+    if not _hay_evidencia(chunks):
+        ...
+        return {
+            "respuesta": ABSTENTION_MESSAGE,
+            "chunks": chunks,
+            "fuentes": _extraer_fuentes(chunks),
+            "distancia_mejor": _mejor_distancia(chunks),   # <-- NUEVO
+            "motivo_abstencion": "Sin evidencia suficiente (guardrail)",  # <-- NUEVO
+            "contexto": "",
+            "metrics": {**metricas, "top_k": k, "n_chunks": 0},
+            "abstained": True,
+            "error": None,
+        }
+
+
 
     # 3) Guardrail de evidencia: sin chunks o distancias altas -> abstención sin LLM
     if not _hay_evidencia(chunks):
@@ -185,6 +209,8 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
         },
         "abstained": abstained,
         "error": None,
+        # añado respuesta LLM
+        "respuesta_llm": respuesta,
     }
 
 
