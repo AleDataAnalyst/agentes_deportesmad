@@ -19,6 +19,29 @@ def service(**options):
     return AgentService(**{**nodes, **options})
 
 
+def test_incomplete_execution_is_read_from_checkpoint_without_clearing_it():
+    llamadas = []
+
+    def fallar(state):
+        llamadas.append(state["thread_id"])
+        raise RuntimeError("Fallo del especialista simulado")
+
+    agent = service(documental_node=fallar)
+    tid = agent.nueva_conversacion()
+    assert agent.consultar_estado(tid)["ejecucion_incompleta"] is False
+    with pytest.raises(RuntimeError, match="Fallo del especialista"):
+        agent.procesar_turno("Consulta", tid)
+    estado = agent.consultar_estado(tid)
+    assert estado["ejecucion_incompleta"] is True
+    assert estado["pendiente_hitl"] is False and estado["approved"] is None
+    assert agent.consultar_estado(tid) == estado
+    with pytest.raises(ValueError, match="REQUEST_INCOMPLETE") as exc:
+        agent.procesar_turno("Otra consulta", tid)
+    assert str(exc.value).partition(":")[0] == "REQUEST_INCOMPLETE"
+    assert agent.consultar_estado(tid) == estado
+    assert llamadas == [tid]
+
+
 @pytest.mark.parametrize("approved", [True, False])
 def test_service_lifecycle_and_idempotency(approved):
     calls = []
@@ -31,6 +54,7 @@ def test_service_lifecycle_and_idempotency(approved):
     tid = agent.nueva_conversacion()
     pending = agent.procesar_turno("Consulta simulada", tid)
     assert pending["pendiente_hitl"] and not pending["done"]
+    assert pending["ejecucion_incompleta"] is False
     assert pending["plan_id"] and calls == []
     pending["plan"].clear()
     assert agent.consultar_estado(tid)["plan"] == ["Paso simulado"]
@@ -39,6 +63,7 @@ def test_service_lifecycle_and_idempotency(approved):
     plan_id = pending["plan_id"]
     final = agent.resolver_plan(tid, approved, plan_id=plan_id)
     assert final["done"] is approved and not final["pendiente_hitl"]
+    assert final["ejecucion_incompleta"] is False
     assert final["debug_trace"][-1] == "HITL -> " + ("plan aprobado" if approved else "plan rechazado")
     assert agent.resolver_plan(tid, approved, plan_id=plan_id) == final
     assert agent.consultar_estado(tid) == final

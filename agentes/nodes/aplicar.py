@@ -7,6 +7,7 @@ No reserva, paga ni envía incidencias. aplicar es la implementación concreta.
 
 from collections.abc import Callable
 
+from agentes.node_guards import ejecutar_aislado
 from agentes.state import AgentState, plan_is_ready
 
 
@@ -37,15 +38,31 @@ def aplicar_node(
 
     None significa pendiente y False es un rechazo explícito. La implementación
     devuelve done=True al aprobar o done=False al rechazar y solo sus eventos
-    nuevos; esta envoltura añade la marca de decisión HITL.
+    nuevos; esta envoltura añade la marca de decisión HITL. Al aprobar,
+    final_answer solo puede conservarse o ampliarse al final.
     """
     if type(state.get("approved")) is not bool:
         raise ValueError("HITL_DECISION_REQUIRED: guardar approved=True/False antes de reanudar")
     if not plan_is_ready(state):
         raise ValueError("HITL_PLAN_REQUIRED: aplicar requiere respuesta y plan validos")
-    update = node(state)
+    update = ejecutar_aislado(state, node, campos=frozenset({
+        "done", "plan", "specialist_results", "final_answer", "pending_action", "debug_trace",
+    }), codigo="APPLY_CONTRACT")
     if not isinstance(update, dict) or update.get("done") is not state["approved"]:
         raise ValueError("APPLY_CONTRACT: aplicar debe devolver done=True al aprobar y done=False al rechazar")
+    if "final_answer" in update and not isinstance(update["final_answer"], str):
+        raise ValueError("APPLY_CONTRACT: final_answer debe ser texto")
+    if (state["approved"] and "final_answer" in update
+            and not update["final_answer"].startswith(state["final_answer"])):
+        raise ValueError("APPLY_CONTRACT: al aprobar solo se permite añadir texto al final de final_answer")
+    # Se puede conservar el plan/evidencia aprobados o limpiarlos al rechazar.
+    # No se autoriza introducir otro plan, resultados o acciones en el cierre.
+    for campo, vacio in (("plan", []), ("specialist_results", {})):
+        if campo in update and update[campo] != state.get(campo, vacio):
+            if state["approved"] or type(update[campo]) is not type(vacio) or update[campo] != vacio:
+                raise ValueError("APPLY_CONTRACT: no se permite sustituir el plan ni sus resultados")
+    if update.get("pending_action") is not None and update["pending_action"] != state.get("pending_action"):
+        raise ValueError("APPLY_CONTRACT: no se permite introducir otra acción")
     return {
         **update,
         "debug_trace": [

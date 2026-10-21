@@ -5,6 +5,7 @@ y la validacion de plan vigente siguen siendo responsabilidades del servicio.
 """
 from collections.abc import Callable
 from functools import partial
+from agentes.node_guards import especialista_protegido
 from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
 from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
 from agentes.state import AgentState, plan_is_ready
@@ -46,11 +47,20 @@ def build_graph(
         raise ValueError("max_iter debe ser un entero positivo")
     from langgraph.graph import StateGraph, START, END
     from langgraph.checkpoint.memory import MemorySaver
+    from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
+
+    if checkpointer is None:
+        # Tipos internos del estado: registro explícito, también en modo estricto.
+        # No se altera el serializador de un checkpoint suministrado por el cliente.
+        checkpointer = MemorySaver(serde=JsonPlusSerializer(allowed_msgpack_modules=[
+            ("agentes.contracts", nombre)
+            for nombre in ("SupervisorDecision", "Evidence", "ToolResult", "PendingAction")
+        ]))
 
     builder = StateGraph(AgentState)
     builder.add_node("supervisor", partial(supervisor_node, route_provider=route_provider, max_iter=max_iter))
-    builder.add_node("documental", documental_node)
-    builder.add_node("instalaciones", instalaciones_node)
+    builder.add_node("documental", partial(especialista_protegido, rol="documental", node=documental_node))
+    builder.add_node("instalaciones", partial(especialista_protegido, rol="instalaciones", node=instalaciones_node))
     builder.add_node("sintetizar", partial(_sintetizar_checked, node=sintetizar_node))
     builder.add_node("aplicar", partial(_aplicar_checked, node=aplicar_node))
     builder.add_edge(START, "supervisor")
@@ -62,6 +72,6 @@ def build_graph(
         builder.add_edge(name, "supervisor")
     builder.add_edge("aplicar", END)
     return builder.compile(
-        checkpointer=MemorySaver() if checkpointer is None else checkpointer,
+        checkpointer=checkpointer,
         interrupt_before=["aplicar"],
     )

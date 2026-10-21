@@ -8,6 +8,7 @@ from collections.abc import Callable
 import json
 
 from agentes.contracts import SPECIALIST_NAMES, ToolResult
+from agentes.node_guards import ejecutar_aislado
 from agentes.state import AgentState, plan_is_ready
 
 
@@ -118,12 +119,14 @@ def sintetizar_node(
 
     La implementación recibe el estado y devuelve una actualización parcial
     con final_answer y plan no vacíos. Debe conservar la procedencia y las
-    limitaciones al redactar; esta guardia solo comprueba la estructura mínima.
+    limitaciones al redactar; esta guardia valida estructura y campos permitidos.
     Las excepciones se propagan: no se sustituye un fallo por datos simulados.
     """
     if state.get("approved") is not None or state.get("done", False) is not False:
         raise ValueError("SYNTHESIS_CONTRACT: el pedido debe estar pendiente y sin cerrar")
-    update = node(state)
+    update = ejecutar_aislado(state, node, campos=frozenset({
+        "final_answer", "plan", "debug_trace", "approved", "done", "pending_action",
+    }), codigo="SYNTHESIS_CONTRACT")
     if (not isinstance(update, dict)
             or "final_answer" not in update or "plan" not in update
             or not plan_is_ready({**state, **update})):

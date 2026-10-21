@@ -49,6 +49,12 @@ idempotencia. Esas responsabilidades permanecen en `AgentService`. La función
 concreta no añade eventos: la guardia `aplicar_node(state, node=...)` añade una
 sola marca HITL al pasar por el grafo.
 
+Al aprobar, esta guardia exige que cualquier `final_answer` devuelto conserve la
+respuesta revisada como prefijo exacto: permite omitir el campo, conservarlo o añadir
+texto al final, y rechaza sustituciones, recortes o texto antepuesto antes de
+fusionar el patch. Al rechazar sigue permitiendo sustituir la respuesta por el
+mensaje de rechazo.
+
 ## Montaje sin modificar grafo, servicio ni clientes
 
 ```python

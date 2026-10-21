@@ -6,6 +6,7 @@ La traza identifica el origen y una causa breve de fallback, sin reproducir
 prompts, motivos del proveedor ni textos completos de excepciones.
 """
 from collections.abc import Callable
+from copy import deepcopy
 from agentes.contracts import ROUTE_NAMES, SPECIALIST_NAMES, SupervisorDecision
 from agentes.state import AgentState, plan_is_ready
 
@@ -35,8 +36,8 @@ def supervisor_node(
 ) -> AgentState:
     """Devuelve solo decisión, contador y traza como actualización parcial.
 
-    No modifica el estado recibido ni sus colecciones; el proveedor debe
-    tratarlo también como entrada de lectura. Los orígenes son reglas (sin
+    No modifica el estado recibido ni sus colecciones; el proveedor recibe
+    una copia independiente, incluso si después falla. Los orígenes son reglas (sin
     proveedor), proveedor (propuesta válida), fallback (fallo o propuesta
     inválida) y limite (tope alcanzado).
 
@@ -56,7 +57,7 @@ def supervisor_node(
         if route_provider is not None:
             origin = "fallback"
             try:
-                proposed = route_provider(state)
+                proposed = route_provider(deepcopy(state))
                 if not isinstance(proposed, SupervisorDecision):
                     cause = "tipo_respuesta_incorrecto"
                 elif proposed.specialist not in ROUTE_NAMES:
