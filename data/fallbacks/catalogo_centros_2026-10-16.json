@@ -1,0 +1,505 @@
+{
+  "metadata": {
+    "recurso_id": "200186-0-polideportivos-csv",
+    "endpoint": "https://datos.madrid.es/id/api/3/action/datastore_search",
+    "fecha_extraccion": "2026-10-16T14:34:11+02:00",
+    "fecha_captura": "2026-10-16",
+    "total_centros": 82,
+    "tipo_captura": "consulta_api_en_fecha_de_ejecucion",
+    "nota": "Datos obtenidos de CKAN en la fecha de extracción. No constituyen una captura histórica de una fecha anterior."
+  },
+  "centros": [
+    {
+      "pk": "10183549",
+      "nombre": "Centro Deportivo Municipal Alcántara",
+      "distrito": "SALAMANCA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=a949235892f28510VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "114782",
+      "nombre": "Centro Deportivo Municipal Alfredo Goyeneche",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=789fe8ae8d81c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4696",
+      "nombre": "Centro Deportivo Municipal Aluche",
+      "distrito": "LATINA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=4506b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4617960",
+      "nombre": "Centro Deportivo Municipal Antiguo Canódromo",
+      "distrito": "CARABANCHEL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=dd6426521e7f3110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4624404",
+      "nombre": "Centro Deportivo Municipal Antonio Díaz Miguel",
+      "distrito": "TETUAN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=c90342b9fda34110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "99578",
+      "nombre": "Centro Deportivo Municipal Barajas",
+      "distrito": "BARAJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=b86c79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "10051058",
+      "nombre": "Centro Deportivo Municipal Barceló",
+      "distrito": "CENTRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=335b21f025d44510VgnVCM2000001f4a900aRCRD"
+    },
+    {
+      "pk": "4695",
+      "nombre": "Centro Deportivo Municipal Blanca Fernández Ochoa",
+      "distrito": "CARABANCHEL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=930942be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4705",
+      "nombre": "Centro Deportivo Municipal Casa de Campo",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=3876b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "12022187",
+      "nombre": "Centro Deportivo Municipal Cea Bermúdez",
+      "distrito": "CHAMBERI",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=40d41946bf658810VgnVCM2000001f4a900aRCRD"
+    },
+    {
+      "pk": "78960",
+      "nombre": "Centro Deportivo Municipal Centro Integrado Arganzuela",
+      "distrito": "ARGANZUELA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=0fd38ed67151c010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4687",
+      "nombre": "Centro Deportivo Municipal Cerro Almodóvar",
+      "distrito": "VILLA DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=8e96b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4700",
+      "nombre": "Centro Deportivo Municipal Chamartín",
+      "distrito": "CHAMARTIN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=5f8c79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "6208448",
+      "nombre": "Centro Deportivo Municipal Circuito Internacional BMX (Dirección General de Deporte)",
+      "distrito": "ARGANZUELA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=48fbf0c99a833310VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4702",
+      "nombre": "Centro Deportivo Municipal Ciudad de los Poetas",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=2be6b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4672",
+      "nombre": "Centro Deportivo Municipal Concepción",
+      "distrito": "CIUDAD LINEAL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=f5bc79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "12724992",
+      "nombre": "Centro Deportivo Municipal Cuatro Caminos",
+      "distrito": "TETUAN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=5184a4ba934a5910VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "134059",
+      "nombre": "Centro Deportivo Municipal Daoíz y Velarde 1",
+      "distrito": "RETIRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=380d5f463b81c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4726",
+      "nombre": "Centro Deportivo Municipal Daoíz y Velarde 2",
+      "distrito": "RETIRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=c737b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "140197",
+      "nombre": "Centro Deportivo Municipal El Espinillo",
+      "distrito": "VILLAVERDE",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=9cdc79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "84661",
+      "nombre": "Centro Deportivo Municipal El Olivillo",
+      "distrito": "LATINA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=61ff5c2cdc41c010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4685",
+      "nombre": "Centro Deportivo Municipal El Quijote",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=01d7b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4676",
+      "nombre": "Centro Deportivo Municipal Entrevías",
+      "distrito": "PUENTE DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=1e57b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "6486044",
+      "nombre": "Centro Deportivo Municipal Escuelas de San Antón",
+      "distrito": "CENTRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=4f9aad5078828310VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "10663007",
+      "nombre": "Centro Deportivo Municipal Estadio de Atletismo Vallehermoso (Dirección General de Deporte)",
+      "distrito": "CHAMBERI",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=10c0f41a5b442610VgnVCM2000001f4a900aRCRD"
+    },
+    {
+      "pk": "4728",
+      "nombre": "Centro Deportivo Municipal Estanque del Retiro",
+      "distrito": "RETIRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6487b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4622862",
+      "nombre": "Centro Deportivo Municipal Fabián Roncero",
+      "distrito": "SAN BLAS-CANILLEJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=887e306502624110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "120275",
+      "nombre": "Centro Deportivo Municipal Faustina Valladolid",
+      "distrito": "VICALVARO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=a64f79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "50264232",
+      "nombre": "Centro Deportivo Municipal Fernando Carro - Las Rosas",
+      "distrito": "SAN BLAS-CANILLEJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=bbe24221a4f1d910VgnVCM100000891ecb1aRCRD"
+    },
+    {
+      "pk": "4703",
+      "nombre": "Centro Deportivo Municipal Fernando Martín",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=baa7b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4623547",
+      "nombre": "Centro Deportivo Municipal Francisco Fernández Ochoa",
+      "distrito": "CARABANCHEL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=aea1249dbda24110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4623697",
+      "nombre": "Centro Deportivo Municipal Fuente del Berro",
+      "distrito": "SALAMANCA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=f4a2318c05b24110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "124194",
+      "nombre": "Centro Deportivo Municipal Félix Rubio",
+      "distrito": "VILLAVERDE",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=330d79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "50257984",
+      "nombre": "Centro Deportivo Municipal Fúcar",
+      "distrito": "CENTRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=db853cfd927fc910VgnVCM200000f921e388RCRD"
+    },
+    {
+      "pk": "4698",
+      "nombre": "Centro Deportivo Municipal Gallur",
+      "distrito": "LATINA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=d92d79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "51661",
+      "nombre": "Centro Deportivo Municipal Gimnasio Moscardó",
+      "distrito": "SALAMANCA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=c7cee7510551c010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4680",
+      "nombre": "Centro Deportivo Municipal Hortaleza",
+      "distrito": "HORTALEZA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=705d79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4704",
+      "nombre": "Centro Deportivo Municipal José María Cagigal",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=177d79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "11580683",
+      "nombre": "Centro Deportivo Municipal Juan de Dios Román",
+      "distrito": "VILLA DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=2ec21fc9c969e710VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "4623700",
+      "nombre": "Centro Deportivo Municipal La Almudena",
+      "distrito": "CIUDAD LINEAL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=ff13318c05b24110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4722",
+      "nombre": "Centro Deportivo Municipal La Bombilla",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=5a6842be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "11820127",
+      "nombre": "Centro Deportivo Municipal La Cebada",
+      "distrito": "CENTRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=b52f49ccf35d3810VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "4697",
+      "nombre": "Centro Deportivo Municipal La Chopera",
+      "distrito": "RETIRO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=a09842be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4674",
+      "nombre": "Centro Deportivo Municipal La Elipa",
+      "distrito": "MORATALAZ",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=f6b842be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4694",
+      "nombre": "Centro Deportivo Municipal La Fundi",
+      "distrito": "ARGANZUELA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=9b26b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "104235",
+      "nombre": "Centro Deportivo Municipal La Masó - Luis de la Fuente",
+      "distrito": "FUENCARRAL-EL PARDO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=15efe8ae8d81c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4834",
+      "nombre": "Centro Deportivo Municipal Lago Casa de Campo",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=cd9d79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4538574",
+      "nombre": "Centro Deportivo Municipal Las Cruces",
+      "distrito": "LATINA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6a6952ff55b41110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4619937",
+      "nombre": "Centro Deportivo Municipal Los Prunos",
+      "distrito": "HORTALEZA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=e705dfa167204110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4681",
+      "nombre": "Centro Deportivo Municipal Luis Aragonés",
+      "distrito": "HORTALEZA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=64cd79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4688",
+      "nombre": "Centro Deportivo Municipal Margot Moles",
+      "distrito": "VICALVARO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=4d6f79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "121729",
+      "nombre": "Centro Deportivo Municipal Marqués de Samaranch",
+      "distrito": "ARGANZUELA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6b00e8ae8d81c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4707",
+      "nombre": "Centro Deportivo Municipal María Jesús Rosa",
+      "distrito": "FUENCARRAL-EL PARDO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=e92942be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4701827",
+      "nombre": "Centro Deportivo Municipal Miguel Guillén Prim",
+      "distrito": "VILLA DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=ecd237c71d4a6110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "12346116",
+      "nombre": "Centro Deportivo Municipal Mistral",
+      "distrito": "BARAJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=791cf0388f0ee810VgnVCM2000001f4a900aRCRD"
+    },
+    {
+      "pk": "4673",
+      "nombre": "Centro Deportivo Municipal Moratalaz",
+      "distrito": "MORATALAZ",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=dc9942be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4691",
+      "nombre": "Centro Deportivo Municipal Moscardó",
+      "distrito": "USERA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=23c942be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4693",
+      "nombre": "Centro Deportivo Municipal Orcasitas",
+      "distrito": "USERA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=a11e79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4690",
+      "nombre": "Centro Deportivo Municipal Orcasur",
+      "distrito": "USERA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=483e79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4684794",
+      "nombre": "Centro Deportivo Municipal Pabellón Villa de Madrid",
+      "distrito": "BARAJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6e67668e4a336110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4675",
+      "nombre": "Centro Deportivo Municipal Palomeras",
+      "distrito": "PUENTE DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=ee5e79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "12453713",
+      "nombre": "Centro Deportivo Municipal Paseo de la Dirección",
+      "distrito": "TETUAN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=161b2f93cea51910VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "4622991",
+      "nombre": "Centro Deportivo Municipal Pepu Hernández",
+      "distrito": "SAN BLAS-CANILLEJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=f86186e9a3624110VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "10630252",
+      "nombre": "Centro Deportivo Municipal Peñagrande GoFit",
+      "distrito": "FUENCARRAL-EL PARDO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6b2456babc1c1610VgnVCM1000001d4a900aRCRD"
+    },
+    {
+      "pk": "4727",
+      "nombre": "Centro Deportivo Municipal Peñuelas",
+      "distrito": "ARGANZUELA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=6c5a42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4719",
+      "nombre": "Centro Deportivo Municipal Plata y Castañar",
+      "distrito": "VILLAVERDE",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=858e79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4718",
+      "nombre": "Centro Deportivo Municipal Playa Victoria",
+      "distrito": "TETUAN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=c77e0a47f441f010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4701",
+      "nombre": "Centro Deportivo Municipal Pradillo",
+      "distrito": "CHAMARTIN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=2cae79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4720",
+      "nombre": "Centro Deportivo Municipal Pueblo Nuevo",
+      "distrito": "CIUDAD LINEAL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=a5fa42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "106242",
+      "nombre": "Centro Deportivo Municipal Raúl González",
+      "distrito": "VILLAVERDE",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=c2de79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4689",
+      "nombre": "Centro Deportivo Municipal San Blas",
+      "distrito": "SAN BLAS-CANILLEJAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=424b42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4686",
+      "nombre": "Centro Deportivo Municipal San Cristóbal",
+      "distrito": "VILLAVERDE",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=69fe79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4692",
+      "nombre": "Centro Deportivo Municipal San Fermín",
+      "distrito": "USERA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=ee8b42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4679",
+      "nombre": "Centro Deportivo Municipal San Juan Bautista",
+      "distrito": "CIUDAD LINEAL",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=35bb42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4706",
+      "nombre": "Centro Deportivo Municipal Santa Ana",
+      "distrito": "FUENCARRAL-EL PARDO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=8bdb42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "28525",
+      "nombre": "Centro Deportivo Municipal Tenis Casa de Campo",
+      "distrito": "MONCLOA-ARAVACA",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=1ac06f065851c010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4684",
+      "nombre": "Centro Deportivo Municipal Triángulo de Oro",
+      "distrito": "TETUAN",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=002f79262ef5d010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "4677",
+      "nombre": "Centro Deportivo Municipal Vallecas Verano",
+      "distrito": "PUENTE DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=282c42be9971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "7411340",
+      "nombre": "Centro Deportivo Municipal Vallehermoso GoFit",
+      "distrito": "CHAMBERI",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=28906e8a84805410VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4699",
+      "nombre": "Centro Deportivo Municipal Vicente del Bosque",
+      "distrito": "FUENCARRAL-EL PARDO",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=e156b0c40971c010VgnVCM1000000b205a0aRCRD"
+    },
+    {
+      "pk": "49338",
+      "nombre": "Centro Deportivo Municipal Wilfred Agbonavbare",
+      "distrito": "PUENTE DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=2b7ee7510551c010VgnVCM2000000c205a0aRCRD"
+    },
+    {
+      "pk": "4678",
+      "nombre": "Centro Deportivo Municipal Ángel Nieto",
+      "distrito": "PUENTE DE VALLECAS",
+      "content_url": "http://www.madrid.es/sites/v/index.jsp?vgnextchannel=bfa48ab43d6bb410VgnVCM100000171f5a0aRCRD&vgnextoid=fb1b42be9971c010VgnVCM1000000b205a0aRCRD"
+    }
+  ]
+}
