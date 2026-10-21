@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "mode": "simulated_specialists",
+  "scope": "Regresión de orquestación y contratos; no evalúa retrieval, API ni clasificación semántica de consultas.",
+  "forbidden_claims": ["Reserva realizada correctamente", "Pago realizado correctamente", "Incidencia enviada correctamente"],
+  "fixtures": {
+    "documental_ok": {
+      "status": "ok",
+      "answer": "[SIMULADO] Condiciones del abono en el documento de prueba.",
+      "evidence": [{"source": "test://normas-abono", "content": ""}],
+      "data": {"limitaciones": ["Vigencia sin verificar"]}
+    },
+    "instalaciones_ok": {
+      "status": "ok",
+      "answer": "[SIMULADO] Centro deportivo de prueba en el catálogo.",
+      "evidence": [{"source": "test://catalogo", "content": ""}],
+      "data": {"advertencias": ["No acredita plazas ni disponibilidad"]}
+    },
+    "documental_abstained": {
+      "status": "abstained", "answer": "[SIMULADO] No hay evidencia documental suficiente.",
+      "evidence": [], "data": {"limitaciones": ["Información fuera del corpus simulado"]}
+    },
+    "instalaciones_abstained": {
+      "status": "abstained", "answer": "[SIMULADO] Centro sin identificar.",
+      "evidence": [], "data": {"warnings": ["Falta identificar el centro"]}
+    },
+    "documental_error": {
+      "status": "error", "answer": "", "evidence": [],
+      "error": "[SIMULADO] Índice documental no disponible",
+      "data": {"abstained": true, "limitaciones": ["Sin consulta documental válida"]}
+    },
+    "instalaciones_error": {
+      "status": "error", "answer": "", "evidence": [],
+      "error": "[SIMULADO] Timeout del catálogo", "data": {}
+    },
+    "instalaciones_historico": {
+      "status": "ok", "answer": "[SIMULADO] Aviso de una captura histórica.",
+      "evidence": [{"source": "test://aviso-historico", "content": ""}],
+      "data": {"origen": "fallback", "fecha_captura_fallback": "13/10", "warnings": ["No confirma el estado actual"]}
+    },
+    "documental_vacio": {
+      "status": "ok", "answer": "", "evidence": [], "data": {}
+    }
+  },
+  "cases": [
+    {
+      "id": "dos_resultados_con_fuentes", "question": "[SIMULADO] Explica las condiciones del abono y el catálogo del centro.",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://normas-abono", "test://catalogo"], "useful": 2,
+        "contains": ["Vigencia sin verificar", "No acredita plazas ni disponibilidad"], "not_contains": ["Fragmento aportado:"]}
+    },
+    {
+      "id": "documental_util_catalogo_error", "question": "[SIMULADO] Consulta el abono aunque falle el catálogo.",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_error"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://normas-abono"], "useful": 1,
+        "contains": ["Respuesta parcial", "Timeout del catálogo"], "not_contains": []}
+    },
+    {
+      "id": "documental_abstencion_catalogo_util", "question": "[SIMULADO] Informa del centro si no hay normativa suficiente.",
+      "specialists": {"documental": "documental_abstained", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://catalogo"], "useful": 1,
+        "contains": ["Respuesta parcial", "documental: abstención", "Información fuera del corpus simulado"], "not_contains": []}
+    },
+    {
+      "id": "documental_error_y_abstencion", "question": "[SIMULADO] Explica qué se puede responder si falla el índice.",
+      "specialists": {"documental": "documental_error", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://catalogo"], "useful": 1,
+        "contains": ["documental: error", "Abstención declarada", "Sin consulta documental válida"], "not_contains": []}
+    },
+    {
+      "id": "ambos_se_abstienen", "question": "[SIMULADO] ¿Cómo responder sin evidencia de ninguno de los especialistas?",
+      "specialists": {"documental": "documental_abstained", "instalaciones": "instalaciones_abstained"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": [], "useful": 0,
+        "contains": ["No hay resultados útiles", "Falta identificar el centro"], "not_contains": ["Fuente:"]}
+    },
+    {
+      "id": "ambos_devuelven_error", "question": "[SIMULADO] Informa de los fallos sin inventar una respuesta.",
+      "specialists": {"documental": "documental_error", "instalaciones": "instalaciones_error"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": [], "useful": 0,
+        "contains": ["No hay resultados útiles", "Índice documental no disponible", "Timeout del catálogo"], "not_contains": ["Fuente:"]}
+    },
+    {
+      "id": "historico_con_fecha_parcial", "question": "[SIMULADO] ¿El aviso capturado permite confirmar el estado actual?",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_historico"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://normas-abono", "test://aviso-historico"], "useful": 2,
+        "contains": ["Fallback histórico", "13/10", "No confirma el estado actual"], "not_contains": ["2026-10-13", "Fragmento aportado:"]}
+    },
+    {
+      "id": "respuesta_documental_vacia", "question": "[SIMULADO] El documental devuelve texto vacío y el catálogo se abstiene.",
+      "specialists": {"documental": "documental_vacio", "instalaciones": "instalaciones_abstained"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": [], "useful": 0,
+        "contains": ["documental: abstención", "No hay resultados útiles"], "not_contains": ["Fuente:"]}
+    },
+    {
+      "id": "limite_antes_de_especialistas", "question": "[SIMULADO] Prepara un plan informativo al alcanzar el límite.",
+      "max_iter": 1,
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["FINISH", "FINISH"], "sources": [], "useful": 0,
+        "contains": ["No hay resultados útiles", "documental: sin resultado", "instalaciones: sin resultado"], "not_contains": ["Fuente:"]}
+    },
+    {
+      "id": "ruta_invalida_activa_fallback", "question": "[SIMULADO] Continúa por reglas si el proveedor propone una ruta desconocida.",
+      "route_provider": "invalid",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["documental", "instalaciones", "sintetizar", "FINISH"], "sources": ["test://normas-abono", "test://catalogo"], "useful": 2,
+        "trace_contains": ["origen=fallback", "causa=ruta_desconocida"], "contains": [], "not_contains": []}
+    },
+    {
+      "id": "finish_temprano_no_salta_sintesis", "question": "[SIMULADO] El proveedor pide FINISH sin haber preparado un plan.",
+      "route_provider": "finish",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_ok"},
+      "expected": {"routes": ["FINISH", "FINISH"], "sources": [], "useful": 0,
+        "contains": ["No hay resultados útiles", "documental: sin resultado"], "not_contains": ["Fuente:"]}
+    },
+    {
+      "id": "excepcion_documental_visible", "question": "[SIMULADO] El ejecutor documental lanza una excepción técnica.",
+      "documental_behavior": "raise",
+      "specialists": {"documental": "documental_ok", "instalaciones": "instalaciones_ok"},
+      "expected": {"exception": "RuntimeError", "error_contains": "EJECUTOR_DOCUMENTAL_SIMULADO"}
+    }
+  ]
+}

@@ -14,6 +14,7 @@ from agentes.graph import Node, build_graph
 from agentes.nodes.supervisor import RouteProvider
 from agentes.settings import AgentSettings, load_settings
 from agentes.state import initial_state, state_from_graph
+from agentes.validation import validar_decision
 
 
 class AgentService:
@@ -65,6 +66,8 @@ class AgentService:
         state = state_from_graph(snapshot.values, initial_state("", thread_id))
         pending = "aplicar" in (snapshot.next or ())
         state["pendiente_hitl"] = pending
+        # Diagnóstico de lectura, derivado del checkpoint; no reanuda ni borra trabajo.
+        state["ejecucion_incompleta"] = bool(snapshot.next) and not pending
         state["plan_id"] = self._plan_ids.get(thread_id)
         if pending:
             state["done"] = False
@@ -111,8 +114,7 @@ class AgentService:
         Una repetición idéntica devuelve el estado sin ejecutar aplicar otra
         vez. Una decisión diferente o un identificador antiguo se rechazan.
         """
-        if type(aprobado) is not bool:
-            raise TypeError("aprobado debe ser True o False")
+        validar_decision(aprobado)
         if not isinstance(plan_id, str) or not plan_id.strip():
             raise ValueError("plan_id debe ser un texto no vacío")
         with self._lock(thread_id):

@@ -4,6 +4,19 @@ Flujo explicativo de coordinación, síntesis y aprobación humana.
 Los especialistas se prueban actualmente con dobles, pendientes
 de integrar sus contratos reales.
 
+Actualización del 17/10/2026: ya se pueden inyectar las implementaciones
+deterministas `sintetizar` y `aplicar` en `AgentService`. El grafo aplica sus
+guardias `sintetizar_node` y `aplicar_node`; el cliente no llama a los nodos.
+La síntesis conserva fuentes y restricciones, y aplicar resuelve un plan
+informativo sin acciones externas. Ver [montaje y pruebas](sintetizar_aplicar.md).
+
+No cambia la topología. El [ASCII generado](grafo_actual.txt), regenerado con
+`python -m scripts.ver_grafo`, conserva el mismo contenido y procede de la
+demo simulada. El esquema explicativo siguiente detalla los retornos al
+supervisor y la pausa humana. La traducción documental recibe un callable
+inyectado; la conexión directa del nodo real queda pendiente de coordinación
+con Héctor, sin modificar su puerta pública.
+
 ```text
 
 CLIENTE: CLI / Streamlit / demo
@@ -137,7 +150,8 @@ Los puntos corregidos son:
 - [demo.py](../../agentes/demo.py): los dobles de especialistas y síntesis
   devuelven solo sus eventos nuevos. Los resultados de especialistas siguen
   conservando los de otros roles mediante su actualización explícita.
-- [graph.py](../../agentes/graph.py): el envoltorio de aplicar conserva los
+- [aplicar.py](../../agentes/nodes/aplicar.py): el envoltorio `aplicar_node`,
+  montado desde [graph.py](../../agentes/graph.py), conserva los
   eventos nuevos del nodo inyectado y añade su propio evento
   `HITL -> plan aprobado` o `HITL -> plan rechazado`. Si el nodo no devuelve
   traza, parte de una lista vacía. El evento HITL corresponde al envoltorio;
