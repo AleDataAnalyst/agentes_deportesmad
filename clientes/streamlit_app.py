@@ -45,28 +45,38 @@ def render():
 
         st.divider()
 
+
         # Controles HITL
-        if estado and estado.get("pendiente_hitl"):
+
+        if st.session_state.estado and st.session_state.estado.get("pendiente_hitl"):
             def on_aprobar():
-                resultado = service.resolver_plan(
-                    thread_id, aprobado=True, plan_id=estado["plan_id"]
-                )
-                st.session_state.estado = resultado
-                if resultado.get("final_answer"):
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": resultado["final_answer"],
-                    })
+                try:
+                    resultado = service.resolver_plan(
+                        thread_id, aprobado=True, plan_id=estado["plan_id"]
+                    )
+                    st.session_state.estado = resultado
+                    if resultado.get("final_answer"):
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": resultado["final_answer"],
+                        })
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Error al aprobar: {exc}")
 
             def on_rechazar():
-                resultado = service.resolver_plan(
-                    thread_id, aprobado=False, plan_id=estado["plan_id"]
-                )
-                st.session_state.estado = resultado
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "Plan rechazado. Puedes enviar un nuevo mensaje.",
-                })
+                try:
+                    resultado = service.resolver_plan(
+                        thread_id, aprobado=False, plan_id=estado["plan_id"]
+                    )
+                    st.session_state.estado = resultado
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": "Plan rechazado. Puedes enviar un nuevo mensaje.",
+                    })
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Error al rechazar: {exc}")
 
             render_hitl(estado=estado, on_aprobar=on_aprobar, on_rechazar=on_rechazar)
     # Título
@@ -79,7 +89,7 @@ def render():
             st.markdown(msg["content"])
 
     # Chat input
-    if not (estado and estado.get("pendiente_hitl")):  # ← 4 espacios, correcto
+    if not (st.session_state.estado and st.session_state.estado.get("pendiente_hitl")):
         if prompt := st.chat_input("Escribe tu consulta..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -108,5 +118,5 @@ def render():
         st.info("Aprueba o rechaza el plan en el sidebar para continuar.")
 
     #debug
-    if estado:
+    if st.session_state.estado:
         render_debug(estado=estado, thread_id=thread_id)
