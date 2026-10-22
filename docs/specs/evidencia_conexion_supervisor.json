@@ -1,0 +1,16 @@
+{
+  "mode": "real",
+  "query_kind": "ejemplo sint\u00e9tico p\u00fablico de prueba",
+  "embed_provider": "ollama",
+  "gen_provider": "ollama",
+  "index_file_present": false,
+  "env_presence": {
+    "GOOGLE_API_KEY": false,
+    "HF_TOKEN": false
+  },
+  "http_instalaciones": "no ejecutado: sin operaci\u00f3n p\u00fablica integrada",
+  "blocked": "RAG_INDEX_MISSING: falta el \u00edndice configurado",
+  "rag_executed": false,
+  "retrieval_generation_success": false,
+  "original_calls": {}
+}

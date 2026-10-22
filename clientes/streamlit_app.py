@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import streamlit as st
 
-from agentes.demo import crear_servicio_demo
+from agentes.runtime import crear_servicio
 from clientes.hitl import render_hitl
 from clientes.debug import render_debug
 
 def _init_session():
     if "service" not in st.session_state:
-        st.session_state.service = crear_servicio_demo()
+        st.session_state.service = crear_servicio(modo="real")
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = st.session_state.service.nueva_conversacion()
     if "messages" not in st.session_state:

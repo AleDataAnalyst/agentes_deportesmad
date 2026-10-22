@@ -1,0 +1,33 @@
+# Handoff: conexiones pendientes tras la CLI y las guardias del backend
+
+Estado revisado el 20/10/2026 sobre la base de esta PR. El README contiene las instrucciones de ejecución y el alcance implementado; este documento recoge únicamente trabajo pendiente y criterios de cierre. Los responsables corresponden al reparto existente; las decisiones de contrato requieren acuerdo del equipo.
+
+## Conexiones que faltan
+
+| Responsable | Archivos y punto de conexión | Trabajo pendiente | Criterio de cierre |
+| --- | --- | --- | --- |
+| Miguel; montaje común con Alejandra | [`agentes/nodes/instalaciones.py`](../agentes/nodes/instalaciones.py) y `crear_servicio_real()` en [`agentes/runtime.py`](../agentes/runtime.py) | Incorporar el nodo revisado y sustituir la inyección de `_instalaciones_no_disponibles` por su operación pública. En la base de esta PR, el archivo del nodo solo contiene su descripción. La rama remota de instalaciones tiene una propuesta separada que todavía requiere las correcciones solicitadas y no está integrada aquí. | Catálogo y avisos reales devuelven el `ToolResult` común con fuentes, errores, abstención y fallback fechado; comprobar también comparación si se incluye en el alcance acordado. El nodo solo escribe su resultado y su traza, pasa las guardias y completa el recorrido HITL sin simular éxito ante un fallo. |
+| Héctor; aceptación conjunta con Alejandra | [`rag/config.py`](../rag/config.py), [`agentes/tools/rag.py`](../agentes/tools/rag.py), [`agentes/grafo_documental.py`](../agentes/grafo_documental.py) y [`agentes/documental_adapter.py`](../agentes/documental_adapter.py) | Entregar el índice completo Google/Gemini y su configuración reproducible: modelos/proveedores efectivos, dimensión de embeddings, ruta, colección, versiones, URL de descarga y checksum. La puerta documental ya está conectada en `runtime.py`; falta aceptación con recursos reales. Los checkpoints de indexación a cargo de Héctor no persisten la sesión de la CLI. | Verificar integridad y compatibilidad antes de abrir el índice. Ejecutar una consulta con respuesta/fuente esperadas, otra sin evidencia con abstención y un fallo controlado, conservando procedencia y decisiones HITL. Un error o una demo no cuentan como aceptación real. |
+| David | `_init_session()` y `render()` en [`clientes/streamlit_app.py`](../clientes/streamlit_app.py), [`clientes/hitl.py`](../clientes/hitl.py) y [`clientes/debug.py`](../clientes/debug.py) | Conectar la selección explícita real/demo con `runtime.crear_servicio(modo=...)`; actualmente se construye `crear_servicio_demo()` directamente. Conservar servicio/hilo entre reruns, corregir el refresco posterior a una decisión, tratar errores de construcción y resolución, impedir que una nueva conversación oculte un plan pendiente y acotar/filtrar fuentes, errores y debug. Las protecciones de presentación de la CLI no se aplican automáticamente a Streamlit. | Probar ambos modos sin fallback automático de real a demo. Aprobar/rechazar el plan mostrado con el mismo hilo e identificador; tras decidir, el chat se recupera sin un refresco manual adicional. Los fallos se muestran sin anunciar éxito ni decidir automáticamente; la nueva conversación respeta los planes pendientes y no se vuelcan resultados completos ni credenciales. |
+
+## TODO literales en Python
+
+| Archivo | TODO existente | Cómo cerrarlo |
+| --- | --- | --- |
+| [`agentes/contracts.py`](../agentes/contracts.py), `SupervisorDecision` | Acordar si `specialist` se renombra a `next_node` y se retira `needs_approval`. | Decisión del equipo y revisión de todos los consumidores antes de cambiar nombres. No bloquea las conexiones actuales: `needs_approval` no controla la pausa ni equivale a aprobación humana. |
+| [`agentes/state.py`](../agentes/state.py), `initial_state()` | Conservar el historial de conversación fuera del estado mínimo o acordar un campo para incorporarlo. | Los clientes mantienen el historial de presentación separado de los datos del pedido. Streamlit ya guarda `messages`; verificar su continuidad y reinicio. Acordar cualquier ampliación de CLI o contrato antes de introducir memoria conversacional en el estado común. |
+
+Buscar solo `TODO` no identifica todas las integraciones pendientes: la tabla anterior incluye ausencias expresadas como docstrings, componentes no disponibles o montaje demo.
+
+## Otros pendientes que requieren acuerdo de alcance
+
+- [`agentes/nodes/documental.py`](../agentes/nodes/documental.py): `REGISTRY` mantiene `imagen` y `preparar_reporte` en `None`. Coordinar con Héctor y el equipo contratos, implementación y responsables antes de conectarlos; mientras tanto deben seguir apareciendo como limitaciones.
+- [`agentes/graph.py`](../agentes/graph.py) y [`agentes/nodes/supervisor.py`](../agentes/nodes/supervisor.py): el proveedor de rutas es inyectable, pero el runtime usa reglas. Conectar un router LLM requiere acordar configuración y aceptación; no es necesario para cerrar las conexiones actuales.
+- [`agentes/contracts.py`](../agentes/contracts.py), `PendingAction`, y [`agentes/nodes/aplicar.py`](../agentes/nodes/aplicar.py): el cierre actual es informativo. Antes de reservas, pagos o envíos hay que acordar acción/payload, autorización y persistencia/idempotencia de la operación externa. Las guardias no revierten efectos externos ejecutados por un callable.
+
+## Comprobaciones al integrar
+
+1. Mantener las interfaces de `AgentService`, la pausa antes de aplicar y el requisito de `plan_id` vigente. Consultar el estado tras un fallo antes de volver a decidir; no reintentar automáticamente una operación incierta.
+2. Añadir regresiones específicas de cada conexión y ejecutar las existentes en [`tests/test_runtime.py`](../tests/test_runtime.py), [`tests/test_agent_service.py`](../tests/test_agent_service.py), [`tests/test_node_guards.py`](../tests/test_node_guards.py), [`tests/test_documental_adapter.py`](../tests/test_documental_adapter.py) y [`tests/test_golden_graph.py`](../tests/test_golden_graph.py), según el bloque afectado. Algunos tests del montaje requieren sustituir la tool RAG antes de importar; no ejecutar toda la suite contra un índice real por accidente.
+3. Separar las evidencias con dobles de las consultas reales. La PR pasó 433 pruebas protegidas, cuatro recorridos de CLI y comprobaciones de Streamlit en demo; eso no certifica RAG ni instalaciones reales. Guardar las nuevas evidencias sin claves, `.env`, índices ni volcados completos de estado.
+4. Actualizar el README y retirar de este handoff cada pendiente cuando su criterio de cierre esté comprobado. No mantener informes duplicados para una conexión ya estable.
