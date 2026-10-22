@@ -15,6 +15,7 @@ from agentes.nodes.supervisor import RouteProvider
 from agentes.settings import AgentSettings, load_settings
 from agentes.state import initial_state, state_from_graph
 from agentes.validation import validar_decision
+from agentes.nodes.vision import vision_node  # opcionalno hace falta se recibe por parámetro
 
 
 class AgentService:
@@ -25,22 +26,29 @@ class AgentService:
     """
 
     def __init__(
-        self, *, documental_node: Node, instalaciones_node: Node,
-        sintetizar_node: Node, aplicar_node: Node,
+        self,
+        *,
+        documental_node: Node,
+        instalaciones_node: Node,
+        sintetizar_node: Node,
+        aplicar_node: Node,
+        vision_node: Node | None = None,
         route_provider: RouteProvider | None = None,
-        settings: AgentSettings | None = None, checkpointer=None,
+        settings: AgentSettings | None = None,
+        checkpointer=None,
     ):
         self.settings = settings if settings is not None else load_settings()
+
         self._graph = build_graph(
-            documental_node=documental_node, instalaciones_node=instalaciones_node,
-            sintetizar_node=sintetizar_node, aplicar_node=aplicar_node,
-            route_provider=route_provider, max_iter=self.settings.max_iter,
+            documental_node=documental_node,
+            instalaciones_node=instalaciones_node,
+            sintetizar_node=sintetizar_node,
+            aplicar_node=aplicar_node,
+            vision_node=vision_node,
+            route_provider=route_provider,
+            max_iter=self.settings.max_iter,
             checkpointer=checkpointer,
         )
-        self._registry_lock = RLock()
-        self._thread_locks: dict[str, RLock] = {}
-        self._plan_ids: dict[str, str] = {}
-        self._resolved: dict[str, tuple[str, bool]] = {}
 
     @staticmethod
     def _validate_thread(thread_id: str) -> None:
