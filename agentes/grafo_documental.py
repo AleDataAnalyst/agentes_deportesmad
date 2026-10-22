@@ -6,7 +6,14 @@ from typing import Any, TypedDict
 from langgraph.graph import StateGraph, END
 
 from agentes.nodes.documental import nodo_documental
+from agentes.tools import imagen_preguntar
 
+resultado = imagen_preguntar.invoke(
+    {
+        "image_id": "assets/imagen_demo.jpg",
+        "pregunta": "¿Qué texto aparece en la imagen?",
+    }
+)
 
 class EstadoDocumental(TypedDict, total=False):
     # entradas (el cliente puede dar solo las que tenga)
