@@ -207,9 +207,9 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 
 ## Configuración efectiva y RAG
 
+---
+### advertencia 
 ![warning](./assets/warning.png) 
-
-### advertencia
 
 `MAX_ITER` tiene significados y valores por defecto distintos en el supervisor y en el RAG:
 
@@ -225,10 +225,23 @@ La configuración del supervisor y la del RAG tienen mecanismos distintos:
 - `agentes/settings.py` lee `MAX_ITER` al crear el servicio; valor predeterminado 8. No carga `.env` automáticamente.
 - `rag/config.py` carga dotenv sin sobrescribir variables del proceso y fija constantes al importar. Cambiar el entorno después de importar no basta para comparar configuraciones.
 - Embeddings, etiquetado (TAG) y generación tienen proveedores/modelos separados. Declarar una variable no garantiza que un adaptador la consuma.
-
-Las [specs de Héctor](docs/specs/contratos.md), en la sección de dependencias del RAG, citan `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` para generación de respuestas con un índice existente, además de las opciones de recuperación. Ese uso de Gemini no genera el índice ni sustituye el etiquetado previo. `GEMINI_MODEL` no tiene consumidor en el código revisado. Una propuesta Google para TAG debe tratarse como una configuración distinta, no como ese uso de GEN.
+  
+> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. No la uses para configurar generación; utiliza `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` según el proveedor seleccionado.
 
 Para validar el RAG real se necesita un índice compatible con el modelo, dimensión y configuración de embeddings que lo construyeron, su ruta/colección y una consulta con fuente esperada. Cambiar `EMBED_*` o `CHUNK_*` exige gestionar la reindexación indicada en las specs. No subir `.env`, claves, entornos virtuales ni índices pesados. Los ejemplos no certifican disponibilidad de los modelos, cuotas o compatibilidad del entorno local.
+
+### Checklist de aceptación del RAG real
+
+Antes de declarar el modo real como aceptado, documenta y ejecuta:
+
+- [ ] Índice compatible con el modelo, dimensión y configuración de embeddings empleados.
+- [ ] Ruta de Chroma y nombre de colección confirmados.
+- [ ] Versión, procedencia y, si aplica, checksum del índice.
+- [ ] Consulta con respuesta y fuente esperada verificadas.
+- [ ] Consulta sin evidencia que produce abstención.
+- [ ] Fallo controlado que conserva el error sin convertirlo en evidencia.
+- [ ] Recorrido completo con HITL: consulta, plan, aprobación o rechazo y cierre.
+- [ ] Evidencia guardada sin `.env`, claves, índices ni volcados completos de estado.
 
 ### Perfiles y benchmark de etiquetado
 
@@ -261,7 +274,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
 | Miguel | Especialista de instalaciones y avisos, a partir de su handoff | Operación pública ejecutable y contrato de fuentes, errores, abstención y fallback fechado para integrarla |
-| David | Cliente Streamlit demo conectado a `AgentService`, con chat y controles HITL | Integración con runtime real, refresco de UI, tratamiento de errores y presentación segura de fuentes/debug |
+| David | Cliente Streamlit demo conectado a `AgentService`, con chat y controles HITL | Integración con `crear_servicio(modo=...)`, refresco tras decisión, tratamiento de errores, adopción de `agentes.validation` y `agentes.secret_filter`, y presentación segura de fuentes/debug |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 
