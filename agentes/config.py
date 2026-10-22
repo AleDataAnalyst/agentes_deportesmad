@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from os import environ
 
-MAX_ITER_DEFAULT = 8
+MAX_ITER_DEFAULT = 10
 
 @dataclass(frozen=True)
 class AgentSettings:
