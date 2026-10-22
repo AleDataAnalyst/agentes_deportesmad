@@ -42,14 +42,14 @@ from .prompts import construir_prompt_desde_chunks
 from .retrieve import recuperar, recuperar_hibrido
 
 
-# Umbral de distancia coseno por encima del cual consideramos "sin evidencia".
+# Umbral de distancia  coseno por encima del cual consideramos "sin evidencia".
 # Basado en las pruebas de retrieval: in-corpus 0.43–0.55, fuera de corpus >0.73.
 # 0.65 deja margen para preguntas ambiguas sin forzar abstención en casos límite.
 UMBRAL_ABSTENCION: float = 0.65
 
 
 def _extraer_fuentes(chunks: list[dict]) -> list[str]:
-    """Devuelve la lista única de fuentes preservando el orden de aparición."""
+    """ Devuelve la lista única de fuentes preservando el orden de aparición"""
     vistas: list[str] = []
     for c in chunks:
         s = c.get("source")
@@ -59,16 +59,16 @@ def _extraer_fuentes(chunks: list[dict]) -> list[str]:
 
 
 def _validar_pregunta(pregunta: str) -> str | None:
-    """Devuelve un mensaje de error si la pregunta no es válida, o None si lo es."""
+    """Devuelve un mensaje de error si la pregunta no es válida, o None si lo es"""
     if not isinstance(pregunta, str) or not pregunta.strip():
         return "La pregunta no puede estar vacía."
-    if len(pregunta) > 2000:
-        return "La pregunta es demasiado larga (máx. 2000 caracteres)."
+    if len(pregunta) > 1000:
+        return "La pregunta es demasiado larga (máx. 1000 caracteres)."
     return None
 
 
 def _resultado_error(mensaje: str) -> dict[str, Any]:
-    """Respuesta uniforme cuando algo falla antes de llamar al LLM."""
+    """Respuesta uniforme cuando algo falla antes de llamar al LLM"""
     return {
         "respuesta": "",
         "chunks": [],

@@ -6,7 +6,7 @@ Los CSV se delegan a ``csv_transform.py`` / ``csv_advisor.py`` (entidad,
 grupo o fila por documento según el perfil). Los TXT y MD se comprueban
 si son tabulares (CSV/TSV disfrazados de texto plano): si lo son, una
 fila = un documento (``row_as_doc`` forzado, sin pasar por el advisor),
-porque un TSV con primer campo repetido (p. ej. ``Codigo_temporada``) el
+porque un tsv con primer campo repetido (p. ej. ``Codigo_temporada``) el
 advisor lo clasificaría ``entity_doc`` y la dedup ``exact_key`` colapsaría
 todas las filas en un único documento.
 """

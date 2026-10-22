@@ -5,7 +5,7 @@ Tests de la tool RAG (agentes/tools/rag.py).
 
 Contrato:
     rag_preguntar(consulta: str) -> dict
-        {"respuesta": str, "fuentes": list[str], "abstained": bool, "error": str|None}
+        {"respuesta": str, "fuentes" : list[str], "abstained": bool, "error": str|None}
 
 La tool NUNCA lanza excepción: los fallos se devuelven en "error".
 """
@@ -94,7 +94,7 @@ def test_error_interno_no_lanza(monkeypatch):
 # Integración contra el índice (22 preguntas de evaluación) 
 
 @pytest.mark.skipif(not EVALS, reason="falta evaluation_questions.json")
-@pytest.mark.skipif(not INDICE_OK, reason="índice no indexado (ejecutar_pipeline)")
+@pytest.mark.skipif(not INDICE_OK, reason="falta indexación (ejecutar_pipeline)")
 @pytest.mark.parametrize("pregunta, out_of_corpus, fuente_esperada", EVALS)
 # mejora en el test, pretende obtener por qué hay abstención y por que´ se podría negar
 # a responder habiendo cercanos en cuanto a semántica

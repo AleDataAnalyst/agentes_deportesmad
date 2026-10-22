@@ -1,86 +1,79 @@
 """
 rag/retrieve.py
+Pipeline de recuperación híbrida (vectorial + BM25) para el
+corpus del Ayuntamiento de Madrid.
 
-Recuperación semántica desde ChromaDB.
-
-Responsabilidad:
-    pregunta -> embedding de consulta -> búsqueda vectorial -> top-k resultados
-
-Este módulo NO genera respuestas con un LLM.
-Solo recupera contexto relevante para que generate.py / logic.py
-puedan utilizarlo posteriormente.
+Responsabilidades:
+- Construir el índice BM25 y DEVOLVERLO (antes no lo devolvía).
+- Construir el índice vectorial (Chroma).
+- Fusionar ambos con RRF y devolver top-k.
+No genera respuestas (eso es prompts.py / generate.py).
 """
+from __future__ import annotations
 
+#import os
+import re
+import tempfile
+#import json
 from typing import Any
 
-from .config import CHROMA_DIR, COLLECTION_NAME
-from .embed import embeddear_consulta
-from .index import obtener_cliente_chroma, crear_coleccion
+import rank_bm25
 
-import re
-from rank_bm25 import BM25Okapi
-from nltk.stem import SnowballStemmer
-
-_TOKEN_RE = re.compile(r"\w+", re.UNICODE)
-_stemmer = SnowballStemmer("spanish")
-_RRF_K = 60
+import chromadb
+from rag.index import obtener_cliente_chroma
+from .config import COLLECTION_NAME
 
 def _tokenizar(texto: str) -> list[str]:
-    return [_stemmer.stem(t) for t in _TOKEN_RE.findall(texto.lower())]
+    """Tokenización simple multilingüe para BM25."""
+    return re.findall(r"\w+", texto.lower(), flags=re.UNICODE)
 
-_bm25_cache: tuple[BM25Okapi | None, list[str], list[str], list[dict]] | None = None
+def _resolver_nombre(collection_name: str | None) -> str:
+    """Devuelve el nombre real de la colección, nunca None."""
+    return collection_name if collection_name is not None else COLLECTION_NAME
 
-def _obtener_bm25(coleccion):
+def obtener_coleccion(
+    persist_dir: str | None = None,
+    collection_name: str | None = None,
+) -> chromadb.CollectionAPI:
     """
-    Construye (y cachea) el índice BM25 sobre los documentos de Chroma.
-    Se construye una única vez por proceso a partir de coleccion.get().
-    Devuelve una tupla (bm25, ids, docs, metas) donde:
-      - bm25: el índice BM25Okapi (o None si no hay docs tokenizables)
-      - ids:  lista de IDs Chroma en el mismo orden
-      - docs: lista de documentos (texto) en el mismo orden
-      - metas: lista de metadatas en el mismo orden
+    Solo ABRIR la colección existente — NUNCA la crea.
 
-    El cache permite que las consultas posteriores no reconstruyan el índice.
+    Si collection_name es None, se usa el nombre configurado
+    (COLLECTION_NAME). Así Chroma nunca recibe None.
     """
-    global _bm25_cache
-    if _bm25_cache is not None:
-        return _bm25_cache
+    if collection_name is None:
+        collection_name = COLLECTION_NAME
+    client = obtener_cliente_chroma(persist_dir)
+    return client.get_collection(name=collection_name)
 
-    res = coleccion.get(include=["documents", "metadatas"])
-    ids: list[str] = res.get("ids") or []
-    docs: list[str] = res.get("documents") or []
-    metas: list[dict] = res.get("metadatas") or []
-
-    # Tokeniza todo el corpus (una sola vez)
-    corpus_tokens = [_tokenizar(d) for d in docs]
-
-    # Solo los docs con tokens válidos entran en el BM25
-    ok = [i for i, t in enumerate(corpus_tokens) if t]
-    bm25: BM25Okapi | None = (
-        BM25Okapi([corpus_tokens[i] for i in ok]) if ok else None
-    )
-    _bm25_cache = (bm25, ids, docs, metas)
-    return _bm25_cache   # ← esta línea es la que suele faltar
-    
-def _rrf_fusion(rankings: list[list[str]]) -> list[str]:
+def _rrf_fusion(rankings: list[list[dict]], top_k: int) -> list[dict]:
     """
-    Fusiona varios rankings (listas de IDs ordenados por relevancia)
-    usando Reciprocal Rank Fusion.
+    RAngo de fusión dsobre N rangos.
 
-    Para cada doc, suma 1/(k + posición) sobre todos los rankings donde
-    aparece. Devuelve los IDs ordenados por score descendente.
-
-    Args:
-        rankings: lista de rankings, cada uno una lista de doc_ids.
-
-    Returns:
-        Lista de doc_ids fusionados, ordenados por score RRF descendente.
+    score(i) = sum(1 / (k + pos_i))
     """
-    scores: dict[str, float] = {}
+    combined: dict[int, dict] = {}
+    k = 60
+
     for ranking in rankings:
-        for pos, doc_id in enumerate(ranking, start=1):
-            scores[doc_id] = scores.get(doc_id, 0.0) + 1.0 / (_RRF_K + pos)
-    return sorted(scores, key=scores.get, reverse=True)
+        for pos, chunk in enumerate(ranking):
+            cid = id(chunk)
+
+            if cid not in combined:
+                combined[cid] = {
+                    "score": 0.0,
+                    "chunk": chunk,
+                }
+
+            combined[cid]["score"] += 1.0 / (k + pos)
+
+    ordered = sorted(
+        combined.values(),
+        key=lambda item: item["score"],
+        reverse=True,
+    )
+
+    return [item["chunk"] for item in ordered[:top_k]]
 
 
 def recuperar_hibrido(
@@ -90,104 +83,29 @@ def recuperar_hibrido(
     persist_dir: str | None = None,
     collection_name: str | None = None,
 ) -> list[dict[str, Any]]:
-    """
-    Recuperación híbrida: vectorial + BM25 fusionada con RRF.
-
-    1. Ranking vectorial (Chroma, top `candidatos`).
-    2. Ranking BM25 (top `candidatos`).
-    3. Fusión RRF → top_k final.
-
-    Devuelve la misma forma que recuperar(): lista de dicts con
-    text, source, metadata y distance.
-    """
-    
     if not isinstance(pregunta, str) or not pregunta.strip():
         raise ValueError("La pregunta no puede estar vacía.")
     if top_k <= 0:
         raise ValueError("top_k debe ser mayor que 0.")
 
+    collection_name = _resolver_nombre(collection_name)
+
     coleccion = obtener_coleccion(persist_dir, collection_name)
-    total = coleccion.count()
-    if total == 0:
+    if coleccion.count() == 0:
         return []
 
-    # BM25 cache (IDs fiables, vienen de coleccion.get())
-    bm25, corpus_ids, corpus_docs, corpus_metas = _obtener_bm25(coleccion)
-
-    # Mapeo: texto de doc -> ID (para resolver IDs del query vectorial)
-    # doc_a_id: dict[str, str] = {}
-    # for cid, cdoc in zip(corpus_ids, corpus_docs):
-    #     if cdoc not in doc_a_id:
-    #         doc_a_id[cdoc] = cid
-
-    # 1) Ranking vectorial
-    n_vec = min(candidatos, total)
-    embedding = embeddear_consulta(pregunta)
-    res = coleccion.query(
-        query_embeddings=[embedding],
-        n_results=n_vec,
-        include=["documents", "metadatas", "distances"],
+    vector = VectorRetriever(persist_dir, collection_name).search(
+        pregunta,
+        top_k=candidatos,
+        candidates=candidatos,
     )
     
-    ids_vec: list[str] = res.get("ids", [[]])[0]
-    # docs_vec = res.get("documents", [[]])[0]
-    dists_vec: list[float] = res.get("distances", [[]])[0]
-
-    ranking_vector: list[str] = list(ids_vec)
-    dists: dict[str, float] = dict(zip(ids_vec, dists_vec))
-
-    # 2) Ranking BM25
-    ranking_bm25: list[str] = []
-    if bm25 is not None:
-        scores = bm25.get_scores(_tokenizar(pregunta))
-        ranking_bm25 = [
-            corpus_ids[i]
-            for i in sorted(range(len(scores)), key=scores.__getitem__, reverse=True)
-        ][:candidatos]
-
-    # 3) RRF
-    fusionado = _rrf_fusion([ranking_vector, ranking_bm25])[:top_k]
-
-    # 4) Mapear IDs -> dicts (misma forma que recuperar())
-    por_id: dict[str, tuple[str, dict]] = {}
-    for cid, cdoc, cmeta in zip(corpus_ids, corpus_docs, corpus_metas):
-        por_id[cid] = (cdoc, cmeta)
-
-    out: list[dict[str, Any]] = []
-    for doc_id in fusionado:
-        cdoc, cmeta = por_id.get(doc_id, (None, None))
-        if cdoc is None:
-            continue
-        cmeta = cmeta or {}
-        out.append({
-            "text": cdoc,
-            "source": cmeta.get("source", "desconocido"),
-            "metadata": cmeta,
-            "distance": dists.get(doc_id, 1.0),
-        })
-    return out
-
-
-def obtener_coleccion(
-    persist_dir: str | None = None,
-    collection_name: str | None = None,
-):
-    """
-    Abre la colección persistente de ChromaDB utilizada por el índice.
-
-    Args:
-        persist_dir: directorio de Chroma. Si no se indica, usa CHROMA_DIR.
-        collection_name: nombre de la colección. Si no se indica,
-                         usa COLLECTION_NAME.
-
-    Returns:
-        Colección ChromaDB.
-    """
-    client = obtener_cliente_chroma(persist_dir or CHROMA_DIR)
-    return crear_coleccion(
-        client,
-        collection_name or COLLECTION_NAME,
+    bm25 = BM25Retriever(persist_dir, collection_name).search(
+        pregunta,
+        top_k=candidatos,
     )
+    
+    return _rrf_fusion([vector, bm25], top_k)
 
 
 def recuperar(
@@ -195,79 +113,153 @@ def recuperar(
     top_k: int = 5,
     persist_dir: str | None = None,
     collection_name: str | None = None,
-) -> list[dict[str, Any]]:
-    """
-    Recupera los chunks más similares a una pregunta.
-
-    Flujo:
-        1. Genera embedding de la pregunta.
-        2. Consulta ChromaDB mediante similitud vectorial.
-        3. Devuelve los top-k resultados.
-
-    Args:
-        pregunta: consulta del usuario.
-        top_k: número máximo de chunks a recuperar.
-        persist_dir: directorio de ChromaDB.
-        collection_name: colección que se consulta.
-
-    Returns:
-        Lista de diccionarios con:
-            - text: contenido del chunk
-            - source: fuente del chunk
-            - metadata: metadata completa
-            - distance: distancia devuelta por Chroma
-
-    Raises:
-        ValueError: si la pregunta está vacía o top_k no es válido.
-    """
-
+) -> list[dict]:
     if not isinstance(pregunta, str) or not pregunta.strip():
-        raise ValueError("La pregunta no puede estar vacía.")
-
+        raise ValueError("La pregunta no debe estar vacía.")
     if top_k <= 0:
         raise ValueError("top_k debe ser mayor que 0.")
 
-    # Embedding de consulta usando exactamente el mismo proveedor/modelo
-    # configurado para los embeddings del índice.
-    embedding = embeddear_consulta(pregunta.strip())
+    collection_name = _resolver_nombre(collection_name)
 
-    collection = obtener_coleccion(
-        persist_dir=persist_dir,
-        collection_name=collection_name,
-    )
-
-    if collection.count() == 0:
+    coleccion = obtener_coleccion(persist_dir, collection_name)
+    if coleccion.count() == 0:
         return []
 
-    # No tiene sentido pedir más resultados de los que existen.
-    n_resultados = min(top_k, collection.count())
-
-    resultado = collection.query(
-        query_embeddings=[embedding],
-        n_results=n_resultados,
-        include=["documents", "metadatas", "distances"],
+    return VectorRetriever(persist_dir, collection_name).search(
+        pregunta, top_k=top_k, candidates=top_k
     )
 
-    documents = resultado.get("documents", [[]])[0]
-    metadatas = resultado.get("metadatas", [[]])[0]
-    distances = resultado.get("distances", [[]])[0]
+# ---------------------------------------------------------------------------
+# Retrievers
+# ---------------------------------------------------------------------------
 
-    recuperados: list[dict[str, Any]] = []
+class VectorRetriever:
+    """Recupera chunks por similitud coseno en Chroma."""
 
-    for document, metadata, distance in zip(
-        documents,
-        metadatas,
-        distances,
-    ):
-        metadata = metadata or {}
-
-        recuperados.append(
-            {
-                "text": document,
-                "source": metadata.get("source", "desconocido"),
-                "metadata": metadata,
-                "distance": float(distance),
-            }
+    def __init__(self, persist_dir: str | None, collection_name: str):
+        self._client = obtener_cliente_chroma(persist_dir)
+        self._collection = self._client.get_collection(
+            name=collection_name
         )
 
-    return recuperados
+    def _ordenar(self, hits: dict, top_k: int) -> list[dict]:
+        """
+        Convierte la respuesta de Chroma en una lista de chunks normalizada.
+    
+        Chroma devuelve listas paralelas:
+        ids[0], documents[0], metadatas[0], distances[0]
+        """
+        if not hits or not hits.get("ids"):
+            return []
+    
+        ids = hits["ids"][0]
+        documents = hits.get("documents", [[]])[0]
+        metadatas = hits.get("metadatas", [[]])[0]
+        distances = hits.get("distances", [[]])[0]
+    
+        resultados: list[dict] = []
+    
+        for i in range(min(len(ids), top_k)):
+            metadata = metadatas[i] if i < len(metadatas) and metadatas[i] else {}
+            texto = documents[i] if i < len(documents) and documents[i] else ""
+    
+            source = (
+                metadata.get("source")
+                or metadata.get("fuente")
+                or metadata.get("file")
+                or ""
+            )
+    
+            resultados.append(
+                {
+                    "text": texto,
+                    "source": source,
+                    "metadata": metadata,
+                    "distance": distances[i] if i < len(distances) else None,
+                }
+            )
+    
+        return resultados
+
+    def search(self, query: str, top_k: int, candidates: int) -> list[dict]:
+        hits = self._collection.query(
+            query_embeddings=[self._embed_query(query)],
+            n_results=candidates,
+        )
+        return self._ordenar(hits, candidates)
+    
+    def _embed_query(self, query: str) -> list[float]:
+        """Vectoriza la consulta en el MISMO espacio que el índice.
+
+        Reutiliza `embeddear()` como puerta única de embeddings: la consulta
+        queda en el mismo proveedor/modelo/dimensión que los documentos
+        indexados, así las distancias coseno de Chroma tienen sentido
+        (in-corp ~0.43-0.55, out-of-corp >0.73).
+        """
+        from .embed import embeddear
+        return embeddear([query])[0]
+
+
+class BM25Retriever:
+    """Recuperación dispersa BM25 construida desde los documentos de Chroma."""
+
+    def __init__(self, persist_dir: str | None, collection_name: str):
+        self._client = obtener_cliente_chroma(persist_dir)
+        self._collection = self._client.get_collection(name=collection_name)
+
+        self._bm25 = None
+        self._docs: list[str] = []
+        self._metas: list[dict] = []
+
+        self._cargar()
+
+    def _cargar(self) -> None:
+        total = self._collection.count()
+        if total == 0:
+            return
+
+        resultado = self._collection.get(
+            include=["documents", "metadatas"]
+        )
+
+        self._docs = list(resultado.get("documents") or [])
+        self._metas = list(resultado.get("metadatas") or [])
+
+        corpus_tokens = [_tokenizar(doc) for doc in self._docs]
+        self._bm25 = rank_bm25.BM25Okapi(corpus_tokens)
+
+    def search(self, query: str, top_k: int) -> list[dict]:
+        if self._bm25 is None or not self._docs:
+            return []
+
+        query_tokens = _tokenizar(query)
+        scores = self._bm25.get_scores(query_tokens)
+
+        orden = sorted(
+            range(len(self._docs)),
+            key=lambda i: scores[i],
+            reverse=True,
+        )[:top_k]
+
+        resultados: list[dict] = []
+
+        for i in orden:
+            metadata = self._metas[i] if i < len(self._metas) else {}
+            source = (
+                metadata.get("source")
+                or metadata.get("fuente")
+                or metadata.get("file")
+                or ""
+            )
+
+            resultados.append(
+                {
+                    "text": self._docs[i],
+                    "source": source,
+                    "metadata": metadata,
+                    # En BM25, mayor puntuación = mejor.
+                    "distance": float(scores[i]),
+                }
+            )
+
+        return resultados
