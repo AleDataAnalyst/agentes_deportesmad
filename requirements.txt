@@ -32,4 +32,4 @@ langchain-ollama>=1.1.0
 pdf2image>=1.17.0
 Pillow>=13.0.0
 pytesseract>=0.3.13
-
+pdfplumber>=0.11.10

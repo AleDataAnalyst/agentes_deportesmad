@@ -1,15 +1,20 @@
 """
 rag/load.py
-Abstrae el formato: PDF, TXT, MD, CSV -> lista de LangChain Documents.
 
+Abstrae el formato: PDF, TXT, MD, CSV -> lista de LangChain Documents.
+-----------------------------------------------------------------------
 Los CSV se delegan a ``csv_transform.py`` / ``csv_advisor.py`` (entidad,
-grupo o fila por documento según el perfil). Los TXT y MD se comprueban
-si son tabulares (CSV/TSV disfrazados de texto plano): si lo son, una
-fila = un documento (``row_as_doc`` forzado, sin pasar por el advisor),
-porque un tsv con primer campo repetido (p. ej. ``Codigo_temporada``) el
-advisor lo clasificaría ``entity_doc`` y la dedup ``exact_key`` colapsaría
-todas las filas en un único documento.
+grupo o fila por documento según el perfil).
+Los TXT y MD se comprueban si son tabulares (CSV/TSV disfrazados de texto
+plano): si lo son, una fila = un documento (``row_as_doc`` forzado, sin
+pasar por el advisor).
+--------------------------------------------------------------------------
+Si un PDF aparece en ``OCR.txt`` con acción ``OCR``, pasa obligatoriamente
+por OCR, aunque tenga texto nativo.
+Para los PDFs marcados como OCR se usa Tesseract con ``--psm 6``, pensado
+para bloques uniformes de texto: listados, horarios y tablas sencillas
 """
+
 import urllib.parse
 import hashlib
 import os
@@ -17,7 +22,6 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import List
 
-from pypdf import PdfReader
 from pdf2image import convert_from_path
 import pytesseract
 
@@ -29,139 +33,231 @@ from .csv_transform import filas_a_documentos, transform_csv
 
 
 _LOTES_HASH = 1 << 20  # 1 MiB por lectura en el hash
+
 OCR_AGENT = os.environ.get("OCR_AGENT", "tesseract")
 
-def _hash_file(ruta: str) -> str:
-    """SHA-256 hex del contenido binario crudo del archivo (en streaming).
+# PSM 6: Tesseract asume un único bloque uniforme de texto.
+# Es una buena opción para PDFs tipo listado, horario o tabla sencilla.
+OCR_PSM = int(os.environ.get("OCR_PSM", "6"))
 
-    Identifica unívocamente al archivo de origen: estable entre indexaciones,
-    detecta contenido nuevo en una descarga repetida del mismo nombre. Se lee
-    en lotes para no cargar en memoria los archivos grandes.
+# Conserva espacios entre palabras: útil para no fusionar columnas.
+OCR_CONFIG = (
+    f"--psm {OCR_PSM} "
+    "-c preserve_interword_spaces=1"
+)
+
+# Resolución de conversión PDF -> imagen.
+# 300 DPI es un buen equilibrio entre calidad OCR y coste.
+OCR_DPI = int(os.environ.get("OCR_DPI", "300"))
+
+# Ruta de Poppler en Windows. Debe apuntar a la carpeta que contiene
+# pdfinfo.exe y pdftoppm.exe. En Linux/Docker normalmente no hace falta.
+POPPLER_PATH = os.environ.get(
+    "POPPLER_PATH",
+    r"C:\tools\poppler-25.07.0\Library\bin",
+)
+
+
+def _hash_file(ruta: str) -> str:
+    """
+    SHA-256 hex del contenido binario crudo del archivo, en streaming.
+
+    Identifica unívocamente al archivo de origen: estable entre indexaciones
+    y detecta contenido nuevo en una descarga repetida con el mismo nombre
     """
     digest = hashlib.sha256()
+
     with open(ruta, "rb") as f:
         while True:
             bloque = f.read(_LOTES_HASH)
             if not bloque:
                 break
             digest.update(bloque)
+
     return digest.hexdigest()
 
 
-def _normalizar_source(documentos: list[Document], ruta: str) -> list[Document]:
-    """source = os.path.basename(ruta) SIEMPRE (coherencia de metadata por clave
-    de fuente: dedup, ids y matching de fuente_esperada en el eval), más
-    file_hash = SHA-256 del archivo crudo (identifica unívocamente el origen,
-    estable entre indexaciones).
+def leer_config_ocr(ruta: str) -> dict[str, str]:
+    """
+    Lee OCR.txt y devuelve {nombre_archivo: accion}.
 
-    TextLoader/PyPDFLoader fijan la ruta completa (con data\\ en Windows);
-    si el loader ya dejó un source limpio (p. ej. los CSV), no se toca.
+    Cada línea válida tiene el formato:
+
+        nombre.pdf: OCR
+        nombre.pdf: NO_OCR
+
+    Las líneas vacías y las que empiezan por '#' se ignoran
+    """
+    resultado: dict[str, str] = {}
+
+    with open(ruta, "r", encoding="utf-8") as f:
+        for linea in f:
+            linea = linea.strip()
+
+            if not linea or linea.startswith("#"):
+                continue
+
+            try:
+                nombre, accion = linea.split(":", 1)
+            except ValueError:
+                print(f"[LOAD] línea OCR.txt mal formada ignorada: {linea!r}")
+                continue
+
+            resultado[os.path.basename(nombre.strip())] = accion.strip().upper()
+
+    return resultado
+
+
+def _normalizar_source(
+    documentos: list[Document],
+    ruta: str,
+) -> list[Document]:
+    """
+    Normaliza metadata.source al basename del archivo y añade file_hash.
+
+    TextLoader/PyPDFLoader pueden fijar la ruta completa; aquí se fuerza
+    siempre el basename para mantener coherencia en dedup, ids y evaluación
     """
     file_hash = _hash_file(ruta)
+
     for d in documentos:
         d.metadata["source"] = os.path.basename(ruta)
         d.metadata["file_hash"] = file_hash
+
     return documentos
 
 
-def pdf_con_texto(path: str) -> bool:
-    """ Detecta texto nativo y comprueba si hay texto legible """
-    try:
-        lector = PdfReader(path)
-        return any(pag.extract_text() for pag in lector.pages)
-    except Exception:
-        # al no poder leerse texto del PDF se devuelve falso para forzar OCR
-        return False
+def _ocr_pdf(path: str, nombre: str) -> list[Document]:
+    """Diagnóstico: extrae texto y tablas nativas con pdfplumber."""
+    import pdfplumber
 
-def _load_pdf(path: str) -> list[Document]:
+    print(f"[PDF] Extrayendo texto/tablas nativas de {nombre}")
+
+    docs: list[Document] = []
+
+    try:
+        with pdfplumber.open(path) as pdf:
+            for i, pagina in enumerate(pdf.pages):
+                texto = pagina.extract_text() or ""
+                tablas = pagina.extract_tables() or []
+
+                contenido = texto
+
+                for tabla in tablas:
+                    filas = [
+                        " | ".join("" if celda is None else str(celda).strip() for celda in fila)
+                        for fila in tabla
+                    ]
+                    contenido += "\n\n" + "\n".join(filas)
+
+                docs.append(
+                    Document(
+                        page_content=contenido.strip(),
+                        metadata={
+                            "page": i + 1,
+                            "source": nombre,
+                            "file_type": "pdf_native_table",
+                            "ocr_reason": "native_extraction",
+                        },
+                    )
+                )
+
+    except Exception as exc:
+        print(f"[PDF] ERROR extrayendo {nombre}: {exc}")
+        return []
+
+    return docs
+
+
+def _load_pdf(
+    path: str,
+    nombres_ocr: set[str] | None = None,
+) -> list[Document]:
     """
-    Lee un PDF y devuelve una lista de Document (uno por página).
-    Usa pypdf para PDFs con texto; recurre al OCR cuando el PDF es imagen.
+    Carga un PDF.
+
+    - Si su basename está en OCR.txt con acción OCR: OCR obligatorio.
+    - En caso contrario: extracción nativa con PyPDFLoader
     """
-    if not pdf_con_texto(path):
-        print(f"[LOAD] PDF no convencional (imagen, sin texto) - Se fuerza reconocimiento OCR")
-        return carga_con_ocr(path)
+    nombres_ocr = nombres_ocr or set()
+    base = os.path.basename(path)
+
+    if base in nombres_ocr:
+        return _ocr_pdf(path, base)
+
     loader = PyPDFLoader(path)
     return _normalizar_source(loader.load(), path)
 
 
-def carga_con_ocr(ruta: str) -> List[Document]:
-    """OCR que convierte cada página a png y lee con Tesseract""" 
-    imagenes = convert_from_path(pdf_path = ruta)
-    docs: List[Document] = []
-    for i, imagen in enumerate(imagenes):
-        texto = pytesseract.image_to_string(imagen)
-        meta = {
-            "page": i + 1,
-            "source": os.path.basename(ruta),
-            "file_type": "pdf_ocr",
-            "ocr_agent": OCR_AGENT,
-        }
-        docs.append(Document(page_content=texto, metadata=meta))
-    return docs
-
-
-# En orden de preferencia. cp1252 mapea mejor que latin-1 los guiones y
-# comillas tipicas de Windows (0x95, 0x96, 0x92...), pero algunos bytes
-# (0x81, 0x8D, 0x8F, 0x90, 0x9D) no existen en cp1252: ahí entra latin-1.
-_CODIFICACIONES: tuple[str, ...] = ("utf-8-sig", "cp1252", "latin-1")
+# En orden de preferencia:
+# - utf-8-sig maneja BOM.
+# - cp1252 mapea mejor que latin-1 guiones y comillas típicas de Windows.
+# - latin-1 decodifica cualquier secuencia de bytes.
+_CODIFICACIONES: tuple[str, ...] = (
+    "utf-8-sig",
+    "cp1252",
+    "latin-1",
+)
 
 
 def _detectar_encoding(ruta: str) -> str:
     """
-    Detecta la encoding de un archivo probando en orden:
-    utf-8-sig (maneja BOM), cp1252 (Windows), latin-1 (nunca falla).
+    Detecta la encoding de un archivo probando varias codificaciones
     """
     raw = Path(ruta).read_bytes()
+
     for enc in _CODIFICACIONES:
         try:
             raw.decode(enc)
             return enc
         except UnicodeDecodeError:
             continue
-    # Unreachable: latin-1 decodifica cualquier byte.
+
+    # latin-1 decodifica cualquier byte, pero se mantiene como fallback.
     return "latin-1"
 
+
 # Heurística de tabulares: mínimos de filas y columnas para considerar
-# tabular un .txt/.md. Exige nº de columnas estable
-# y > 1 tabular en los primeros 5 bloques.
-_TAB_MIN_ROWAS = 50
+# tabular un .txt/.md. Exige número de columnas estable y suficientes filas.
+_TAB_MIN_FILAS = 50
 _TAB_MIN_COLS = 2
 
 
 def _es_tabular(ruta: str) -> bool:
-    """¿Es el .txt/.md realmente tabular (CSV/TSV con cabecera + muchas filas)?
+    """
+    ¿Es un .txt/.md realmente tabular (CSV/TSV disfrazado de texto plano)?
 
-    Reutiliza ``leer_filas_csv`` (encoding + delimitador + DictReader, el mismo
-    pipeline de los CSV) — no un segundo lector — y solo muestrea las primeras
-    ``_TAB_MIN_ROWAS`` filas: es suficiente para decidir y no se paga un read
-    completo del fichero solo para la detección.
+    Reutiliza ``leer_filas_csv`` y muestrea las primeras filas para decidir
+    sin leer necesariamente todo el fichero
     """
     try:
-        columnas, filas = leer_filas_csv(ruta, sample_size=_TAB_MIN_ROWAS)
-    except Exception as exc:  # noqa: BLE001 — cualquier fallo → no tabular
+        columnas, filas = leer_filas_csv(
+            ruta,
+            sample_size=_TAB_MIN_FILAS,
+        )
+    except Exception as exc:  # noqa: BLE001
         print(
             f"[LOAD] {os.path.basename(ruta)}: no tabular "
             f"({exc.__class__.__name__}): {exc}"
         )
         return False
-    return len(columnas) >= _TAB_MIN_COLS and len(filas) >= _TAB_MIN_ROWAS
+
+    return len(columnas) >= _TAB_MIN_COLS and len(filas) >= _TAB_MIN_FILAS
 
 
 def _load_txt(ruta: str) -> list[Document]:
-    """TXT/MD: si es tabular, una fila = un doc (row_as_doc forzado,
+    """
+    TXT/MD:
 
-    sin pasar por csv_advisor); si no, texto plano (un doc. por archivo).
-
-    El advisor de CSV NO se usa aquí a propósito: un TSV con un campo
-    repetido (p. ej. ``Codigo_temporada``) se clasificaría ``entity_doc``
-    + ``exact_key`` y la dedup por clave colapsaría todas las filas en 1.
+    - Si es tabular, una fila = un documento
+    - Si no, texto plano: un documento por archivo.
     """
     if _es_tabular(ruta):
         columnas, filas = leer_filas_csv(ruta)
-        # Implementación de urllib.parse.unquote
+
         source = urllib.parse.unquote(Path(ruta).name)
         print(f"source: {source}")
+
         advice = CsvAdvice(
             source=source,
             csv_kind="tabular_txt",
@@ -170,34 +266,41 @@ def _load_txt(ruta: str) -> list[Document]:
             confidence=1.0,
             reason="tabular .txt/.md: row_as_doc forzado (sin advisor)",
         )
-        docs = filas_a_documentos(source, filas, columnas, advice)
+
+        docs = filas_a_documentos(
+            source,
+            filas,
+            columnas,
+            advice,
+        )
+
         return _normalizar_source(docs, ruta)
+
     return _load_text(ruta)
 
+
 def _load_text(ruta: str) -> list[Document]:
-    loader = TextLoader(ruta, encoding=_detectar_encoding(ruta))
+    """Carga TXT/MD como texto plano usando la encoding detectada."""
+    loader = TextLoader(
+        ruta,
+        encoding=_detectar_encoding(ruta),
+    )
     return _normalizar_source(loader.load(), ruta)
 
 
 def _load_csv(ruta: str) -> list[Document]:
     """
-    CSV de eventos: csv_advisor.py decide el tratamiento según la estructura
-    (entidad / grupo de hechos / texto plano) y csv_transform.py lo aplica.
-    Aquí solo delegamos: load.py es un lector, no inventa transformaciones.
+    CSV: csv_advisor.py decide el tratamiento y csv_transform.py lo aplica
     """
     return _normalizar_source(transform_csv(ruta), ruta)
 
-# Router de formato (metadato)
+
 def _formato_documento(source: str) -> str:
-    """Devuelve el formato de un documento según su nombre de archivo.
-
-    Args:
-        source: valor de metadata.source (normalmente el basename del fichero).
-
-    Returns:
-        Uno de: 'pdf', 'csv', 'json', 'txt', 'md', 'otro'.
+    """
+    Devuelve el formato lógico de un documento a partir de su nombre
     """
     ext = Path(source).suffix.lower().lstrip(".")
+
     return {
         "pdf": "pdf",
         "csv": "csv",
@@ -207,13 +310,14 @@ def _formato_documento(source: str) -> str:
     }.get(ext, "otro")
 
 
-# Registro extensión -> loader. .txt/.md comparten el loader tabular-aware:
-# si el fichero es realmente tabular (TSV/CSV disfrazado), 1 fila = 1 doc.
-Loader = Callable[[str], list[Document]]
+# Registro extensión -> loader.
+# .txt/.md comparten el loader tabular-aware.
+Loader = Callable[..., list[Document]]
+
 _LOADERS: dict[str, Loader] = {
     ".pdf": _load_pdf,
     ".txt": _load_txt,
-    ".md":  _load_txt,
+    ".md": _load_txt,
     ".csv": _load_csv,
 }
 
@@ -226,40 +330,79 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
         rutas: una ruta o lista de rutas a archivos/carpetas.
 
     Returns:
-        Lista de Document (page_content + metadata.source + metadata.file_hash).
+        Lista de Document con page_content y metadata normalizada
     """
     if isinstance(rutas, str):
         rutas = [rutas]
 
+    todos: list[Path] = []
     archivos: list[str] = []
+    ruta_ocr: str | None = None
+    nombres_ocr: set[str] = set()
+
+    # 1. Descubrir archivos y carpetas
     for ruta in rutas:
         p = Path(ruta)
-        if p.is_dir():
-            todos = sorted(p.rglob("*"))
-            archivos.extend(str(f) for f in todos
-                    if f.is_file() and f.suffix.lower() in _LOADERS)
-            ignorados = [f.name for f in todos
-                 if f.is_file() and f.suffix.lower() not in _LOADERS]
-            if ignorados:
-                print(f"[LOAD] ignorados (extensión no soportada): {ignorados}")
-        elif p.is_file() and p.suffix.lower() in _LOADERS:
-            archivos.append(str(p))
 
+        if p.is_dir():
+            todos.extend(sorted(p.rglob("*")))
+        elif p.is_file():
+            todos.append(p)
+
+    # 2. Localizar OCR.txt antes de filtrar por extensión
+    for f in todos:
+        if f.is_file() and f.name == "OCR.txt":
+            ruta_ocr = str(f)
+            break
+
+    # 3. Leer configuración OCR
+    if ruta_ocr:
+        config = leer_config_ocr(ruta_ocr)
+
+        nombres_ocr = {
+            nombre
+            for nombre, accion in config.items()
+            if accion == "OCR"
+        }
+
+        print(f"[LOAD] forzados por OCR.txt: {sorted(nombres_ocr)}")
+
+    # 4. Filtrar archivos indexables; OCR.txt nunca se indexa
+    for f in todos:
+        if not f.is_file():
+            continue
+
+        if f.name == "OCR.txt":
+            continue
+
+        if f.suffix.lower() in _LOADERS:
+            archivos.append(str(f))
+        else:
+            print(f"[LOAD] ignorado (extensión no soportada): {f.name}")
+
+    # 5. Cargar documentos
     documentos: list[Document] = []
+
     for archivo in archivos:
         ext = Path(archivo).suffix.lower()
         loader_fn = _LOADERS[ext]
-        docs = loader_fn(archivo)
-        # Asegurar metadata.source y metadata.file_hash si el loader no los puso.
-        # doc_id = ordinal del documento dentro del archivo: una fuente produce
-        # muchos documentos (páginas/filas) y la auditoría de dedup los hace
-        # inequívocos con source + doc_id + chunk_index + posición global.
+
+        if ext == ".pdf":
+            docs = loader_fn(archivo, nombres_ocr)
+        else:
+            docs = loader_fn(archivo)
+
         file_hash = _hash_file(archivo)
+
         for i, d in enumerate(docs):
             d.metadata["doc_id"] = i
             d.metadata.setdefault("source", os.path.basename(archivo))
             d.metadata.setdefault("file_hash", file_hash)
-            d.metadata.setdefault("format", _formato_documento(os.path.basename(archivo)))
+            d.metadata.setdefault(
+                "format",
+                _formato_documento(os.path.basename(archivo)),
+            )
+
         documentos.extend(docs)
 
     return documentos
