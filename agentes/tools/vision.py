@@ -1,128 +1,90 @@
 """
 agentes/tools/vision.py
 
-Tool de visión: describe la imagen de demo (imagen → texto).
+Tool de visión: imagen -> texto.
 
-Contrato (sigue el mismo patrón que rag.py):
+Contrato:
     imagen_preguntar(image_id, pregunta) -> dict
         {
-            "ok": bool,            # True = éxito, False = fallo
-            "resultado": str,      # descripción del texto visible
-            "fuentes": list[str],  # ["imagen_demo.jpg"] cuando hay resultado
-            "abstained": bool,     # no aplica aquí (es una demo)
-            "error": str | None,   # SIEMPRE presente, nunca lanza
+            "ok": bool,
+            "resultado": str,
+            "fuentes": list[str],
+            "abstained": bool,
+            "error": str | None,
         }
 
-Límites (según 02_multimodal.md):
-    - Una sola llamada imagen → texto. No hay pipeline ni almacén de medios.
-    - MIME correcto obligatorio (image/jpeg, image/png). Un tipo mal rompe la respuesta.
-    - El modelo describe lo que ve, no consulta un catálogo.
-
-La visión puede empezar con DATOS SIMULADOS (no necesita índice ni LLM real),
-así no bloquea el proyecto si GEMINI_API_KEY no está configurada.
+Reglas:
+- Nunca lanza excepciones: los errores viajan en "error".
+- Acepta JPG/JPEG y PNG.
+- Si no hay GOOGLE_API_KEY, devuelve una respuesta simulada para poder probar el grafo.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Any
 
 from langchain_core.tools import tool
 
-import config
-import os
+try:
+    import config
+except ImportError:
+    config = None
+
+
+MIME_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+}
+
+DEFAULT_IMAGE = "assets/imagen_demo.jpg"
+
+
+def _resolve_image_path(image_id: str) -> Path:
+    """Resuelve una ruta absoluta a partir del image_id recibido."""
+    raw = (image_id or "").strip()
+
+    if not raw or raw == "imagen_demo":
+        raw = DEFAULT_IMAGE
+
+    path = Path(raw)
+
+    if not path.is_absolute():
+        root = getattr(config, "ROOT", Path.cwd())
+        path = root / path
+
+    return path
+
+
+def _build_response(
+    ok: bool,
+    resultado: str = "",
+    fuentes: list[str] | None = None,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """Devuelve el contrato uniforme de la tool."""
+    return {
+        "ok": ok,
+        "resultado": resultado,
+        "fuentes": fuentes or [],
+        "abstained": False,
+        "error": error,
+    }
 
 
 @tool
-def imagen_preguntar(image_id: str = "", pregunta: str = "") -> dict[str, str]:
-    """Describe la imagen de demo en español (texto visible, lugar, contexto).
+def imagen_preguntar(image_id: str = "", pregunta: str = "") -> dict[str, Any]:
+    """Describe una imagen en español y responde a la pregunta del usuario.
 
-    Sin image_id (o cadena vacía) usa assets/imagen_demo.jpg del proyecto.
-    Devuelve SIEMPRE un dict con ok/resultado/fuentes/abstained/error.
-    Nunca lanza excepción: los fallos viajan en "error".
+    Si no se indica image_id, usa assets/imagen_demo.jpg.
+    Devuelve siempre un dict con ok, resultado, fuentes, abstained y error.
     """
-    # 1) Normalizar el id de la imagen
-    if not isinstance(image_id, str) or not image_id.strip():
-        image_id = "imagen_demo"
-    image_id = image_id.strip()
-
-    # 2) Localizar la imagen
-    path = Path(config.IMAGEN_DEFAULT_PATH) if image_id in ("", "imagen_demo") else Path(image_id)
-    if not path.is_absolute():
-        path = (config.ROOT / path)
-    if not path.exists():
-        return {
-            "ok": False,
-            "resultado": "",
-            "fuentes": [],
-            "abstained": False,
-            "error": f"Error: no hay imagen en {path}",
-        }
-
-    # 3) Leer los bytes y detectar el MIME (obligatorio)
     try:
-        data = path.read_bytes()
-    except Exception as e:
-        return {
-            "ok": False,
-            "resultado": "",
-            "fuentes": [],
-            "abstained": False,
-            "error": f"Error al leer la imagen: {e}",
-        }
+        path = _resolve_image_path(image_id)
 
-    mime = "image/jpeg" if path.suffix.lower() == ".jpg" else "image/png"
-
-    # 4) Llamada al modelo multimodal (Gemini)
-    try:
-        from google import genai
-        from google.genai import types
-
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            # Sin API real: devolvemos un resultado SIMULADO para poder probar
-            # la conexión sin bloquear el proyecto.
-            return {
-                "ok": True,
-                "resultado": (
-                    f"[SIMULADO] En la imagen de demo se observa el texto visible "
-                    f"ubicado en el contexto del cartel. "
-                    f"(GEMINI_API_KEY no configurada)"
-                ),
-                "fuentes": [str(path)],
-                "abstained": False,
-                "error": None,
-            }
-
-        client = genai.Client(api_key=api_key)
-        out = client.models.generate_content(
-            model=config.GEMINI_MODEL,
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_bytes(data=data, mime_type=mime),
-                        types.Part.from_text(
-                            text=(
-                                "Describe la imagen en 2-3 frases en español. "
-                                "Si hay texto, fecha, hora o lugar visibles, menciónalos."
-                            )
-                        ),
-                    ],
-                )
-            ],
-        )
-        return {
-            "ok": True,
-            "resultado": (out.text or "").strip() or "Error: respuesta vacía del modelo.",
-            "fuentes": [str(path)],
-            "abstained": False,
-            "error": None,
-        }
-    except Exception as e:  # noqa: BLE001 — la tool nunca lanza
-        return {
-            "ok": False,
-            "resultado": "",
-            "fuentes": [],
-            "abstained": False,
-            "error": f"Error al leer la imagen: {e}",
-        }
+        if not path.exists() or not path.is_file():
+            return _build_response(
+                ok=False,
+                error=f"Error:
