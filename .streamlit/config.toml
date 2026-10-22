@@ -14,9 +14,3 @@ toolbarMode = "minimal"
 
 [browser]
 gatherUsageStats = false
-
-[client]
-toolbarMode = "minimal"
-
-[browser]
-gatherUsageStats = false
