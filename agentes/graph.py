@@ -5,6 +5,7 @@ y la validacion de plan vigente siguen siendo responsabilidades del servicio.
 """
 from collections.abc import Callable
 from functools import partial
+from agentes import llm
 from agentes.node_guards import especialista_protegido
 from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
 from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
@@ -29,6 +30,9 @@ def router_supervisor(state: AgentState) -> str:
         return "aplicar" if plan_is_ready(state) else "sintetizar"
     return fallback
 
+def especialista_documental(state: AgentState) -> dict:
+    """TODO: especialista con acceso a rag_ask y/o consultar_api_dominio."""
+    return {"mensajes": ["especialista_a: ejecutando análisis"]}
 
 def build_graph(
     *, documental_node: Node, instalaciones_node: Node, sintetizar_node: Node,
@@ -57,6 +61,8 @@ def build_graph(
             for nombre in ("SupervisorDecision", "Evidence", "ToolResult", "PendingAction")
         ]))
 
+
+
     builder = StateGraph(AgentState)
     builder.add_node("supervisor", partial(supervisor_node, route_provider=route_provider, max_iter=max_iter))
     builder.add_node("documental", partial(especialista_protegido, rol="documental", node=documental_node))
@@ -75,3 +81,5 @@ def build_graph(
         checkpointer=checkpointer,
         interrupt_before=["aplicar"],
     )
+
+

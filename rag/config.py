@@ -21,6 +21,16 @@ try:
 except ImportError:
     pass
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MAX_ITER = int(os.getenv("MAX_ITER", "10"))
+MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
+MAX_TURNS = int(os.getenv("MAX_TURNS", "20"))
+
+RAG_INDEX_DIR = Path(os.getenv("RAG_INDEX_DIR", BASE_DIR / "data" / "index"))
+ASSETS_DIR = Path(os.getenv("ASSETS_DIR", BASE_DIR / "assets"))
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Interruptor 1: EMBEDDINGS (offline + consulta)
 EMBED_PROVIDER: str = os.getenv("EMBED_PROVIDER", "ollama")   # "ollama" | "huggingface" | "google"

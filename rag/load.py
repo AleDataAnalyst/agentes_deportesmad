@@ -2,7 +2,7 @@
 rag/load.py
 
 Abstrae el formato: PDF, TXT, MD, CSV -> lista de LangChain Documents.
------------------------------------------------------------------------
+-----------------------------------------------------------------------   
 Los CSV se delegan a ``csv_transform.py`` / ``csv_advisor.py`` (entidad,
 grupo o fila por documento según el perfil).
 Los TXT y MD se comprueban si son tabulares (CSV/TSV disfrazados de texto
@@ -61,7 +61,6 @@ POPPLER_PATH = os.environ.get(
 def _hash_file(ruta: str) -> str:
     """
     SHA-256 hex del contenido binario crudo del archivo, en streaming.
-
     Identifica unívocamente al archivo de origen: estable entre indexaciones
     y detecta contenido nuevo en una descarga repetida con el mismo nombre
     """
@@ -80,12 +79,10 @@ def _hash_file(ruta: str) -> str:
 def leer_config_ocr(ruta: str) -> dict[str, str]:
     """
     Lee OCR.txt y devuelve {nombre_archivo: accion}.
-
     Cada línea válida tiene el formato:
 
         nombre.pdf: OCR
         nombre.pdf: NO_OCR
-
     Las líneas vacías y las que empiezan por '#' se ignoran
     """
     resultado: dict[str, str] = {}
@@ -114,7 +111,6 @@ def _normalizar_source(
 ) -> list[Document]:
     """
     Normaliza metadata.source al basename del archivo y añade file_hash.
-
     TextLoader/PyPDFLoader pueden fijar la ruta completa; aquí se fuerza
     siempre el basename para mantener coherencia en dedup, ids y evaluación
     """
@@ -175,9 +171,8 @@ def _load_pdf(
 ) -> list[Document]:
     """
     Carga un PDF.
-
     - Si su basename está en OCR.txt con acción OCR: OCR obligatorio.
-    - En caso contrario: extracción nativa con PyPDFLoader
+    - En caso contrario: extracción nativa con PyPDFLaader
     """
     nombres_ocr = nombres_ocr or set()
     base = os.path.basename(path)
@@ -327,7 +322,7 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
     Punto de entrada público.
 
     Params:
-        rutas: una ruta o lista de rutas a archivos/carpetas.
+        rutas: una ruta o lista de rutas a archivos/carpetas
 
     Returns:
         Lista de Document con page_content y metadata normalizada

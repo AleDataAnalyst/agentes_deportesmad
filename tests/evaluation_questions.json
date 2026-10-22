@@ -32,22 +32,21 @@
   },
   {
     "id": 6,
-    "pregunta": "¿El bono de piscina en verano es ilimitado o tiene un número máximo de días?",
-    "categoria_esperada": "tarifas",
+    "pregunta": "¿El bono de piscina en verano vale también para piscinas cubiertas?",
+    "categoria_esperada": "normativa",
     "fuente_esperada": "PreciosPublicos2026.pdf"
   },  
   {
     "id": 7,
-    "pregunta": "¿Puedo comprar el abono online o tengo que ir a la instalación?",
+    "pregunta": "¿Puedo comprar el abono de deportes municipal de manera online?",
     "categoria_esperada": "abonos",
     "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
   },
   {
     "id": 8,
-    "pregunta": "¿Puedo reservar siendo de otra provincia de fuera de Madrid?",
-    "categoria_esperada": "out_of_corpus",
-    "fuente_esperada": null,
-    "out_of_corpus": true
+    "pregunta": "¿Puedo reservar actividades deportivas siendo de otra provincia de fuera de Madrid?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
   },
   {
     "id": 9,
@@ -142,5 +141,17 @@
     "pregunta": "¿Qué servicios tiene el Estadio Municipal Vallehermoso?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 23,
+    "pregunta": "¿Tiene el centro deportivo de la Cea Bermudez pistas para practicar el Padel?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 24,
+    "pregunta": "¿En caso de que las piscinas tengan las tumbonas o sillas de las instalaciones completamente ocupadas, es posible acceder con sillas o tumbonas propias?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
   }
 ]
