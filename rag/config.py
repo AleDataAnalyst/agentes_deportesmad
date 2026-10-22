@@ -23,7 +23,7 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-MAX_ITER = int(os.getenv("MAX_ITER", "10"))
+MAX_ITER = int(os.getenv("MAX_ITER", "8"))
 MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
 MAX_TURNS = int(os.getenv("MAX_TURNS", "20"))
 
