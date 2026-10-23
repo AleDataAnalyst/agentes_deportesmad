@@ -41,14 +41,18 @@ from .config import (
 
 from .chunk import trocear
 from .clean import limpiar
-from .embed import embeddear, exportar_json, verificar_modelo_disponible
+from .embed import (
+    embeddear,
+    embeddear_con_checkpoint,
+    exportar_json,
+    verificar_modelo_disponible,
+)
 from .index import indexar, obtener_guid_chroma
 from .informe import generar_informe
 from .load import cargar_archivos
 from .tsd.dedup import deduplicar
 from .tsd.scoring import puntuar
 from .tsd.tag import etiquetar
-
 
 def _log(fase: str, msg: str) -> None:
     """Marca de tiempo + fase: formato único en consola (evita repetir strftime)."""
@@ -235,7 +239,9 @@ def ejecutar_pipeline(
     # SEGURIDAD: dim final = min(dim del modelo, EMBED_DIM). embeddear() es la
     # puerta única: recorta a EMBED_DIM (corte + renormalización) si el modelo
     # produce más, así que la dim resultante nunca supera jamás al modelo ni a EMBED_DIM.
-    embeddings = embeddear([c.page_content for c in chunks])
+    embeddings = embeddear_con_checkpoint(
+        [c.page_content for c in chunks]
+    )
     n_embedded = len(embeddings)  # salida real de EMBED (pre-dedup): el dedup
     # muta la variable más abajo y esa cifra no pertenece ya a esta fase.
     dim = len(embeddings[0]) if embeddings else 0

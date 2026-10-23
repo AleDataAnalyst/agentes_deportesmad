@@ -133,16 +133,18 @@ _CHAT = {"ollama": _chat_ollama, "huggingface": _chat_huggingface, "google": _ch
 
 
 def _parse_json(texto: str) -> dict[str, Any]:
-    """Extrae el JSON de la respuesta del LLM (tolera bloques ```json y prosa)."""
-    # Aísla el primer bloque que empiece con { y termine con } válido.
+    """Extrae el primer objeto JSON válido, tolerando JSON anidado."""
     inicio = texto.find("{")
     if inicio == -1:
         raise json.JSONDecodeError("sin JSON en la respuesta", texto, 0)
-    fragmento = texto[inicio:]
-    fin = fragmento.find("}")
-    if fin == -1:
-        raise json.JSONDecodeError("sin JSON en la respuesta", texto, 0)
-    return json.loads(fragmento[:fin + 1])
+
+    decoder = json.JSONDecoder()
+    obj, _ = decoder.raw_decode(texto[inicio:])
+
+    if not isinstance(obj, dict):
+        raise ValueError("el LLM devolvió un JSON que no es un objeto")
+
+    return obj
 
 
 def etiquetar(documentos: list[Document]) -> list[Document]:

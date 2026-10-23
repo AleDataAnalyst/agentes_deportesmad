@@ -81,10 +81,3 @@ def imagen_preguntar(image_id: str = "", pregunta: str = "") -> dict[str, Any]:
     Si no se indica image_id, usa assets/imagen_demo.jpg.
     Devuelve siempre un dict con ok, resultado, fuentes, abstained y error.
     """
-    try:
-        path = _resolve_image_path(image_id)
-
-        if not path.exists() or not path.is_file():
-            return _build_response(
-                ok=False,
-                error=f"Error:

@@ -86,9 +86,21 @@ GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY") or None
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "150"))
 
-# --- Checkpoint de indexación ---
-CHECKPOINT_FILE = "../output/index_checkpoint.json"
-CHECKPOINT_BATCH_SIZE: int = 200  # lotes pequeños = checkpoints frecuentes
+# --- Checkpoint de embeddings ---
+EMBED_CHECKPOINT_FILE: str = os.getenv(
+    "EMBED_CHECKPOINT_FILE",
+    str(BASE_DIR / "output" / "embeddings_checkpoint.jsonl"),
+)
+
+EMBED_CHECKPOINT_ENABLED: bool = os.getenv(
+    "EMBED_CHECKPOINT_ENABLED", "true"
+).lower() == "true"
+
+EMBED_MAX_ATTEMPTS: int = int(os.getenv("EMBED_MAX_ATTEMPTS", "8"))
+
+EMBED_RETRY_BASE_DELAY: float = float(
+    os.getenv("EMBED_RETRY_BASE_DELAY", "5")
+)
 
 # --- Retrieval (online) ---
 TOP_K: int = int(os.getenv("TOP_K", "5"))

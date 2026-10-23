@@ -3,9 +3,6 @@ rag/index.py
 Carga los embeddings en ChromaDB (base vectorial local y ligera).
 """
 import time
-import os
-import json
-
 
 import chromadb
 from chromadb.config import Settings
@@ -15,38 +12,16 @@ from typing import Any
 from uuid import UUID
 
 from .config import (
-    CHROMA_DIR, 
-    COLLECTION_NAME, 
+    CHROMA_DIR,
+    COLLECTION_NAME,
     COSINE_SPACE,
-    CHECKPOINT_FILE,
-    CHECKPOINT_BATCH_SIZE
-    )
+)
 
 
 
 # Máximo de registros por llamada add(): el límite del backend varía con el
 # tamaño de los vectores (chroma calcula = dim × bytes de tope). Con 2000 da margen.
 _BATCH_ADD = 2_000
-
-def cargar_checkpoint(ruta: Path) -> dict:
-    """Lee el progreso guardado. Si no existe o está corrupto, empiezas de 0."""
-    if not ruta.exists():
-        return {"modelo": None, "n_total": 0, "n_completed": 0, "datos": []}
-    try:
-        estado = json.loads(ruta.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        print(f"[INDEX] {ruta} corrupto; reinicio desde cero.")
-        return {"modelo": None, "n_total": 0, "n_completed": 0, "datos": []}
-    return estado
-
-
-def guardar_checkpoint(ruta: Path, estado: dict) -> None:
-    """Escritura atómica (temp + rename): si cae justo al guardar, no queda
-    un archivo truncado, porque el rename es instantáneo y atómico."""
-    ruta.parent.mkdir(parents=True, exist_ok=True)
-    temporal = ruta.with_suffix(".tmp")          # 1) escribir en un archivo temporal
-    temporal.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
-    temporal.replace(ruta)                       # 2) renombrar (átomico) sobre el original
 
 def obtener_guid_chroma(persist_dir: str | None = None) -> str | None:
     """Devuelve el GUID de la carpeta de datos creada por ChromaDB."""
