@@ -4,7 +4,9 @@ Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
 El proyecto integra el RAG existente mediante un especialista documental y un supervisor síncrono. El flujo conserva fuentes, errores y abstenciones, prepara un plan informativo y exige una decisión humana antes del cierre.
 
-## Estado de esta entrega — 20/10/2026
+## Estado de esta entrega — 22/10/2026
+
+> Esta versión actualiza la documentación tras la revisión de validación del 21/10/2026. No cambia el alcance funcional: el modo real sigue pendiente de aceptación con índice RAG compatible y el especialista de instalaciones sigue sin operativa pública probada y ejecutable.
 
 Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backend compartido. Distingue implementación, pruebas con dobles y validación con servicios reales.
 
@@ -46,6 +48,20 @@ El servicio, sus checkpoints y sus identificadores se conservan entre turnos dur
 
 Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md), [cierre del backend](docs/specs/cierre_backend_supervisor_grafo.md), [síntesis y aplicar](docs/specs/sintetizar_aplicar.md) y [contratos](docs/specs/contratos.md).
 
+
+## Estructura relevante
+
+| Ruta | Contenido |
+| --- | --- |
+| `agentes/` | Supervisor, grafo, servicio, contratos, nodos, adaptador documental, validación y filtrado de secretos |
+| `agentes/runtime.py` | Construcción explícita de servicio real o demo |
+| `rag/` | Pipeline RAG: carga, limpieza, chunking, embeddings, índice, recuperación y generación |
+| `main.py` | Punto de entrada de la CLI |
+| `app.py` | Cliente Streamlit |
+| `.env.example` | Plantilla de configuración; no contiene secretos |
+
+
+
 ## Ejecutar la demo sin servicios externos
 
 Desde la raíz del repositorio, con las dependencias del backend instaladas, activa la `.venv` existente:
@@ -70,7 +86,7 @@ La salida identifica los datos como simulados. El comando sin decisión muestra 
 
 ## Ejecutar la CLI
 
-`main.py` delega en `clientes/cli.py`. Para probar el cliente sin servicios externos:
+`main.py` delega en `clientes/cli.py`. Si cambias la ubicación de la CLI, actualiza esta referencia y el comando de ejecución. Para probar el cliente sin servicios externos:
 
 ```console
 python -B main.py --help
@@ -100,7 +116,13 @@ Los comandos también funcionan sin barra; `nuevo` y `/nuevo` equivalen a `/nuev
 
 La CLI admite hasta 8.000 caracteres por entrada, rechaza controles y formato invisible, limpia secuencias de terminal y filtra credenciales reconocibles, también en diccionarios y colecciones anidados sin modificar los originales. El filtrado es heurístico y no garantiza ocultar cualquier secreto. Comprueba el hilo, el estado HITL y el plan antes de permitir una decisión. Conserva códigos como `REQUEST_INCOMPLETE` y añade orientación por código, sin comparar el texto completo del error. Los imports y ejemplos para David están en la [guía de utilidades compartidas](docs/handoff_validacion_david.md).
 
-Streamlit se inicia con `python -m streamlit run app.py` y actualmente usa el servicio demo. La integración del modo real y los ajustes de presentación pendientes pertenecen al trabajo de su cliente.
+Streamlit se inicia con:
+
+```console
+python -m streamlit run app.py
+```
+
+Actualmente utiliza el servicio demo. La integración con `crear_servicio(modo="real")`, el refresco tras aprobar o rechazar y la presentación segura de fuentes, errores y debug siguen pendientes.
 
 ## Protecciones del backend compartido
 
@@ -136,9 +158,11 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 ## Pruebas y evidencias
 
+
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
-| Selección conjunta de CLI y backend | 433 pruebas superadas en 9,72 s | CLI, seguridad, servicio, runtime, fronteras de importación, supervisor, síntesis, HITL, adaptación, golden, demo y exportación; con red y RAG/Chroma bloqueados por el ejecutor local |
+| Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
+| Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
 | Compatibilidad de Streamlit en demo | Aprobación, rechazo y nueva conversación correctos | Conserva servicio, hilo y plan; persiste el refresco adicional de UI después de decidir |
 | Selección histórica de backend y montaje | 276 pruebas superadas | Evidencia anterior a esta ampliación, con dobles donde corresponde; no se suma a las 433 |
@@ -147,6 +171,8 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 | Perfiles TAG con `--doble` | Tres procesos independientes y 15 comprobaciones por perfil | Transporte/modelos simulados; no mide rendimiento ni calidad real |
 | Revisión de la visualización | 24 pruebas golden superadas; SVG y topología verificados | Comprobación adicional, sin servicios externos; no se suma a las 276 como cobertura nueva |
 
+> La cifra de 577 pruebas corresponde a la selección documentada en [docs/handoff_validacion_david.md](docs/handoff_validacion_david.md). No sustituye la aceptación con RAG, instalaciones ni servicios externos reales.
+
 La sonda histórica de diez recorridos fue inline. Esta entrega añade pruebas reproducibles de errores inmediatos de la tool RAG en `tests/test_rag_error_boundary.py`; no miden un timeout real ni sustituyen aquella sonda completa. Las cifras describen selecciones y ejecuciones locales concretas, no toda la suite ni un resultado de CI; no se suman como coberturas independientes.
 
 Pruebas de CLI y guardias con especialistas dobles, sin índice ni modelos:
@@ -154,6 +180,14 @@ Pruebas de CLI y guardias con especialistas dobles, sin índice ni modelos:
 ```console
 python -B -m pytest -q -p no:cacheprovider tests/test_cli.py tests/test_cli_security.py tests/test_node_guards.py tests/test_rag_error_boundary.py
 ```
+
+Comando completo documentado:
+
+```console
+python -m pytest -q tests/test_validation.py tests/test_secret_filter.py tests/test_cli.py tests/test_cli_security.py tests/test_import_boundaries.py tests/test_agent_service.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_node_guards.py tests/test_infra_sintetizar_aplicar.py tests/test_sintetizar_aplicar.py tests/test_demo.py tests/test_supervisor.py tests/test_state.py tests/test_contracts.py tests/test_golden_graph.py tests/test_export_evidence.py tests/test_sync_integration.py
+```
+
+> La selección ampliada no consulta servicios reales ni abre un índice Chroma. No debe presentarse como validación de recuperación, generación, catálogo, imágenes o calidad semántica.
 
 Selección breve para comprobar el montaje y la regresión, con pytest instalado:
 
@@ -173,15 +207,41 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 
 ## Configuración efectiva y RAG
 
+---
+### advertencia 
+![warning](./assets/warning.png) 
+
+`MAX_ITER` tiene significados y valores por defecto distintos en el supervisor y en el RAG:
+
+- `agentes/settings.py`: valor por defecto `8`; se lee al crear el servicio.
+- `rag/config.py`: valor por defecto `10`; se fija al importar el módulo.
+
+No son la misma configuración ni deben tratarse como un único límite global.
+
+--- 
+
 La configuración del supervisor y la del RAG tienen mecanismos distintos:
 
 - `agentes/settings.py` lee `MAX_ITER` al crear el servicio; valor predeterminado 8. No carga `.env` automáticamente.
 - `rag/config.py` carga dotenv sin sobrescribir variables del proceso y fija constantes al importar. Cambiar el entorno después de importar no basta para comparar configuraciones.
 - Embeddings, etiquetado (TAG) y generación tienen proveedores/modelos separados. Declarar una variable no garantiza que un adaptador la consuma.
-
-Las [specs de Héctor](docs/specs/contratos.md), en la sección de dependencias del RAG, citan `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` para generación de respuestas con un índice existente, además de las opciones de recuperación. Ese uso de Gemini no genera el índice ni sustituye el etiquetado previo. `GEMINI_MODEL` no tiene consumidor en el código revisado. Una propuesta Google para TAG debe tratarse como una configuración distinta, no como ese uso de GEN.
+  
+> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. No la uses para configurar generación; utiliza `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` según el proveedor seleccionado.
 
 Para validar el RAG real se necesita un índice compatible con el modelo, dimensión y configuración de embeddings que lo construyeron, su ruta/colección y una consulta con fuente esperada. Cambiar `EMBED_*` o `CHUNK_*` exige gestionar la reindexación indicada en las specs. No subir `.env`, claves, entornos virtuales ni índices pesados. Los ejemplos no certifican disponibilidad de los modelos, cuotas o compatibilidad del entorno local.
+
+### Checklist de aceptación del RAG real
+
+Antes de declarar el modo real como aceptado, documenta y ejecuta:
+
+- [ ] Índice compatible con el modelo, dimensión y configuración de embeddings empleados.
+- [ ] Ruta de Chroma y nombre de colección confirmados.
+- [ ] Versión, procedencia y, si aplica, checksum del índice.
+- [ ] Consulta con respuesta y fuente esperada verificadas.
+- [ ] Consulta sin evidencia que produce abstención.
+- [ ] Fallo controlado que conserva el error sin convertirlo en evidencia.
+- [ ] Recorrido completo con HITL: consulta, plan, aprobación o rechazo y cierre.
+- [ ] Evidencia guardada sin `.env`, claves, índices ni volcados completos de estado.
 
 ### Perfiles y benchmark de etiquetado
 
@@ -214,7 +274,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
 | Miguel | Especialista de instalaciones y avisos, a partir de su handoff | Operación pública ejecutable y contrato de fuentes, errores, abstención y fallback fechado para integrarla |
-| David | Cliente Streamlit demo conectado a `AgentService`, con chat y controles HITL | Integración con runtime real, refresco de UI, tratamiento de errores y presentación segura de fuentes/debug |
+| David | Cliente Streamlit demo conectado a `AgentService`, con chat y controles HITL | Integración con `crear_servicio(modo=...)`, refresco tras decisión, tratamiento de errores, adopción de `agentes.validation` y `agentes.secret_filter`, y presentación segura de fuentes/debug |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 

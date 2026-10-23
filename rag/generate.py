@@ -1,5 +1,5 @@
 """
-src/generate.py
+rag/generate.py
 
 Capa de generación: envía un prompt al LLM y devuelve la respuesta en texto.
 

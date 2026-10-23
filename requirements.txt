@@ -1,5 +1,5 @@
 # Dependencia del backend síncrono.
-langgraph==1.2.11
+langgraph>=1.2.11
 
 # Cliente web
 streamlit
@@ -8,7 +8,10 @@ streamlit
 # pydantic
 # python-dotenv
 # httpx
-# Pillow
+
+
+
+
 
 
 # RAG # 
@@ -26,3 +29,7 @@ faiss-cpu>=1.15.1
 requests>=2.34.2
 pypdf>=6.20.1
 langchain-ollama>=1.1.0
+pdf2image>=1.17.0
+Pillow>=13.0.0
+pytesseract>=0.3.13
+pdfplumber>=0.11.10

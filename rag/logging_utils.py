@@ -1,5 +1,5 @@
 """
-src/logging_utils.py
+rag/logging_utils.py
 
 Utilidades de logging estructurado para el pipeline RAG online.
 

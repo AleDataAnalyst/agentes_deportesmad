@@ -1,5 +1,5 @@
 """
-src/csv_transform.py
+rag/csv_transform.py
 Materializa el `CsvAdvice` del advisor: filas -> Document enriquecidos.
 
 Estrategias (por `treatment`):

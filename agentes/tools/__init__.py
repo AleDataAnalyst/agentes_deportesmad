@@ -5,7 +5,10 @@ registro autorizado.
 API pública:
     rag_preguntar(consulta: str) -> dict
 """
-__all__ = ["rag_preguntar"]
+from agentes.tools.vision import imagen_preguntar
+
+__all__ = ["imagen_preguntar", "rag_preguntar"]
+
 
 
 def __getattr__(name: str):

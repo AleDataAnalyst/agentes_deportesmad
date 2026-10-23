@@ -1,5 +1,5 @@
 """
-config.py
+rag/config.py
 Todas las constantes del proyecto. Se leen de variables de entorno (.env)
 con valores por defecto: se cambia de proveedor sin tocar el código.
 
@@ -12,6 +12,7 @@ Cada proveedor (ollama / huggingface / google) tiene su variable de modelo
 resuelven automáticamente según el proveedor de cada interruptor.
 """
 import os
+from pathlib import Path
 
 # Carga .env si existe (python-dotenv es opcional: si no está instalado, se ignora)
 try:
@@ -20,6 +21,16 @@ try:
 except ImportError:
     pass
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+MAX_ITER = int(os.getenv("MAX_ITER", "8"))
+MAX_STEPS = int(os.getenv("MAX_STEPS", "5"))
+MAX_TURNS = int(os.getenv("MAX_TURNS", "20"))
+
+RAG_INDEX_DIR = Path(os.getenv("RAG_INDEX_DIR", BASE_DIR / "data" / "index"))
+ASSETS_DIR = Path(os.getenv("ASSETS_DIR", BASE_DIR / "assets"))
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # Interruptor 1: EMBEDDINGS (offline + consulta)
 EMBED_PROVIDER: str = os.getenv("EMBED_PROVIDER", "ollama")   # "ollama" | "huggingface" | "google"
@@ -75,6 +86,21 @@ GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY") or None
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "150"))
 
+# --- Checkpoint de embeddings ---
+EMBED_CHECKPOINT_FILE: str = os.getenv(
+    "EMBED_CHECKPOINT_FILE",
+    str(BASE_DIR / "output" / "embeddings_checkpoint.jsonl"),
+)
+
+EMBED_CHECKPOINT_ENABLED: bool = os.getenv(
+    "EMBED_CHECKPOINT_ENABLED", "true"
+).lower() == "true"
+
+EMBED_MAX_ATTEMPTS: int = int(os.getenv("EMBED_MAX_ATTEMPTS", "8"))
+
+EMBED_RETRY_BASE_DELAY: float = float(
+    os.getenv("EMBED_RETRY_BASE_DELAY", "5")
+)
 
 # --- Retrieval (online) ---
 TOP_K: int = int(os.getenv("TOP_K", "5"))
@@ -141,3 +167,13 @@ GEN_TIMEOUT: int = int(os.getenv("GEN_TIMEOUT", "140"))
 CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./output/chroma_db")
 COLLECTION_NAME: str = os.getenv("COLLECTION_NAME", "deporte_municipal")
 COSINE_SPACE: str = "cosine"
+
+
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
+ASSETS_DIR = ROOT / "assets"
+
+# ← LA LÍNEA CLAVE para la visión
+IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
+
+VISION_MODEL = "gemini-2.5-flash"

@@ -3,13 +3,17 @@
 No importa el LLM ni las implementaciones de especialistas. La API de clientes
 y la validacion de plan vigente siguen siendo responsabilidades del servicio.
 """
+from __future__ import annotations
+
 from collections.abc import Callable
 from functools import partial
+
 from agentes.node_guards import especialista_protegido
 from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
 from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
 from agentes.state import AgentState, plan_is_ready
 from agentes.nodes.supervisor import ROLES, RouteProvider, fallback_decision, supervisor_node
+from agentes.nodes.vision import vision_node
 
 Node = Callable[[AgentState], dict]
 
@@ -28,7 +32,6 @@ def router_supervisor(state: AgentState) -> str:
     if fallback == "FINISH":
         return "aplicar" if plan_is_ready(state) else "sintetizar"
     return fallback
-
 
 def build_graph(
     *, documental_node: Node, instalaciones_node: Node, sintetizar_node: Node,
@@ -57,6 +60,8 @@ def build_graph(
             for nombre in ("SupervisorDecision", "Evidence", "ToolResult", "PendingAction")
         ]))
 
+
+
     builder = StateGraph(AgentState)
     builder.add_node("supervisor", partial(supervisor_node, route_provider=route_provider, max_iter=max_iter))
     builder.add_node("documental", partial(especialista_protegido, rol="documental", node=documental_node))
@@ -75,3 +80,5 @@ def build_graph(
         checkpointer=checkpointer,
         interrupt_before=["aplicar"],
     )
+
+

@@ -1,5 +1,5 @@
 """
-src/index.py
+rag/index.py
 Carga los embeddings en ChromaDB (base vectorial local y ligera).
 """
 import time
@@ -11,12 +11,17 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from .config import CHROMA_DIR, COLLECTION_NAME, COSINE_SPACE
+from .config import (
+    CHROMA_DIR,
+    COLLECTION_NAME,
+    COSINE_SPACE,
+)
+
+
 
 # Máximo de registros por llamada add(): el límite del backend varía con el
 # tamaño de los vectores (chroma calcula = dim × bytes de tope). Con 2000 da margen.
 _BATCH_ADD = 2_000
-
 
 def obtener_guid_chroma(persist_dir: str | None = None) -> str | None:
     """Devuelve el GUID de la carpeta de datos creada por ChromaDB."""

@@ -1,19 +1,19 @@
 [
   {
     "id": 1,
-    "pregunta": "¿Cuánto cuesta el abono de piscina?",
+    "pregunta": "¿Cuánto cuesta el bono de piscina de verano y cuantas sesiones tiene?",
     "categoria_esperada": "tarifas",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
+    "fuente_esperada": "PreciosPublicos2026.pdf"
   },
   {
     "id": 2,
-    "pregunta": "¿Hay descuentos para menores, mayores, estudiantes o personas en paro?",
+    "pregunta": "¿Hay descuentos para familia numerosa?",
     "categoria_esperada": "tarifas",
     "fuente_esperada": "300097-0-deportes-descuentos.csv"
   },
   {
     "id": 3,
-    "pregunta": "¿Cuánto cuesta una entrada suelta (por día) para la piscina?",
+    "pregunta": "¿Cuánto cuesta una entrada para la piscina cubierta?",
     "categoria_esperada": "tarifas",
     "fuente_esperada": "PreciosPublicos2026.pdf"
   },
@@ -28,27 +28,25 @@
     "id": 5,
     "pregunta": "¿Cómo se adquiere el Abono Deporte Madrid (ADM)?",
     "categoria_esperada": "abonos",
-    "fuente_esperada": "300085-0-deportes_abonos.csv"
+    "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
   },
   {
     "id": 6,
-    "pregunta": "¿El abono de piscina es ilimitado o tiene un número máximo de días?",
-    "categoria_esperada": "out_of_corpus",
-    "fuente_esperada": null,
-    "out_of_corpus": true
+    "pregunta": "¿Puedo accedere con mi botella de agua de cristal a los entrenamientos o tengo que comprar el agua en las intalaciones deportivas?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
   },  
   {
     "id": 7,
-    "pregunta": "¿Puedo comprar el abono online o tengo que ir a la instalación?",
+    "pregunta": "¿Puedo comprar el abono de deportes municipal de manera online?",
     "categoria_esperada": "abonos",
     "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
   },
   {
     "id": 8,
-    "pregunta": "¿Puedo reservar siendo no empadronado?",
-    "categoria_esperada": "out_of_corpus",
-    "fuente_esperada": null,
-    "out_of_corpus": true
+    "pregunta": "¿He perdido el reloj de oro de mi boda, a donde me puedo dirigir a ver si alguien lo ha encontrado?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
   },
   {
     "id": 9,
@@ -59,26 +57,26 @@
   },
   {
     "id": 10,
-    "pregunta": "¿Qué pasa si cancelo una reserva con coste? ¿Me devuelven el dinero?",
+    "pregunta": "¿Puedo cancelar una reserva para piscina cubierta tres horas antes?",
     "categoria_esperada": "reservas",
     "fuente_esperada": "DecretoAnulacionReservasConCoste.pdf"
   },
   {
     "id": 11,
-    "pregunta": "¿Hasta qué hora se puede cancelar una reserva sin que se aplique coste?",
+    "pregunta": "¿Cómo puedo hacer una anulación de reserva?",
     "categoria_esperada": "reservas",
     "fuente_esperada": "DecretoAnulacionReservasConCoste.pdf"
   },
   {
     "id": 12,
-    "pregunta": "¿Puedo usar las instalaciones si no soy residente de Madrid?",
+    "pregunta": "¿Puedo usar las instalaciones deportivas si no soy residente en Madrid?",
     "categoria_esperada": "out_of_corpus",
     "fuente_esperada": null,
     "out_of_corpus": true
   },
   {
     "id": 13,
-    "pregunta": "¿Está permitido entrenar sin supervisión en la sala de musculación?",
+    "pregunta": "¿Se requiere supervisión en las salas de musculación?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"
   },
@@ -91,43 +89,43 @@
   },
   {
     "id": 15,
-    "pregunta": "¿Dónde puedo presentar una queja o reclamar sobre una instalación?",
+    "pregunta": "¿Dónde puedo presentar una reclamación sobre unas instalaciones deportivas?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"
   },
   {
     "id": 16,
-    "pregunta": "¿Qué piscinas al aire libre están abiertas este verano?",
+    "pregunta": "¿Qué piscinas al aire libre están abiertas para el verano?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "PiscinasAireLibre2026.pdf"
   },
   {
     "id": 17,
-    "pregunta": "¿Qué horarios tiene el polideportivo de mi barrio?",
+    "pregunta": "¿Qué horarios tiene el polideportivo de Arganzuela?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "200186-0-polideportivos.csv"
   },
   {
     "id": 18,
-    "pregunta": "¿Hay instalaciones adaptadas para personas con movilidad reducida?",
+    "pregunta": "¿Hay instalaciones adaptadas para personas con movilidad reducida en el Centro Deportivo de Hortaleza?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "200186-0-polideportivos.csv"
   },
   {
     "id": 19,
-    "pregunta": "¿Cuándo se celebran los Juegos Deportivos Municipales 2026-2027?",
+    "pregunta": "¿Cuándo se celebran los Juegos Deportivos Municipales?",
     "categoria_esperada": "agenda",
     "fuente_esperada": "BasesDeportesEquipo47jdm_1Sp.pdf"
   },
   {
     "id": 20,
-    "pregunta": "¿Cómo se inscribe un equipo o club en las competiciones municipales?",
+    "pregunta": "¿Cómo se inscribe un club deportivo en las competiciones municipales?",
     "categoria_esperada": "agenda",
     "fuente_esperada": "normativaGeneral46jdm.pdf"
   },
   {
     "id": 21,
-    "pregunta": "¿Cuándo empiezan las actividades deportivas de la temporada?",
+    "pregunta": "¿En qué fecha finalizan las jornadas de ajedrez en los parques?",
     "categoria_esperada": "agenda",
     "fuente_esperada": "212504-0-agenda-actividades-deportes.csv"
   },
@@ -137,5 +135,23 @@
     "categoria_esperada": "out_of_corpus",
     "fuente_esperada": null,
     "out_of_corpus": true
+  },
+  {
+    "id": 23,
+    "pregunta": "¿Qué servicios tiene el Estadio Municipal Vallehermoso?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 24,
+    "pregunta": "¿Tiene el centro deportivo de la Cea Bermudez pistas para practicar el Padel?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 25,
+    "pregunta": "¿Es posible acceder con sillas o tumbonas propias si las propias de las instalaciones ya han sido ocupadas?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
   }
 ]

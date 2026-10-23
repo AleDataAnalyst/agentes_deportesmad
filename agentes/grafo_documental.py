@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 from agentes.nodes.documental import nodo_documental
 
 
+
 class EstadoDocumental(TypedDict, total=False):
     # entradas (el cliente puede dar solo las que tenga)
     request_id: str

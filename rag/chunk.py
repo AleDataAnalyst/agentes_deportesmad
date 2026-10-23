@@ -1,5 +1,5 @@
 """
-src/chunk.py
+rag/chunk.py
 Divide documentos en fragmentos pequeños y homogéneos.
 
 Estrategia: "Level 2 – Recursive Character" del tutorial "Five levels of

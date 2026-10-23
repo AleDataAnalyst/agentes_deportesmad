@@ -14,7 +14,8 @@ Contrato:
             "error": str | None,
         }
 ---        
-La tool nunca lanza excepción: los errores se devuelven en el dict.
+La tool nunca lanza excepción: los errores se devuelven en el dict como dato,
+y ahora incorpora campos de diagnóstico (distancia_mejor, respuesta_llm, motivo).
 """
 
 
@@ -23,32 +24,37 @@ from __future__ import annotations
 from typing import Any
 
 from rag.logic import responder
+import os
+con_diagnostico = os.environ.get("RAG_CON_DIAGNOSTICO", "").lower() in {"1", "true", "yes"}
 
-
-def rag_preguntar(consulta: str) -> dict[str, Any]:
-    """Busca en el corpus RAG y devuelve el resultado completo.
+def rag_preguntar(consulta: str, con_diagnostico: bool = False) -> dict[str, Any]:
+    """Devuelve el dict de contrato (4 claves) por defecto.
     
-    Args:
-        consulta: pregunta del agente (texto).
-
-    Returns:
-        dict con respuesta, fuentes, abstained y error.
+    Si con_diagnostico=True se añaden 3 campos extra para depurar
+    abstenciones. Nunca se eliminan las 4 claves del contrato.
     """
     try:
         resultado = responder(consulta)
-    except Exception as e:  # noqa: BLE001 — la tool no rompe al agente
+    except Exception as e:
         return {
             "respuesta": "",
             "fuentes": [],
             "abstained": False,
             "error": f"Error interno del RAG: {e}",
         }
-        
-    return {
+
+    # Camino de éxito: SIEMPRE las 4 claves del contrato
+    r = {
         "respuesta": resultado.get("respuesta", ""),
         "fuentes": list(resultado.get("fuentes", [])),
         "abstained": bool(resultado.get("abstained", False)),
         "error": resultado.get("error"),
     }
-    
-    
+
+    # Campos de diagnóstico: solo si el agente los pide explícitamente
+    if con_diagnostico:
+        r["distancia_mejor"] = resultado.get("distancia_mejor")
+        r["respuesta_llm"] = resultado.get("respuesta_llm")
+        r["motivo"] = resultado.get("motivo_abstencion")
+
+    return r

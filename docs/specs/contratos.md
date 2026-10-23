@@ -109,6 +109,33 @@ Cuando esté disponible el contrato RAG, revisaremos juntos su encaje con `contr
 
 Primero es preciso tener la configuración local en el archivo `.env`.
 
+Además y debido a reconocimiento OCR dentro de archivos PDF, requiere de instalación del paquete Tesseract para su uso dentro de la aplicación y previo a cualquier operación de indexación/re-indexación, que se puede realizar según Sistema Operativo como sigue:
+
+##### En Ubuntu/Debian
+
+```bash 
+sudo apt-get install tesseract-ocr
+```  
+
+##### En macOS con Brew
+```bash  
+brew install tesseract 
+``` 
+
+##### En Windows Powershell
+```powershell
+winget install tesseract-ocr.tesseract
+```
+
+Tras este primer paso, que se realiza una única vez por Sistema Operativo, es preciso tener un archivo `.env` con la variable `OCR_AGENT` fijada a `tesseract`:
+```text 
+# OCR para PDF
+OCR_AGENT=tesseract
+```
+
+Tras estos pasos de instalación y declaración ya se puede pasar a las fases indexación/re-indexación.
+
+
 #### Llamada a indexación:
 
 Se ha expuesto la herramienta para ejecutar el pipeline de ingesta. Los datos a indexar residen en `data/corpus/` y para realizar la indexación es preciso lanzar la instrucción siguiente desde el raíz del proyecto:

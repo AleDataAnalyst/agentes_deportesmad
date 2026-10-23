@@ -43,6 +43,7 @@ import time
 from typing import Any, Callable
 
 from agentes.tools.rag import rag_preguntar
+from agentes.tools.vision import imagen_preguntar
 
 PRESUPUESTO_DEFECTO = 4
 
@@ -65,9 +66,14 @@ def _tool_rag(consulta: str) -> dict[str, Any]:
         "error": r["error"],
     }
 
+
+
+
+
+
 REGISTRY: dict[str, Callable[..., dict[str, Any]] | None] = {
     "rag": _tool_rag,
-    "imagen": None,            # prevista: tool de visión (bytes + MIME + pregunta)
+    "imagen": imagen_preguntar,            # prevista: tool de visión (bytes + MIME + pregunta)
     "preparar_reporte": None,  # prevista: borrador de informe
 }
 

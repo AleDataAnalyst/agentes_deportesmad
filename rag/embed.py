@@ -1,5 +1,5 @@
 """
-src/embed.py
+rag/embed.py
 Convierte texto en vectores. Soporta 3 proveedores:
   - ollama       (offline)  -> POST /api/embed
   - huggingface  (online)   -> sentence-transformers
@@ -9,6 +9,7 @@ Garantía de dimensión: `embeddear()` nunca devuelve más de `EMBED_DIM`
 dimensiones (corte del prefijo + renormalización); al ser la puerta única,
 la garantía la heredan el índice y la consulta futura.
 """
+import hashlib
 import json
 import os
 import time
@@ -23,10 +24,14 @@ from sentence_transformers import SentenceTransformer
 
 from .config import (
     EMBED_BATCH_SIZE,
+    EMBED_CHECKPOINT_ENABLED,
+    EMBED_CHECKPOINT_FILE,
     EMBED_DIM,
+    EMBED_MAX_ATTEMPTS,
     EMBED_MODEL,
-    EMBED_TIMEOUT,
     EMBED_PROVIDER,
+    EMBED_RETRY_BASE_DELAY,
+    EMBED_TIMEOUT,
     GOOGLE_API_KEY,
     GOOGLE_EMBED_MODEL,
     HF_DEVICE,
@@ -44,6 +49,114 @@ _FN_PROVEEDOR = Callable[[list[str], str | None, int | None], list[list[float]]]
 # Cada cuantos lotes se imprime una línea de progreso (1 = cada lote).
 _EMBED_LOG_EVERY = 10
 
+def _clave_checkpoint(
+    texto: str,
+    proveedor: str,
+    modelo: str | None,
+    dim: int | None,
+) -> str:
+    """Clave determinista: mismo texto + proveedor + modelo + dim = mismo embedding."""
+    modelo_efectivo = modelo or (
+        GOOGLE_EMBED_MODEL if proveedor == "google"
+        else HF_EMBED_MODEL if proveedor == "huggingface"
+        else EMBED_MODEL
+    )
+    payload = json.dumps(
+        {
+            "provider": proveedor,
+            "model": modelo_efectivo,
+            "dim": dim,
+            "text": texto,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _cargar_checkpoint(ruta: str | Path) -> dict[str, list[float]]:
+    """Carga embeddings previamente calculados desde JSONL.
+
+    Una línea inválida no aborta el pipeline: se ignora y ese embedding
+    se recalculará.
+    """
+    ruta = Path(ruta)
+    cache: dict[str, list[float]] = {}
+
+    if not ruta.exists():
+        return cache
+
+    with open(ruta, "r", encoding="utf-8") as f:
+        for linea in f:
+            linea = linea.strip()
+            if not linea:
+                continue
+            try:
+                registro = json.loads(linea)
+                clave = registro["key"]
+                vector = registro["embedding"]
+                if isinstance(clave, str) and isinstance(vector, list):
+                    cache[clave] = vector
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+
+    return cache
+
+
+def _guardar_checkpoint_lote(
+    ruta: str | Path,
+    registros: list[tuple[str, list[float]]],
+) -> None:
+    """Añade un lote completado al checkpoint. Append atómico por línea."""
+    ruta = Path(ruta)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(ruta, "a", encoding="utf-8") as f:
+        for clave, vector in registros:
+            f.write(
+                json.dumps(
+                    {"key": clave, "embedding": vector},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
+            f.flush()
+
+
+def _reintentar_red(fn, *args, **kwargs):
+    """Reintenta errores transitorios de red/Google con backoff exponencial."""
+    ultimo_error: Exception | None = None
+
+    for intento in range(1, EMBED_MAX_ATTEMPTS + 1):
+        try:
+            return fn(*args, **kwargs)
+        except (
+            requests.ConnectionError,
+            requests.Timeout,
+            requests.ChunkedEncodingError,
+        ) as e:
+            ultimo_error = e
+        except requests.HTTPError as e:
+            status = getattr(e.response, "status_code", None)
+            if status is None or status < 500:
+                raise
+            ultimo_error = e
+
+        delay = EMBED_RETRY_BASE_DELAY * (2 ** (intento - 1))
+        delay = min(delay, 120.0)
+
+        print(
+            time.strftime("%Y-%m-%d %H:%M:%S")
+            + f" [EMBED]   reintento {intento}/{EMBED_MAX_ATTEMPTS} "
+            f"tras error transitorio: {type(ultimo_error).__name__}. "
+            f"Esperando {delay:.1f}s..."
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(
+        f"Embedding fallido tras {EMBED_MAX_ATTEMPTS} intentos"
+    ) from ultimo_error
 
 def _log_progreso_lote(lote: int, total: int, textos: int, t_lote: float) -> None:
     """Log por lote con la marca de tiempo/fase de consola:
@@ -119,17 +232,31 @@ def _embed_huggingface(textos: list[str], model: str | None = None,
 
 
 def _reintentar_cuota(url: str, headers: dict, body: dict) -> requests.Response:
-    """POST con retry sobre cuota (429): espera según respuesta 'RetryInfo.retryDelay' 
-    de la API como delay.
-    El free tier de Gemini limita a 100 embeddings/min por modelo; una tanda
-    que no cabe en la ventana se reintenta tras el delay que pide la respuesta
-    (p. ej. "51s"). 15 intentos en total (el primero + 14 reintentos).
-    """
-    for intento in range(15):  # 200 directo o 14 reintentos sobre cuota
-        resp = requests.post(url, headers=headers, json=body, timeout=120)
+    """POST con retry para cuota 429 y errores transitorios de red."""
+    ultimo_error: Exception | None = None
+
+    for intento in range(15):
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=120)
+        except (
+            requests.ConnectionError,
+            requests.Timeout,
+            requests.ChunkedEncodingError,
+        ) as e:
+            ultimo_error = e
+            delay = min(5.0 * (2 ** intento), 120.0)
+            print(
+                time.strftime("%Y-%m-%d %H:%M:%S")
+                + f" [EMBED]   Google no respondió ({type(e).__name__}); "
+                  f"reintento en {delay:.1f}s"
+            )
+            time.sleep(delay)
+            continue
+
         if resp.status_code != 429 or intento == 14:
             return resp
-        delay = 60.0  # por defecto: la ventana de cuota dura ~1 min
+
+        delay = 60.0
         try:
             for d in resp.json().get("details", []):
                 rd = d.get("retryDelay")
@@ -138,9 +265,13 @@ def _reintentar_cuota(url: str, headers: dict, body: dict) -> requests.Response:
                     break
         except (ValueError, KeyError, UnicodeDecodeError, TypeError):
             pass
-        time.sleep(delay + 0.5)
-    raise AssertionError("inaccesible: repetidos fallos de la llamada.")
 
+        time.sleep(delay + 0.5)
+
+    if ultimo_error:
+        raise RuntimeError("Google embedding no disponible tras varios reintentos") from ultimo_error
+
+    raise AssertionError("inaccesible: repetidos fallos de la llamada.")
 
 def _embed_google(textos: list[str], model: str | None = None,
                   dim: int | None = None) -> list[list[float]]:
@@ -211,6 +342,85 @@ def _corte_dim(vectores: list[list[float]], dim_cap: int | None) -> list[list[fl
         return vectores
     return _normalizar([v[:dim_cap] for v in vectores])
 
+def embeddear_con_checkpoint(
+    textos: list[str],
+    model: str | None = None,
+    dim: int | None = None,
+    ruta_checkpoint: str | Path | None = None,
+) -> list[list[float]]:
+    """Embeddings con persistencia incremental y reanudación.
+
+    - Calcula solo los textos que no están en el checkpoint.
+    - Guarda cada lote completado en JSONL.
+    - Si Gemini cae, al relanzar el pipeline continúa donde se quedó.
+    """
+    if not EMBED_CHECKPOINT_ENABLED:
+        return embeddear(textos, model=model, dim=dim)
+
+    ruta = Path(ruta_checkpoint or EMBED_CHECKPOINT_FILE)
+    cap = dim if dim is not None else EMBED_DIM
+    proveedor = EMBED_PROVIDER
+
+    cache = _cargar_checkpoint(ruta)
+
+    claves = [
+        _clave_checkpoint(texto, proveedor, model, cap)
+        for texto in textos
+    ]
+
+    vectores: list[list[float] | None] = [cache.get(clave) for clave in claves]
+    pendientes: list[int] = [
+        i for i, vector in enumerate(vectores) if vector is None
+    ]
+
+    print(
+        time.strftime("%Y-%m-%d %H:%M:%S")
+        + f" [EMBED]   checkpoint: {len(textos) - len(pendientes)} "
+        f"recuperados / {len(pendientes)} pendientes"
+    )
+
+    if not pendientes:
+        return [v for v in vectores if v is not None]
+
+    fn = _PROVIDERS.get(proveedor)
+    if fn is None:
+        raise ValueError(f"EMBED_PROVIDER no soportado: {proveedor!r}")
+
+    for inicio in range(0, len(pendientes), EMBED_BATCH_SIZE):
+        indices = pendientes[inicio:inicio + EMBED_BATCH_SIZE]
+        batch_textos = [textos[i] for i in indices]
+
+        vectores_lote = _reintentar_red(
+            fn,
+            batch_textos,
+            model,
+            cap,
+        )
+        vectores_lote = _corte_dim(vectores_lote, cap)
+
+        if len(vectores_lote) != len(indices):
+            raise RuntimeError(
+                f"El proveedor devolvió {len(vectores_lote)} vectores "
+                f"para {len(indices)} textos"
+            )
+
+        registros_checkpoint = [
+            (claves[i], vector)
+            for i, vector in zip(indices, vectores_lote)
+        ]
+        _guardar_checkpoint_lote(ruta, registros_checkpoint)
+
+        for i, vector in zip(indices, vectores_lote):
+            vectores[i] = vector
+
+        print(
+            time.strftime("%Y-%m-%d %H:%M:%S")
+            + f" [EMBED]   checkpoint guardado: "
+            f"{min(inicio + EMBED_BATCH_SIZE, len(pendientes))}/"
+            f"{len(pendientes)} nuevos"
+        )
+
+    return [v for v in vectores if v is not None]
 
 def embeddear(textos: list[str], model: str | None = None,
               dim: int | None = None) -> list[list[float]]:
