@@ -26,4 +26,4 @@ ASSETS_DIR = ROOT / "assets"
 IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
 
 # Modelo de visión usado por agentes/tools/vision.py.
-VISION_MODEL = os.getenv("VISION_MODEL", "gemini-2.5-flash")
+VISION_MODEL = os.getenv("VISION_MODEL", "gemini-3.8-flash")

@@ -1,5 +1,5 @@
 # Dependencia del backend síncrono.
-langgraph>=1.2.11
+langgraph==1.2.11
 
 # Cliente web
 streamlit

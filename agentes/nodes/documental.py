@@ -88,7 +88,8 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
     pedido = str(state.get("pedido") or "").strip()
     contexto_permitido: list[str] | None = state.get("contexto_permitido")
     image_id = state.get("image_id")
-    presupuesto = int(state.get("presupuesto_tools") or PRESUPUESTO_DEFECTO)
+    presupuesto = state.get("presupuesto_tools")
+    presupuesto = PRESUPUESTO_DEFECTO if presupuesto is None else int(presupuesto)
     preparar_borrador = bool(state.get("preparar_borrador", False))
 
     errores: list[str] = []
@@ -118,7 +119,8 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
 
         t0 = time.perf_counter()
         try:
-            obs = fn(**args)
+            # imagen es una tool de LangChain: se llama con .invoke
+            obs = fn.invoke(args) if hasattr(fn, "invoke") else fn(**args)
         except Exception as e:  # noqa: BLE001 — el especialista no rompe al agente
             obs = {
                 "ok": False, "resultado": "", "fuentes": [],
