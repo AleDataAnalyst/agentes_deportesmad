@@ -26,20 +26,23 @@ explica brevemente que no hay información suficiente.
 
 TOOL_SCHEMAS = [
     {
-        "name": "rag_preguntar",
-        "description": (
-            "Consulta la base de conocimiento RAG y devuelve respuesta, "
-            "fuentes, indicador de abstención y error si lo hubiera."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "consulta": {
-                    "type": "string",
-                    "description": "Pregunta del usuario en lenguaje natural.",
-                }
+        "type": "function",
+        "function": {
+            "name": "rag_preguntar",
+            "description": (
+                "Consulta la base de conocimiento RAG y devuelve respuesta, "
+                "fuentes, indicador de abstención y error si lo hubiera."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "consulta": {
+                        "type": "string",
+                        "description": "Pregunta del usuario en lenguaje natural.",
+                    }
+                },
+                "required": ["consulta"],
             },
-            "required": ["consulta"],
         },
     }
 ]
@@ -49,6 +52,34 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     "rag_preguntar": rag_preguntar,
 }
 
+
+def _preview(valor: Any, limite: int = 500) -> str:
+    """Convierte el resultado de una tool en una cadena acotada para la traza."""
+    if isinstance(valor, str):
+        texto = valor
+    else:
+        try:
+            texto = json.dumps(valor, ensure_ascii=False, default=str)
+        except Exception:
+            texto = str(valor)
+    return texto[:limite]
+
+
+def _ejecutar_tool(nombre: str, args: dict[str, Any]) -> Any:
+    """Ejecuta solo una tool de la allowlist; nunca propaga excepciones al modelo."""
+    funcion = TOOL_REGISTRY.get(nombre)
+
+    if funcion is None:
+        return {
+            "error": f"Tool no autorizada o desconocida: '{nombre}'"
+        }
+
+    try:
+        return funcion(**args)
+    except TypeError as exc:
+        return {"error": f"Argumentos inválidos para '{nombre}': {exc}"}
+    except Exception as exc:
+        return {"error": f"Error ejecutando '{nombre}': {exc}"}
 
 @dataclass
 class LlmMessage:
@@ -76,8 +107,6 @@ class LlmAdapter(Protocol):
         timeout: int,
     ) -> LlmResponse:
         ...
-
-
 
 def crear_adapter() -> LlmAdapter:
     provider = str(config.GEN_PROVIDER).lower()
