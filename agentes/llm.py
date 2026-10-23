@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Protocol
 
 from agentes import config
-from agentes.tools import rag_preguntar
+from agentes.tools.rag import rag_preguntar
 
 INSTRUCCIONES_TOOLS = """
 Eres un asistente técnico. Responde en español.

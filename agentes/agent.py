@@ -15,7 +15,7 @@ from agentes.nodes.supervisor import RouteProvider
 from agentes.settings import AgentSettings, load_settings
 from agentes.state import initial_state, state_from_graph
 from agentes.validation import validar_decision
-from agentes.nodes.vision import vision_node  # opcionalno hace falta se recibe por parámetro
+
 
 
 class AgentService:
@@ -37,6 +37,11 @@ class AgentService:
         settings: AgentSettings | None = None,
         checkpointer=None,
     ):
+        self._registry_lock = RLock()
+        self._thread_locks: dict[str, RLock] = {}
+        self._plan_ids: dict[str, str] = {}
+        self._resolved: dict[str, tuple[str, bool]] = {}
+
         self.settings = settings if settings is not None else load_settings()
 
         self._graph = build_graph(
