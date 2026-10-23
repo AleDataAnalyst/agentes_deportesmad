@@ -36,6 +36,12 @@ _LOTES_HASH = 1 << 20  # 1 MiB por lectura en el hash
 
 OCR_AGENT = os.environ.get("OCR_AGENT", "tesseract")
 
+# Binario de Tesseract (nombre en PATH o ruta absoluta).
+pytesseract.pytesseract.tesseract_cmd = OCR_AGENT
+
+# Idioma de reconocimiento. Requiere el traineddata correspondiente instalado.
+OCR_LANG = os.environ.get("OCR_LANG", "spa")
+
 # PSM 6: Tesseract asume un único bloque uniforme de texto.
 # Es una buena opción para PDFs tipo listado, horario o tabla sencilla.
 OCR_PSM = int(os.environ.get("OCR_PSM", "6"))
@@ -47,8 +53,9 @@ OCR_CONFIG = (
 )
 
 # Resolución de conversión PDF -> imagen.
-# 300 DPI es un buen equilibrio entre calidad OCR y coste.
-OCR_DPI = int(os.environ.get("OCR_DPI", "300"))
+# 200 DPI para PDFs grandes que exceden el límite de píxeles de pdf2image
+# con 300 DPI. Aún así suficiente para listados y tablas sencillas.
+OCR_DPI = int(os.environ.get("OCR_DPI", "200"))
 
 # Ruta de Poppler en Windows. Debe apuntar a la carpeta que contiene
 # pdfinfo.exe y pdftoppm.exe. En Linux/Docker normalmente no hace falta.
@@ -123,8 +130,13 @@ def _normalizar_source(
     return documentos
 
 
-def _ocr_pdf(path: str, nombre: str) -> list[Document]:
-    """Diagnóstico: extrae texto y tablas nativas con pdfplumber."""
+def _poppler_path() -> str | None:
+    """POPPLER_PATH solo si existe: pdf2image falla si apunta a una carpeta inexistente."""
+    return POPPLER_PATH if os.path.isdir(POPPLER_PATH) else None
+
+
+def _extraer_pdf_nativo(path: str, nombre: str, motivo: str) -> list[Document]:
+    """Extracción nativa con pdfplumber. Fallback cuando OCR no está disponible."""
     import pdfplumber
 
     print(f"[PDF] Extrayendo texto/tablas nativas de {nombre}")
@@ -153,7 +165,7 @@ def _ocr_pdf(path: str, nombre: str) -> list[Document]:
                             "page": i + 1,
                             "source": nombre,
                             "file_type": "pdf_native_table",
-                            "ocr_reason": "native_extraction",
+                            "ocr_reason": motivo,
                         },
                     )
                 )
@@ -163,6 +175,39 @@ def _ocr_pdf(path: str, nombre: str) -> list[Document]:
         return []
 
     return docs
+
+
+def _ocr_pdf(path: str, nombre: str) -> list[Document]:
+    """OCR obligatorio (OCR.txt): PDF -> imagen -> Tesseract."""
+    print(f"[PDF] OCR forzado de {nombre}")
+
+    try:
+        paginas = convert_from_path(path, dpi=OCR_DPI, poppler_path=_poppler_path())
+        docs: list[Document] = []
+
+        for i, pagina in enumerate(paginas):
+            texto = pytesseract.image_to_string(pagina, lang=OCR_LANG, config=OCR_CONFIG)
+            docs.append(
+                Document(
+                    page_content=texto.strip(),
+                    metadata={
+                        "page": i + 1,
+                        "source": nombre,
+                        "file_type": "pdf_ocr",
+                        "ocr_reason": "ocr.txt",
+                    },
+                )
+            )
+
+        return docs
+
+    except Exception as exc:
+        # Nunca descartar el documento: un corpus incompleto es peor que uno sin OCR.
+        print(
+            f"[PDF] AVISO OCR no disponible para {nombre}: {exc}. "
+            "Se usa extracción nativa; instala Tesseract y Poppler para cumplir el forzado."
+        )
+        return _extraer_pdf_nativo(path, nombre, "ocr_unavailable")
 
 
 def _load_pdf(
