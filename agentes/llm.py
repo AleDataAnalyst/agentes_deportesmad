@@ -86,12 +86,21 @@ def _gen_config_tools() -> types.GenerateContentConfig:
         temperature=0.2,
         max_output_tokens=2048,
         tools=TOOL_DECLARATIONS,
-    )
+    )    
+                
+def _validar_argumentos(nombre: str, args: Any) -> dict[str, Any]:
+    """Valida que el modelo proponga argumentos tipo diccionario."""
+    if not isinstance(args, dict):
+        raise ValueError(f"La tool '{nombre}' recibió argumentos no estructurados")
+    return args
 
 
 def _ejecutar_tool(nombre: str, args: dict[str, Any]) -> Any:
-    """Ejecuta una tool autorizada; nunca propaga excepciones hacia el modelo."""
-    funcion = TOOL_REGISTRY[nombre]
+    """Ejecuta solo una tool de la allowlist; nunca propaga excepciones al modelo."""
+    funcion = TOOL_REGISTRY.get(nombre)
+    if funcion is None:
+        return {"error": f"Tool no autorizada o desconocida: '{nombre}'"}
+
     try:
         return funcion(**args)
     except TypeError as exc:
@@ -103,23 +112,117 @@ def _ejecutar_tool(nombre: str, args: dict[str, Any]) -> Any:
 def run_tool_rag(
     mensaje_usuario: str,
     max_steps: int | None = None,
+    *,
+    client: Any | None = None,
+    model: str | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Ejecuta el bucle modelo -> tools -> modelo hasta obtener texto final.
 
-    Devuelve una tupla con la respuesta final y una traza de las tools usadas.
+    Devuelve una tupla con la respuesta final y la traza de tools usadas.
+    `client` permite inyectar un doble en pruebas; si no, se crea el cliente Gemini.
     """
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise RuntimeError("Falta GOOGLE_API_KEY")
+    if not isinstance(mensaje_usuario, str) or not mensaje_usuario.strip():
+        raise ValueError("El mensaje del usuario debe ser texto no vacío")
 
     limit = max_steps if max_steps is not None else config.MAX_STEPS_DEFAULT
-    client = genai.Client(api_key=api_key)
+    if type(limit) is not int or limit < 1:
+        raise ValueError("max_steps debe ser un entero positivo")
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if client is None:
+        if not api_key:
+            raise RuntimeError("Falta GOOGLE_API_KEY")
+        client = genai.Client(api_key=api_key)
+
+    model_name = model or config.GEN_MODEL
     gen_config = _gen_config_tools()
-    traza: list[dict[str, Any]] = []
 
     historial: list[types.Content] = [
         types.Content(
             role="user",
             parts=[
                 types.Part.from_text(
-                    text=INSTRUCCIONES_TOOLS + "\n\nMENSAJE:\n"
+                    text=(
+                        f"{INSTRUCCIONES_TOOLS}\n\n"
+                        f"MENSAJE:\n{mensaje_usuario}"
+                    )
+                )
+            ],
+        )
+    ]
+
+    traza: list[dict[str, Any]] = []
+
+    for paso in range(limit):
+        response = client.models.generate_content(
+            model=model_name,
+            contents=historial,
+            config=gen_config,
+        )
+
+        candidato = response.candidates[0] if response.candidates else None
+        partes = candidato.content.parts if candidato and candidato.content else []
+        llamadas = [
+            parte.function_call
+            for parte in partes
+            if getattr(parte, "function_call", None) is not None
+        ]
+
+        # Caso 1: el modelo devuelve texto final.
+        texto_final = response.text
+        if texto_final and texto_final.strip() and not llamadas:
+            return texto_final.strip(), traza
+
+        # Caso 2: el modelo pide una o varias tools.
+        if llamadas:
+            partes_respuesta: list[types.Part] = []
+
+            for llamada in llamadas:
+                nombre = llamada.name
+                try:
+                    args = _validar_argumentos(nombre, llamada.args)
+                except ValueError as exc:
+                    resultado = {"error": str(exc)}
+                else:
+                    resultado = _ejecutar_tool(nombre, args)
+
+                traza.append(
+                    {
+                        "paso": paso + 1,
+                        "tool": nombre,
+                        "args": args if isinstance(args, dict) else {},
+                        "resultado_preview": _preview(resultado),
+                    }
+                )
+
+                partes_respuesta.append(
+                    types.Part.from_function_response(
+                        name=nombre,
+                        response=resultado if isinstance(resultado, dict) else {"resultado": resultado},
+                    )
+                )
+
+            historial.append(
+                types.Content(
+                    role="model",
+                    parts=[
+                        types.Part.from_function_call(call)
+                        for call in llamadas
+                    ],
+                )
+            )
+            historial.append(
+                types.Content(
+                    role="user",
+                    parts=partes_respuesta,
+                )
+            )
+            continue
+
+        # Caso 3: respuesta vacía o bloqueada.
+        break
+
+    return (
+        "No he podido completar la consulta con la información disponible.",
+        traza,
+    )
