@@ -16,7 +16,7 @@ Contrato:
 Reglas:
 - Nunca lanza excepciones: los errores viajan en "error".
 - Acepta JPG/JPEG y PNG.
-- Si no hay GOOGLE_API_KEY, devuelve una respuesta simulada para poder probar el grafo.
+- Si no hay GOOGLE_API_KEY, devuelve ok=False y abstained=True (visión no disponible).
 """
 
 from __future__ import annotations
@@ -63,13 +63,14 @@ def _build_response(
     resultado: str = "",
     fuentes: list[str] | None = None,
     error: str | None = None,
+    abstained: bool = False,
 ) -> dict[str, Any]:
     """Devuelve el contrato uniforme de la tool."""
     return {
         "ok": ok,
         "resultado": resultado,
         "fuentes": fuentes or [],
-        "abstained": False,
+        "abstained": abstained,
         "error": error,
     }
 
@@ -97,9 +98,9 @@ def imagen_preguntar(image_id: str = "", pregunta: str = "") -> dict[str, Any]:
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             return _build_response(
-                ok=True,
-                resultado="[SIMULADO] GOOGLE_API_KEY no configurada; no se ha analizado la imagen.",
-                fuentes=[str(path)],
+                ok=False,
+                abstained=True,
+                error="Visión no disponible: GOOGLE_API_KEY no configurada",
             )
 
         from google import genai

@@ -21,13 +21,13 @@ def test_formato_no_soportado(tmp_path):
     assert "Formato no soportado" in out["error"]
 
 
-def test_sin_api_key_responde_simulado(monkeypatch):
+def test_sin_api_key_visión_no_disponible(monkeypatch):
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     out = imagen_preguntar.invoke({"image_id": "imagen_demo", "pregunta": "¿Qué ves?"})
-    assert out["ok"] is True
-    assert out["error"] is None
-    assert out["resultado"].startswith("[SIMULADO]")
-    assert len(out["fuentes"]) == 1
+    assert out["ok"] is False
+    assert out["abstained"] is True
+    assert "GOOGLE_API_KEY" in out["error"]
+    assert out["resultado"] == ""
 
 
 def test_nodo_documental_llama_a_imagen_con_invoke(monkeypatch):
@@ -38,5 +38,6 @@ def test_nodo_documental_llama_a_imagen_con_invoke(monkeypatch):
     out = nodo_documental({"request_id": "r1", "pedido": "¿Qué dice el cartel?", "image_id": "imagen_demo"})
     eventos = out["documental"]["eventos"]
     assert [e["tool"] for e in eventos] == ["imagen", "rag"]
-    assert eventos[0]["ok"] is True
-    assert out["documental"]["errores"] == []
+    assert eventos[0]["ok"] is False
+    assert eventos[0]["abstained"] is True
+    assert any("GOOGLE_API_KEY" in e for e in out["documental"]["errores"])
