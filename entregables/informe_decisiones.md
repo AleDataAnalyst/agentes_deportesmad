@@ -16,6 +16,8 @@ Decidimos interrumpir justo antes de aplicar porque es el único punto donde el 
 
 Para la persistencia usamos MemorySaver con un thread_id generado en cada nueva conversación. Eso nos permite que CLI y Streamlit compartan el mismo estado si usan el mismo thread_id, que era uno de los requisitos.
 
+> **Corrección:** CLI y Streamlit comparten el mismo servicio y las mismas validaciones, pero no el estado. `MemorySaver` guarda los checkpoints en la memoria del proceso, y cada cliente se ejecuta en un proceso distinto, así que ninguno puede retomar la conversación del otro aunque use el mismo `thread_id`. Para compartirla haría falta persistir en disco (`SqliteSaver`, ver "Siguientes pasos").
+
 El supervisor tiene un fallback determinista en Python para los casos en que el LLM devuelve un rol que no existe en el grafo. Sin eso, un fallo del modelo rompe el flujo entero.
 
 > **@Alejandra** — ¿añades aquí algún detalle sobre las decisiones del grafo o el supervisor que no hayamos recogido?
@@ -62,6 +64,26 @@ Esto es exactamente el comportamiento que queríamos: el rechazo no mata la sesi
 
 ---
 
+## Cliente Streamlit
+
+El cliente es una interfaz sobre `AgentService`: chat, revisión del plan y un panel de diagnóstico. No tiene lógica del grafo; solo consume el servicio común, igual que la CLI, y así la interfaz no acaba tomando decisiones que corresponden al grafo. Por eso lo separamos en tres piezas: `streamlit_app.py` para el chat, `hitl.py` para los botones de aprobar y rechazar, y `debug.py` para el diagnóstico.
+
+El servicio y el `thread_id` viven en `st.session_state` y no en una caché global. Con caché global, dos personas usando la app a la vez compartirían conversación y plan. "Nueva conversación" crea un hilo nuevo.
+
+Los botones de HITL salen en la barra lateral solo cuando hay un plan pendiente, y mientras tanto el chat queda bloqueado. La decisión se envía siempre con el mismo `thread_id` y el `plan_id` vigente, así que no se pueden mezclar preguntas nuevas con una decisión pendiente ni aprobar un plan antiguo.
+
+Reutilizamos la validación de la CLI (`agentes.validation`): `validar_mensaje` antes de enviar, `validar_decision` y `validar_id` antes de decidir, y `validar_estado` sobre lo que devuelve el servicio, que evita enseñar el plan de otra conversación. El coste es que se bloquean los mensajes de varias líneas.
+
+Errores, mensajes, debug y los pasos del plan pasan por `sin_secretos`. Los resultados de los especialistas se convierten antes a diccionario, porque el filtro solo entra en diccionarios y listas. El filtro es heurístico: no garantiza ocultar cualquier secreto y tampoco escapa Markdown, así que un paso del plan con un enlace se seguiría pintando como enlace.
+
+El panel de debug enseña la fase HITL, las iteraciones, la traza y, de cada especialista, su estado, origen (real, simulado, fallback o no disponible), respuesta y fuentes. Todo va recortado y los datos técnicos completos solo salen si se piden. El origen está para no confundir un dato simulado, o un especialista caído, con uno real; el fallback se detecta con `fallback` y con `origen == "fallback"`, porque instalaciones usa la segunda forma.
+
+Al aprobar solo añadimos el mensaje de cierre, porque el backend ya conserva la respuesta revisada. Y si el servicio no arranca, se muestra un error claro en lugar de caer en la demo, igual que en el backend.
+
+Pruebas: a mano, aprobar, rechazar, nueva conversación y entrada no válida. Automáticas hay solo dos (`tests/test_clientes_seguridad.py`): que un resultado con `origen="fallback"` se muestra como fallback, y que una credencial en un paso del plan sale oculta sin modificar el estado original. Pendiente: mostrar las fuentes junto a la respuesta del chat y ampliar los tests.
+
+---
+
 ## Multimodal
 
 > **@Héctor** — rellena esta sección cuando tengas `describir_imagen` integrada y probada. Incluye: qué imagen usaste, qué devolvió la tool exactamente, y si el especialista documental pudo usar esa salida como contexto.
@@ -74,11 +96,9 @@ La tool `describir_imagen` usa el modelo de visión de Gemini para extraer texto
 
 **Timeout en la indexación del RAG.** El modelo 27B en equipos con GPU limitada (RTX 3060, 6 GB VRAM) tardaba entre 121 y 196 segundos por documento, superando el timeout de 120 s configurado en el pipeline. Lo intentamos con `qwen2.5:3b` como alternativa más ligera, pero añadía etiquetas sin respaldo. La solución fue implementar checkpoints de recuperación para reanudar desde el último documento procesado, y migrar la indexación a Gemini.
 
-**Bug de `monkeypatch` en los tests del nodo documental.** Cinco tests de `tests/test_node_documental.py` fallaban con `AttributeError` porque usaban `monkeypatch.setattr(nod.REGISTRY, "rag", ...)` sobre un diccionario. Los diccionarios en Python no tienen atributos asignables con `setattr`; la llamada correcta es `monkeypatch.setitem`. Los tests afectados: `test_salida_solo_campo_autorizado`, `test_imagen_prevista_no_disponible`, `test_presupuesto_agotado`, `test_contexto_permitido_filtra_fuentes` y `test_error_de_tool_no_lanza`.
+**Bug de `monkeypatch` en los tests del nodo documental.** Cinco tests de `tests/test_node_documental.py` fallaban con `AttributeError` porque usaban `monkeypatch.setattr(nod.REGISTRY, "rag", ...)` sobre un diccionario. Los diccionarios en Python no tienen atributos asignables con `setattr`; la llamada correcta es `monkeypatch.setitem`. Los tests afectados: `test_salida_solo_campo_autorizado`, `test_imagen_prevista_no_disponible`, `test_presupuesto_agotado`, `test_contexto_permitido_filtra_fuentes` y `test_error_de_tool_no_lanza`. Ya está corregido: los cinco usan ahora `monkeypatch.setitem`.
 
-> **@Héctor** — ¿ya está corregido este bug o sigue pendiente? Actualiza esta línea cuando esté resuelto.
-
-**Stale closure en los callbacks de Streamlit.** Los callbacks `on_aprobar` y `on_rechazar` capturaban la variable `estado` en el momento de la definición, no en el de la ejecución. Al pulsar Aprobar se enviaba el `plan_id` de un estado anterior. Solución: leer `st.session_state.estado` directamente dentro del callback.
+**Stale closure en los callbacks de Streamlit.** Los callbacks `on_aprobar` y `on_rechazar` capturaban la variable `estado` en el momento de la definición, no en el de la ejecución, y al pulsar Aprobar se enviaba el `plan_id` de un estado anterior. Ahora los callbacks solo se crean mientras hay un plan pendiente y se redefinen en cada ejecución con el estado vigente. Antes de enviar la decisión se valida el `plan_id`, y al terminar se guarda el resultado en `st.session_state` y se relanza la página con `st.rerun()`, de modo que un plan viejo no puede volver a usarse.
 
 ---
 
