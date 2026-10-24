@@ -176,4 +176,4 @@ ASSETS_DIR = ROOT / "assets"
 # ← LA LÍNEA CLAVE para la visión
 IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
 
-VISION_MODEL = "gemini-2.5-flash"
+VISION_MODEL = "gemini-3.8-flash"

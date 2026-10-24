@@ -42,8 +42,8 @@ def _limpiar_pdf(texto: str) -> str:
     de control no imprimibles, saltos de línea extraños"""
     # 1) Caracteres de control invisibles y BOM.
     texto = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", " ", texto)
-    # 2) Caracteres binarios (bytes no-ASCII de PDF).
-    texto = re.sub(r"[\x80-\ufffe]", "", texto)
+    # 2) Caracteres binarios (controles C1 y U+FFFD); el resto de Unicode se queda.
+    texto = re.sub(r"[\x80-\x9f\ufffd]", "", texto)
     # 3) Unificar saltos de línea múltiples.
     texto = re.sub(r"\n{3,}", "\n\n", texto)
     # 4) Espacios/tabos de más.
