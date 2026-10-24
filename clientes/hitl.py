@@ -7,6 +7,8 @@ Mostrar decisión aplicada o error recuperable. No reanudar con identificadores 
 from __future__ import annotations
 import streamlit as st
 
+from agentes.secret_filter import sin_secretos
+
 
 def render_hitl(estado: dict, on_aprobar, on_rechazar) -> None:
     """Muestra el plan pendiente y los botones de aprobación/rechazo."""
@@ -15,7 +17,7 @@ def render_hitl(estado: dict, on_aprobar, on_rechazar) -> None:
     st.subheader("Plan pendiente de aprobación")
     if plan:
         for item in plan:
-            st.markdown(f"- {item}")
+            st.markdown(f"- {sin_secretos(item)}")
     else:
         st.caption("Sin plan disponible.")
 

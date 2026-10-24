@@ -55,7 +55,7 @@ def _origen(resultado: Any) -> str:
         return "no disponible"
     if _campo(data, "simulated"):
         return "simulado"
-    if _campo(data, "fallback"):
+    if _campo(data, "fallback") or _campo(data, "origen") == "fallback":
         return "fallback"
     return "real"
 
