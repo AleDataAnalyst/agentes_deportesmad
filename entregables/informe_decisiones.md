@@ -14,9 +14,7 @@ El flujo que acordamos es: el supervisor recibe el mensaje y decide a quién env
 
 Decidimos interrumpir justo antes de aplicar porque es el único punto donde el agente está a punto de confirmar información al usuario como válida. Hacerlo antes, en sintetizar, no tenía sentido: el humano necesita ver el plan completo para poder juzgarlo. Hacerlo después tampoco, porque entonces la decisión ya estaría tomada.
 
-Para la persistencia usamos MemorySaver con un thread_id generado en cada nueva conversación. Eso nos permite que CLI y Streamlit compartan el mismo estado si usan el mismo thread_id, que era uno de los requisitos.
-
-> **Corrección:** CLI y Streamlit comparten el mismo servicio y las mismas validaciones, pero no el estado. `MemorySaver` guarda los checkpoints en la memoria del proceso, y cada cliente se ejecuta en un proceso distinto, así que ninguno puede retomar la conversación del otro aunque use el mismo `thread_id`. Para compartirla haría falta persistir en disco (`SqliteSaver`, ver "Siguientes pasos").
+Para la persistencia usamos MemorySaver con un thread_id generado en cada nueva conversación. MemorySaver guarda los checkpoints en la memoria del proceso, así que CLI y Streamlit comparten el servicio y las validaciones, pero no el estado: cada cliente se ejecuta en un proceso distinto y ninguno puede retomar la conversación del otro aunque use el mismo thread_id. Compartirlo requeriría persistir en disco (SqliteSaver, ver "Siguientes pasos").
 
 El supervisor tiene un fallback determinista en Python para los casos en que el LLM devuelve un rol que no existe en el grafo. Sin eso, un fallo del modelo rompe el flujo entero.
 
@@ -98,7 +96,7 @@ La tool `describir_imagen` usa el modelo de visión de Gemini para extraer texto
 
 **Bug de `monkeypatch` en los tests del nodo documental.** Cinco tests de `tests/test_node_documental.py` fallaban con `AttributeError` porque usaban `monkeypatch.setattr(nod.REGISTRY, "rag", ...)` sobre un diccionario. Los diccionarios en Python no tienen atributos asignables con `setattr`; la llamada correcta es `monkeypatch.setitem`. Los tests afectados: `test_salida_solo_campo_autorizado`, `test_imagen_prevista_no_disponible`, `test_presupuesto_agotado`, `test_contexto_permitido_filtra_fuentes` y `test_error_de_tool_no_lanza`. Ya está corregido: los cinco usan ahora `monkeypatch.setitem`.
 
-**Stale closure en los callbacks de Streamlit.** Los callbacks `on_aprobar` y `on_rechazar` capturaban la variable `estado` en el momento de la definición, no en el de la ejecución, y al pulsar Aprobar se enviaba el `plan_id` de un estado anterior. Ahora los callbacks solo se crean mientras hay un plan pendiente y se redefinen en cada ejecución con el estado vigente. Antes de enviar la decisión se valida el `plan_id`, y al terminar se guarda el resultado en `st.session_state` y se relanza la página con `st.rerun()`, de modo que un plan viejo no puede volver a usarse.
+**Stale closure en los callbacks de Streamlit.** Los callbacks `on_aprobar` y `on_rechazar` capturaban la variable `estado` en el momento de la definición, no en el de la ejecución. La decisión sí se procesaba, pero la pantalla seguía mostrando el estado anterior hasta el siguiente rerun. Ahora los callbacks se redefinen en cada ejecución con el estado vigente, y al decidir se guarda el resultado en `st.session_state` y se relanza la página con `st.rerun()` para que la interfaz se actualice al momento.
 
 ---
 
