@@ -1,9 +1,36 @@
 """
 agentes/nodes/documental.py
 
-Especialista documental: RAG, evidencias, imagen y borradores.
+Entradas (state):
+    request_id: str                      — identificador del pedido vigente (obligatorio)
+    pedido: str                          — texto del pedido actual
+    contexto_permitido: list[str] | None — fuentes autorizadas (None = todas)
+    image_id: str | None                 — ruta o identificador de la imagen adjunta
+    presupuesto_tools: int               — máximo de llamadas a tools (default 4)
+    preparar_borrador: bool              — si se pide un borrador (default False)
 
-Bucle acotado: propuesta → validación → llamada → observación.
+Salidas (solo la clave autorizada "documental"):
+    documental: dict
+        {
+            "request_id":   str,
+            "resultado":    str,         # síntesis de la evidencia (texto plano)
+            "fuentes":      list[str],   # fuentes citadas, orden de aparición
+            "abstained":    bool,
+            "errores":      list[str],
+            "limitaciones": list[str],   # tools no disponibles, presupuesto, contexto
+            "eventos":      list[dict],  # uno por cada llamada a tool
+        }
+
+Reglas del especialista:
+    - No inventar condiciones: si no hay evidencia útil, se abstiene.
+    - Un cartel/imagen es evidencia visual, no normativa vigente.
+    - Actualizar solo campos autorizados: la única clave devuelta es "documental".
+    - El bucle está acotado por presupuesto_tools.
+
+Tools (registry):
+    rag              → implementada (agentes.tools.rag.rag_preguntar)
+    imagen           → implementada: describe o responde sobre una imagen JPG/JPEG/PNG
+    preparar_reporte → prevista (no disponible aún → limitación)
 """
 
 from __future__ import annotations
