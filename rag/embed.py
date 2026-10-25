@@ -169,6 +169,30 @@ def _log_progreso_lote(lote: int, total: int, textos: int, t_lote: float) -> Non
           f"[Restante: {m}m {s}s]")
 
 
+def _embedding_length_ollama(modelo: str, session: requests.Session) -> int | None:
+    """`embedding_length` real del modelo en Ollama (endpoint `/api/show`).
+
+    Ollama rechaza `/api/embed` cuando `n_dims` supera el `embedding_length`
+    del modelo (error 400 "dimensions N exceeds embedding length M"), por lo
+    que el máximo de dim *solicitado* a Ollama es ese valor, no `EMBED_DIM`.
+    Vuelve `None` si el servidor no lo expone (el llamador decide qué hacer).
+    """
+    try:
+        # La dim real del modelo no la expone `/api/show` (solo el modelfile);
+        # está en `details.embedding_length` de `/api/tags`. Se busca la
+        # entrada del modelo (o de su nombre sin tag) y se lee ese campo.
+        r = session.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
+        r.raise_for_status()
+        modelos = r.json().get("models", [])
+        nombre = modelo.partition(":")[0]
+        for m in modelos:
+            if m.get("name") == modelo or m.get("name") == nombre or not nombre:
+                return int(m.get("details", {}).get("embedding_length", 0)) or None
+        return None
+    except (requests.RequestException, ValueError, TypeError):
+        return None
+
+
 def _embed_ollama(textos: list[str], model: str | None = None,
                   dim: int | None = None) -> list[list[float]]:
     """Ollama local: endpoint batch /api/embed (acepta varios inputs a la vez)."""
@@ -180,7 +204,12 @@ def _embed_ollama(textos: list[str], model: str | None = None,
         batch = textos[inicio:inicio + EMBED_BATCH_SIZE]
         payload: dict[str, Any] = {"model": model or EMBED_MODEL, "input": batch}
         if dim is not None:
-            # Ollama corta al máximo del modelo si dim lo supera y lo ignora
+            # Ollama rechaza dimensiones mayores que el embedding_length del
+            # modelo (error 400). Lo máximo que se puede *solicitar* es esa
+            # dim real; por eso se acota aquí a min(dim, embedding_length).
+            dim_modelo = _embedding_length_ollama(model or EMBED_MODEL, session)
+            if dim_modelo is not None and dim > dim_modelo:
+                dim = dim_modelo
             payload["dimensions"] = dim
         t_lote = time.time()
         resp = session.post(url, json=payload, timeout=EMBED_TIMEOUT)

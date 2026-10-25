@@ -156,8 +156,8 @@ La exportación compila la demo con el mismo `build_graph`, sin ejecutar pedidos
 
 Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de supervisor y grafo](docs/specs/flujo_supervisor_grafo.md).
 
-## Pruebas y evidencias
 
+## Pruebas y evidencias
 
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
@@ -175,6 +175,31 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 La sonda histórica de diez recorridos fue inline. Esta entrega añade pruebas reproducibles de errores inmediatos de la tool RAG en `tests/test_rag_error_boundary.py`; no miden un timeout real ni sustituyen aquella sonda completa. Las cifras describen selecciones y ejecuciones locales concretas, no toda la suite ni un resultado de CI; no se suman como coberturas independientes.
 
+### Cobertura del especialista documental
+
+La cobertura del especialista documental se organiza por capas para evitar duplicar pruebas:
+
+| Capa | Archivo de prueba | Alcance |
+| --- | --- | --- |
+| Tool RAG | `tests/test_tool_rag.py` | Contrato `respuesta/fuentes/abstained/error`, consulta vacía, fallo interno, diagnóstico opcional y evaluación con índice cuando está disponible |
+| Frontera de errores RAG | `tests/test_rag_error_boundary.py` | Normalización de `TimeoutError` y `ConnectionError` como error controlado, sin respuesta ni abstención |
+| Nodo documental | `tests/test_node_documental.py` | Contrato del nodo, fuentes, abstención, presupuesto de tools, contexto permitido y error de tool |
+| Adaptador documental | `tests/test_documental_adapter.py` | Conversión del sobre documental a `ToolResult`, aislamiento del estado, validación de `request_id` y opciones |
+| Integración simulada | `tests/test_golden_graph.py` y `tests/test_export_evidence.py` | Recorridos completos con especialistas dobles; no validan RAG ni visión reales |
+
+
+Comando de regresión del especialista documental:
+
+```console
+python -B -m pytest -q -p no:cacheprovider \
+  tests/test_tool_rag.py \
+  tests/test_rag_error_boundary.py \
+  tests/test_node_documental.py \
+  tests/test_documental_adapter.py
+```
+
+La visión multimodal aún no dispone de una suite dedicada. El caso actual de imagen no disponible está cubierto en `tests/test_node_documental.py`; la herramienta de visión real requerirá `tests/test_tool_vision.py` con casos de imagen válida, inexistente, formato no soportado y contenido ilegible.
+
 Pruebas de CLI y guardias con especialistas dobles, sin índice ni modelos:
 
 ```console
@@ -184,7 +209,7 @@ python -B -m pytest -q -p no:cacheprovider tests/test_cli.py tests/test_cli_secu
 Comando completo documentado:
 
 ```console
-python -m pytest -q tests/test_validation.py tests/test_secret_filter.py tests/test_cli.py tests/test_cli_security.py tests/test_import_boundaries.py tests/test_agent_service.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_node_guards.py tests/test_infra_sintetizar_aplicar.py tests/test_sintetizar_aplicar.py tests/test_demo.py tests/test_supervisor.py tests/test_state.py tests/test_contracts.py tests/test_golden_graph.py tests/test_export_evidence.py tests/test_sync_integration.py
+python -m pytest -q tests/test_validation.py tests/test_secret_filter.py tests/test_cli.py tests/test_cli_security.py tests/test_import_boundaries.py tests/test_agent_service.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_node_guards.py tests/test_infra_sintetizar_aplicar.py tests/test_sintetizar_aplicar.py tests/test_demo.py tests/test_supervisor.py tests/test_state.py tests/test_contracts.py tests/test_golden_graph.py tests/test_export_evidence.py tests/test_sync_integration.py 
 ```
 
 > La selección ampliada no consulta servicios reales ni abre un índice Chroma. No debe presentarse como validación de recuperación, generación, catálogo, imágenes o calidad semántica.

@@ -44,7 +44,7 @@
   },
   {
     "id": 8,
-    "pregunta": "¿He perdido el reloj de oro de mi boda, a donde me puedo dirigir a ver si alguien lo ha encontrado?",
+    "pregunta": "¿He perdido un objeto personal en el vestuario, cómo contacto con objetos perdidos para preguntarles?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"
   },
@@ -89,7 +89,7 @@
   },
   {
     "id": 15,
-    "pregunta": "¿Dónde puedo presentar una reclamación sobre unas instalaciones deportivas?",
+    "pregunta": "¿Cómo recupero mis enseres del guardarropa si he perdido la ficha que me entregaron?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"
   },
@@ -101,7 +101,7 @@
   },
   {
     "id": 17,
-    "pregunta": "¿Qué horarios tiene el polideportivo de Arganzuela?",
+    "pregunta": "¿Qué dias abre el centro deportivo de Arganzuela?",
     "categoria_esperada": "instalaciones",
     "fuente_esperada": "200186-0-polideportivos.csv"
   },

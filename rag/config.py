@@ -176,4 +176,17 @@ ASSETS_DIR = ROOT / "assets"
 # ← LA LÍNEA CLAVE para la visión
 IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
 
-VISION_MODEL = "gemini-2.5-flash"
+# --- Imágenes / OCR / multimodal ---
+IMAGE_OCR_ENABLED: bool = os.getenv(
+    "IMAGE_OCR_ENABLED", "true"
+).lower() == "true"
+
+IMAGE_VISION_ENABLED: bool = os.getenv(
+    "IMAGE_VISION_ENABLED", "false"
+).lower() == "true"
+
+IMAGE_OCR_LANG: str = os.getenv("IMAGE_OCR_LANG", "spa+eng")
+IMAGE_VISION_MODEL: str = os.getenv("GEN_MODEL", "gemini-2.5-flash")
+IMAGE_MAX_DESCRIPTION_CHARS: int = int(
+    os.getenv("IMAGE_MAX_DESCRIPTION_CHARS", "1200")
+)

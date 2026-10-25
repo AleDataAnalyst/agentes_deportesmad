@@ -1,0 +1,30 @@
+{
+  "_descripcion": "Lectura válida de imagen por el especialista documental: extracto de cartel o documento convertido a texto.",
+  "_uso": "Sustituir {{request_id}} por el request_id generado en la invocación antes de devolver el sobre al adaptador.",
+  "documental": {
+    "request_id": "{{request_id}}",
+    "resultado": "El cartel indica que la pista de pádel permanecerá cerrada por mantenimiento desde el 12 al 16 de mayo.",
+    "fuentes": [
+      "assets/imagen_demo.jpg"
+    ],
+    "abstained": false,
+    "errores": [],
+    "limitaciones": [
+      "El texto procede de una imagen de demostración; verificar la vigencia con la fuente oficial."
+    ],
+    "eventos": [
+      {
+        "tool": "vision",
+        "ok": true,
+        "image_id": "imagen_demo",
+        "texto_detectado": "CERRADO POR MANTENIMIENTO - PISTA DE PADEL - 12 AL 16 DE MAYO"
+      },
+      {
+        "tool": "rag",
+        "ok": true,
+        "consulta": "mantenimiento pista padel mayo",
+        "fuentes_recuperadas": 1
+      }
+    ]
+  }
+}
