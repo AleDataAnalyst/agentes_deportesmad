@@ -15,10 +15,10 @@ y su estado de validación se documentan en `contratos.md`.
 
 # Especificación de integración de especialistas
 
-**Identificador:** SPEC-INTEGRACION-01 · **Versión:** 0.1 · **Fecha:** 14/10/2026  
-**Estado:** propuesta de integración; contratos externos pendientes de recepción.  
-**Objetivo:** integrar cada contrato real mediante un adaptador pequeño, conservando
-fuentes, abstenciones y errores, sin rehacer el especialista ni el RAG.
+- **Identificador:** SPEC-INTEGRACION-01 · **Versión:** 0.1 · **Fecha:** 14/10/2026
+- **Estado:** propuesta de integración; contratos externos pendientes de recepción.
+- **Objetivo:** integrar cada contrato real mediante un adaptador pequeño, conservando
+  fuentes, abstenciones y errores, sin rehacer el especialista ni el RAG.
 
 ## 1. Cómo utilizar este documento
 

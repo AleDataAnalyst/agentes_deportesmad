@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal, Protocol
 
 from agentes import config
-from agentes.tools import rag_preguntar
 
 INSTRUCCIONES_TOOLS = """
 Eres un asistente técnico. Responde en español.
@@ -48,8 +47,14 @@ TOOL_SCHEMAS = [
 ]
 
 
+def _rag_preguntar_diferido(*args, **kwargs):
+    """Carga el RAG solo cuando se ejecuta la herramienta."""
+    from agentes.tools.rag import rag_preguntar
+    return rag_preguntar(*args, **kwargs)
+
+
 TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
-    "rag_preguntar": rag_preguntar,
+    "rag_preguntar": _rag_preguntar_diferido,
 }
 
 

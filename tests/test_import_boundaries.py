@@ -77,6 +77,38 @@ def test_real_runtime_construction_with_tool_double_does_not_import_rag_or_chrom
     ''')
 
 
+@pytest.mark.parametrize("mode", ["reglas", "llm"])
+def test_configured_construction_without_rag_or_network(mode):
+    run_python(f'''
+        import sys, os
+        from importlib.abc import MetaPathFinder
+        class BlockRag(MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname == "agentes.tools.rag" or fullname.split('.')[0] in {{"rag", "chromadb"}}:
+                    raise AssertionError(f"Carga inesperada: {{fullname}}")
+        sys.meta_path.insert(0, BlockRag())
+        def block_network(event, args):
+            if event in {{"socket.connect", "socket.getaddrinfo"}}:
+                raise AssertionError("Red inesperada")
+        sys.addaudithook(block_network)
+        from agentes import runtime
+        assert "agentes.config" not in sys.modules
+        def load_config(*args, **kwargs):
+            assert kwargs == {{"override": False}}
+            os.environ.update(SUPERVISOR_MODE={mode!r}, SUPERVISOR_PROVIDER="ollama",
+                              SUPERVISOR_MODEL="modelo-doble", GEN_PROVIDER="ollama",
+                              OLLAMA_GEN_MODEL="rag-doble")
+        runtime.load_dotenv = load_config
+        service = runtime.crear_servicio(modo="real")
+        assert service.nueva_conversacion()
+        assert "agentes.nodes.documental" not in sys.modules
+        if {mode!r} == "llm":
+            from agentes import config
+            assert config.GEN_MODEL == "rag-doble"
+        assert not any(name.split('.')[0] in {{"rag", "chromadb"}} for name in sys.modules)
+    ''')
+
+
 def test_common_client_helpers_without_ui_backend_or_io():
     run_python('''
         import sys

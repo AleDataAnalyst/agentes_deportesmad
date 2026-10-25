@@ -1,9 +1,9 @@
 # Handoff: Especialista documental y multimodal
 
-**Fecha:** 2026-10-22  
-**Autor/a:** Héctor González Lebredo   
-**Rama / PR:** `feature/especialista-documental` a `develop`  
-**Estado:** borrador / ~listo para revisión~ / ~aceptado~
+- **Fecha:** 2026-10-22
+- **Autor/a:** Héctor González Lebredo
+- **Rama / PR:** `feature/especialista-documental` a `develop`
+- **Estado:** borrador / ~listo para revisión~ / ~aceptado~
 
 ## 1. Objetivo
 
@@ -19,7 +19,7 @@ pedido → supervisor → `instalaciones` → síntesis → HITL → aplicar
 |---|---|---|---|
 | Nodo de especialista | Implementado | `agentes/nodes/documental` | pytest / demo / prueba manual |
 | Indexación del catálogo | Implementado | `rag/pipeline` | pytest / demo / prueba manual |
-| 
+|
 | Visión | Parcial | `...` | Qué falta exactamente |
 
 No mezcles aquí lo que está hecho con lo que está previsto.

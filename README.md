@@ -12,12 +12,12 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 
 | Componente | Implementado y comprobado | Límite actual |
 | --- | --- | --- |
-| Supervisor y grafo | Rutas, fallback, límite de iteraciones y nodos inyectados | Supervisor por reglas; proveedor de rutas inyectable, sin router LLM conectado en runtime |
+| Supervisor y grafo | Rutas, fallback, límites y selección LLM/reglas desde runtime, probados con dobles | Aceptación con modelo real pendiente |
 | Servicio común | `AgentService`, conversaciones, estado y planes identificados | Estado y decisiones en memoria del proceso; sin recuperación tras reiniciar |
 | Montaje documental | Puerta pública documental conectada mediante adaptador en `runtime.py` | Recuperación y generación reales pendientes de un índice compatible |
 | Síntesis y aplicar | Síntesis determinista, plan informativo y pausa antes de aplicar | No realiza reservas, pagos ni envíos |
 | Revisión humana (HITL) | Aprobar/rechazar, mismo hilo, plan vigente e idempotencia | La aprobación no certifica la veracidad de la evidencia |
-| Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
+| Instalaciones | Nodo público conectado; fuentes, errores y fallback conservados | Aceptación con catálogo/avisos reales pendiente |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
 | Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes y avisos por estado bajo la respuesta, subida de imágenes JPG/PNG, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | La imagen subida se guarda pero aún no se envía al agente (el servicio no acepta `image_id`); fuentes, avisos y recuperación tras errores probados solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
@@ -30,24 +30,76 @@ La conexión documental está implementada y sus pruebas de montaje están super
 
 `agentes/runtime.py` conecta `obtener_grafo_documental().invoke` mediante `crear_adaptador_documental`. La construcción del servicio pasa el callable sin ejecutar una consulta. Un error del modo real nunca activa una demo.
 
-El recorrido principal es:
+El montaje de esta rama, con las actualizaciones de #22 y #23, queda así:
 
-```text
-pedido → supervisor → documental → supervisor → instalaciones → supervisor
-       → síntesis → supervisor → pausa antes de aplicar
-       → decisión humana sobre el plan vigente → aplicar → END
+```mermaid
+flowchart TD
+    C["CLI / Streamlit"] --> R["crear_servicio(modo=real)<br/>Configuración LLM o reglas"]
+    R --> A["AgentService<br/>Conversación y plan vigentes"]
+    A --> S["Supervisor<br/>LLM Google/Ollama o reglas<br/>Fallback y límite en Python"]
+    S --> Q{"Router Python"}
+    Q -->|documental| D["Adaptador → puerta documental<br/>RAG: respuesta, fuentes, error o abstención"]
+    Q -->|instalaciones| I["Nodo de instalaciones<br/>Catálogo / avisos / fallback histórico"]
+    Q -->|sintetizar| T["Síntesis determinista<br/>Respuesta y plan informativo"]
+    D --> S
+    I --> S
+    T --> S
+    Q -->|FINISH| P{"¿Respuesta y plan listos?"}
+    P -->|No| T
+    P -->|Sí| H["Pausa antes de aplicar<br/>Checkpoint del mismo hilo"]
+    H --> U["Decisión humana en CLI / Streamlit<br/>Aprobar o rechazar el plan vigente"]
+    U --> X["resolver_plan → aplicar → END<br/>Aprobado: done=True<br/>Rechazado: done=False; permite otro pedido"]
 ```
 
-El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
+El diagrama incluye clientes y controles explicativos: router, pausa y decisión
+humana no son nodos adicionales del grafo. Los especialistas se consultan en
+secuencia y vuelven al supervisor; el LLM puede seleccionar solo los pertinentes.
+Por reglas o fallback, el recorrido habitual es documental → instalaciones →
+síntesis → revisión humana. El supervisor propone rutas; Python las valida.
+Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback
+histórico se conservan en la síntesis. Aprobar cierra un plan informativo, sin
+reservas, pagos ni envíos.
 
-`agentes/supervisor_llm.py::crear_proveedor_rutas` implementa el proveedor de rutas
-con adaptador y factoría de mensajes inyectables, probado con dobles.
-`crear_servicio_real(route_provider=proveedor)` lo transmite al supervisor;
-sin proveedor sigue por reglas, como los clientes actuales. Construir el
-adaptador real sigue pendiente de desacoplar su import del RAG, fijar el orden
-de configuración y aplicar el timeout de Google con Héctor. No se ha validado
-con un modelo real. Detalles y dependencia de la
-PR de instalaciones en [integración](docs/specs/integracion_real.md).
+Al integrar #21 se conserva esta topología y se incorporan las mejoras del
+especialista documental detrás de su puerta pública. El objetivo de la entrada
+multimodal, una vez acordado y conectado el transporte de `image_id`, es:
+
+```mermaid
+flowchart LR
+    IMG["Streamlit: JPG/PNG guardado<br/>Implementado en #23"] -.->|"Pendiente: transportar image_id"| API["Servicio y adaptador documental"]
+    API -.->|"Pendiente de integración y aceptación"| DOC["Especialista documental #21<br/>RAG y tool de imagen con presupuesto"]
+    DOC -.-> RES["Resultado y evidencias<br/>Retorno al supervisor"]
+```
+
+Las flechas discontinuas describen integración pendiente. Actualmente la imagen
+se guarda en Streamlit y no llega al agente. En #21, la tool de imagen se consulta
+si hay respuesta documental válida y queda presupuesto; no supone una ruta
+independiente de visión en el supervisor. `preparar_reporte` sigue sin estar
+disponible. La integración prevista no acredita funcionamiento real: faltan
+aceptación con modelo, índice RAG compatible y fuentes externas.
+
+`crear_servicio(modo="real")` carga el `.env` del repositorio sin sobrescribir el
+entorno y construye e inyecta el proveedor configurado. CLI y Streamlit mantienen
+esa misma llamada. `SUPERVISOR_MODE=reglas` (predeterminado) usa reglas;
+`SUPERVISOR_MODE=llm` exige `SUPERVISOR_PROVIDER=google|ollama` y
+`SUPERVISOR_MODEL` con un modelo disponible, sin nombre predeterminado.
+Google necesita `GOOGLE_API_KEY`; Ollama usa `OLLAMA_BASE_URL` del adaptador
+existente (por defecto `http://127.0.0.1:11434`). No cambia proveedor ni modelo
+`GEN_*` del RAG.
+
+`SUPERVISOR_TEMPERATURE` admite 0–2 (defecto 0),
+`SUPERVISOR_MAX_OUTPUT_TOKENS` 1–4096 (256) y `SUPERVISOR_TIMEOUT` 1–240 segundos
+(30). El timeout se aplica por petición; Ollama conserva sus reintentos.
+La configuración inválida falla al construir, sin demo silenciosa. Durante
+inferencia, respuestas inválidas y excepciones usan el fallback y la traza
+acotada del supervisor. Construir no consulta modelos/tools ni carga RAG/Chroma;
+la puerta documental se resuelve en su primera invocación.
+
+Se conserva `crear_servicio_real(route_provider=proveedor)` para inyección manual,
+que prevalece sobre la selección del entorno. Implementación y montaje están
+probados con dobles; la aceptación con modelo real y la aceptación conjunta con
+RAG e instalaciones siguen pendientes. Detalles y solapamientos con #21 en
+[integración](docs/specs/integracion_real.md).
 
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 
@@ -56,7 +108,6 @@ La pausa ocurre antes de `aplicar`. El cliente resuelve con el mismo `thread_id`
 El servicio, sus checkpoints y sus identificadores se conservan entre turnos durante la vida del proceso. No constituyen persistencia duradera.
 
 Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md), [cierre del backend](docs/specs/cierre_backend_supervisor_grafo.md), [síntesis y aplicar](docs/specs/sintetizar_aplicar.md) y [contratos](docs/specs/contratos.md).
-
 
 ## Estructura relevante
 
@@ -69,8 +120,6 @@ Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-2
 | `app.py` | Arranque de Streamlit |
 | `clientes/` | Clientes: CLI (`cli.py`), interfaz Streamlit (`streamlit_app.py`), botones de aprobar y rechazar (`hitl.py`) y panel de debug (`debug.py`) |
 | `.env.example` | Plantilla de configuración; no contiene secretos |
-
-
 
 ## Ejecutar la demo sin servicios externos
 
@@ -159,6 +208,8 @@ Estas comprobaciones validan contratos de código Python. No aíslan efectos ext
 
 ## Ver el grafo
 
+![Montaje actual: clientes, supervisor configurable, especialistas y HITL](docs/specs/grafo_visual.svg)
+
 ```console
 python -m scripts.ver_grafo
 ```
@@ -183,9 +234,9 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 ## Pruebas y evidencias
 
-
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
+| Revisión previa de #22 | 724 pruebas offline superadas el 25/10/2026 | Supervisor LLM/reglas, montaje, HITL, backend, CLI, presentación con dobles y exportación; sin aceptación con modelo o servicios reales. Selección exacta en [integración real](docs/specs/integracion_real.md) |
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
@@ -233,8 +284,9 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 ## Configuración efectiva y RAG
 
 ---
-### advertencia 
-![warning](./assets/warning.png) 
+### Advertencia
+
+![warning](./assets/warning.png)
 
 `MAX_ITER` tiene significados y valores por defecto distintos en el supervisor y en el RAG:
 
@@ -243,15 +295,15 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 
 No son la misma configuración ni deben tratarse como un único límite global.
 
---- 
+---
 
 La configuración del supervisor y la del RAG tienen mecanismos distintos:
 
 - `agentes/settings.py` lee `MAX_ITER` al crear el servicio; valor predeterminado 8. No carga `.env` automáticamente.
 - `rag/config.py` carga dotenv sin sobrescribir variables del proceso y fija constantes al importar. Cambiar el entorno después de importar no basta para comparar configuraciones.
 - Embeddings, etiquetado (TAG) y generación tienen proveedores/modelos separados. Declarar una variable no garantiza que un adaptador la consuma.
-  
-> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. No la uses para configurar generación; utiliza `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` según el proveedor seleccionado.
+
+> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. La generación del RAG se configura mediante `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY`, según el proveedor seleccionado.
 
 Para validar el RAG real se necesita un índice compatible con el modelo, dimensión y configuración de embeddings que lo construyeron, su ruta/colección y una consulta con fuente esperada. Cambiar `EMBED_*` o `CHUNK_*` exige gestionar la reindexación indicada en las specs. No subir `.env`, claves, entornos virtuales ni índices pesados. Los ejemplos no certifican disponibilidad de los modelos, cuotas o compatibilidad del entorno local.
 

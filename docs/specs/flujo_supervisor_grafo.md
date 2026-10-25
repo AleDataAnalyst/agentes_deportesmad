@@ -1,8 +1,9 @@
 # Flujo síncrono de supervisor y grafo
 
 Flujo explicativo de coordinación, síntesis y aprobación humana.
-Los especialistas se prueban actualmente con dobles, pendientes
-de integrar sus contratos reales.
+Actualizado el 25/10/2026: runtime conecta documental e instalaciones y selecciona
+supervisor LLM Google/Ollama o reglas. CLI y Streamlit utilizan la misma factoría.
+El montaje está probado con dobles; la aceptación conjunta real sigue pendiente.
 
 Actualización del 17/10/2026: ya se pueden inyectar las implementaciones
 deterministas `sintetizar` y `aplicar` en `AgentService`. El grafo aplica sus
@@ -13,13 +14,19 @@ informativo sin acciones externas. Ver [montaje y pruebas](sintetizar_aplicar.md
 No cambia la topología. El [ASCII generado](grafo_actual.txt), regenerado con
 `python -m scripts.ver_grafo`, conserva el mismo contenido y procede de la
 demo simulada. El esquema explicativo siguiente detalla los retornos al
-supervisor y la pausa humana. La traducción documental recibe un callable
-inyectado; la conexión directa del nodo real queda pendiente de coordinación
-con Héctor, sin modificar su puerta pública.
+supervisor y la pausa humana. La traducción documental recibe un callable que
+resuelve la puerta pública al consultar, evitando cargar RAG/Chroma durante la
+construcción. Las mejoras de #21 se integrarán detrás de esa puerta; se conserva
+la topología principal. El transporte de `image_id` desde Streamlit sigue
+pendiente: guardar la imagen no implica enviarla al agente. Visión no es una
+ruta del supervisor actual.
 
 ```text
 
 CLIENTE: CLI / Streamlit / demo
+              |
+              +-- Runtime: real o demo explícita, sin fallback a demo
+              +-- Real: LLM Google/Ollama o reglas; proveedor inyectable
               |
               v
     AgentService.procesar_turno()
@@ -35,7 +42,7 @@ CLIENTE: CLI / Streamlit / demo
               v
          SUPERVISOR <-----------------------------------+
               |                                         |
-              | Propone una ruta                        |
+              | Propone ruta; fallback y límite Python  |
               v                                         |
         ROUTER DE PYTHON                                |
               |                                         |
@@ -88,6 +95,10 @@ CLIENTE: CLI / Streamlit / demo
 
 ## Cómo interpretarlo
 
+- El LLM puede consultar solo los especialistas pertinentes; no obliga a visitar
+  ambos. Por reglas/fallback se consulta documental, instalaciones y síntesis.
+- Fuentes, errores, abstenciones y limitaciones se conservan hasta los clientes;
+  Streamlit añade avisos por estado y fuentes bajo la respuesta.
 - FINISH termina la preparación y conduce hacia la revisión humana.
 - La pausa ocurre antes de ejecutar aplicar.
 - Aprobar y rechazar pasan por aplicar.

@@ -11,14 +11,15 @@ from agentes.demo import crear_servicio_demo
 
 def _vista_svg():
     """Vista documental; router, pausa y decisión se distinguen de los nodos."""
-    partes = ['''<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1380" viewBox="0 0 1500 1380">
+    partes = ['''<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1600" viewBox="0 0 1500 1600">
 <title>Supervisor y grafo: clientes, montaje y revisión humana</title>
 <desc>Flujo síncrono actual. Los especialistas y síntesis retornan al supervisor.
-FINISH con plan listo conduce a la pausa antes de aplicar. CLI pendiente de entrega separada;
-Streamlit es estructura base en esta rama. RAG sin validación real e instalaciones no disponibles.</desc>
+FINISH con plan listo conduce a la pausa antes de aplicar. CLI y Streamlit conectados.
+Supervisor LLM o reglas e instalaciones conectados; aceptación real pendiente.
+La imagen de Streamlit todavía no se envía al servicio.</desc>
 <defs><marker id="flecha" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#43627e"/></marker>
 <marker id="retorno" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#157a80"/></marker></defs>
-<rect width="1500" height="1380" fill="#f5f8fc"/>
+<rect width="1500" height="1600" fill="#f5f8fc"/>
 ''']
 
     def texto(x, y, lineas, size=19, fill="#233c55", bold=False, center=False):
@@ -58,22 +59,31 @@ Streamlit es estructura base en esta rama. RAG sin validación real e instalacio
         partes.append(f'<polygon points="{" ".join(f"{a},{b}" for a,b in puntos)}" fill="{color}"/>')
 
     texto(55, 55, ["Supervisor y grafo: del pedido a la decisión"], 32, bold=True)
-    texto(55, 90, ["Estado local · 20/10/2026 · ejecución síncrona · sin consultas externas para generar esta vista"], 18)
-    caja(65, 130, 610, 112, "CLI · entrega separada pendiente", ["Ampliación local fuera de esta entrega del grafo", "Integración prevista mediante runtime y HITL manual"], "#fff3df", "#c79b4b")
-    caja(825, 130, 610, 112, "Streamlit · estructura base", ["app.py y cliente: estructura base", "Integración del cliente pendiente de David"], "#fff3df", "#c79b4b")
-    flecha("M370 242 V265 H650 V285", discontinua=True)
-    flecha("M1130 242 V265 H850 V285", discontinua=True)
+    texto(55, 90, ["Montaje #22 + #23 · 25/10/2026 · síncrono · aceptación con servicios reales pendiente"], 18)
+    caja(65, 130, 610, 112, "CLI · conectada a runtime", ["Consultas, fuentes, debug y decisión HITL", "crear_servicio(modo=real)"], "#e5f4ed", "#5e9c7d")
+    caja(825, 130, 610, 112, "Streamlit · conectado a runtime", ["Chat, fuentes, avisos por estado y decisión HITL", "JPG/PNG guardado; image_id aún no llega al agente"], "#e5f4ed", "#5e9c7d")
+    flecha("M370 242 V265 H650 V285")
+    flecha("M1130 242 V265 H850 V285")
+    caja(420, 285, 660, 190, "Runtime · proveedor LLM del supervisor", [
+        "SUPERVISOR_MODE=llm → Google/Ollama + modelo explícito",
+        "crear_proveedor_supervisor_real → crear_proveedor_rutas",
+        "reglas → sin LLM; permite inyección manual de proveedor",
+        "Propone JSON de ruta; sin tools ni aprobación automática",
+    ], "#e9edff", "#909bd1", 18)
+    flecha("M750 475 V505")
+    # El resto del montaje conserva las coordenadas originales.
+    partes.append('<g transform="translate(0,220)">')
     caja(420, 285, 660, 115, "AgentService · API común", ["Conserva instancia, thread_id y plan vigente", "procesar_turno / consultar_estado / resolver_plan"])
     flecha("M750 400 V440")
     texto(775, 428, ["START"], 16)
-    caja(485, 440, 530, 105, "Supervisor", ["Reglas · fallback · MAX_ITER en Python", "Proveedor de rutas inyectable; LLM sin conectar"], "#e9edff", "#909bd1", 18)
+    caja(485, 440, 530, 105, "Supervisor LLM / reglas", ["Recibe el proveedor construido por runtime", "Python valida rutas, fallback y MAX_ITER"], "#e9edff", "#909bd1", 18)
     texto(750, 580, ["Router Python: valida destino y plan"], 18, bold=True, center=True)
     # Destinos alternativos. Los tres retornan al supervisor.
     flecha("M560 545 V605 H270 V650")
     flecha("M750 590 V650")
     flecha("M940 545 V605 H1230 V650")
-    caja(65, 650, 410, 160, "Documental", ["Adaptador → puerta pública", "→ nodo documental → tool RAG", "Montaje conectado", "RAG real: índice pendiente"], "#e9f2fc", "#6a9fcb", 18)
-    caja(545, 650, 410, 160, "Instalaciones", ["Ruta ya disponible en el grafo", "Runtime declara abstención", "available=False", "Nodo real pendiente de Miguel"], "#fff3df", "#c79b4b", 18)
+    caja(65, 650, 410, 160, "Documental", ["Adaptador → puerta pública diferida", "→ nodo documental → tool RAG", "Mejoras de #21: por integrar", "Índice y aceptación real pendientes"], "#e9f2fc", "#6a9fcb", 18)
+    caja(545, 650, 410, 160, "Instalaciones · conectado", ["Nodo público de catálogo y avisos", "Fuentes, error o abstención", "Conserva fallback histórico", "Aceptación externa pendiente"], "#e9f2fc", "#6a9fcb", 18)
     caja(1025, 650, 410, 160, "Sintetizar", ["Implementación determinista", "Respuesta + plan informativo", "Conserva fuentes y limitaciones", "No aprueba ni cierra"], "#e5f4ed", "#5e9c7d", 18)
     flecha("M65 730 H35 V495 H485", regreso=True)
     flecha("M545 775 H510 V635 H450 V520 H485", regreso=True)
@@ -92,8 +102,8 @@ Streamlit es estructura base en esta rama. RAG sin validación real e instalacio
     texto(55, 991, ["• FINISH sin plan válido → sintetizar.", "• Router, pausa y decisión son controles;", "  no son nodos extra de StateGraph.", "• Un rechazo permite otro pedido.", "• Estado en memoria del proceso."], 18)
     partes.append('<rect x="55" y="1230" width="1380" height="105" rx="12" fill="#e7eef6"/>')
     texto(75, 1260, ["Lectura de esta vista"], 20, bold=True)
-    texto(75, 1291, ["Ámbar: integración pendiente. Flechas verdes: retorno al supervisor. Las tarjetas indican el estado actual.", "La topología se exporta desde build_graph con nodos demo; esta figura no acredita RAG ni HTTP reales."], 18)
-    partes.append('</svg>')
+    texto(75, 1291, ["Verde: retorno al supervisor. #21 conserva la topología; image_id y la aceptación multimodal siguen pendientes.", "Topología exportada con nodos demo: no acredita modelo, RAG ni HTTP reales. Visión no tiene ruta propia."], 18)
+    partes.append('</g></svg>')
     return "\n".join(partes) + "\n"
 
 

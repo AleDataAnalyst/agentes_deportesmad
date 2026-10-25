@@ -1,7 +1,7 @@
 """Supervisor síncrono con proveedor inyectable y límites en Python.
 
-No ejecuta tools, no redacta el plan ni aprueba el pedido. El proveedor podrá
-adaptar el LLM cuando se acuerde su interfaz. Las reglas permiten usar dobles.
+No ejecuta tools, no redacta el plan ni aprueba el pedido. Runtime puede inyectar
+el proveedor LLM configurado; sin proveedor utiliza reglas deterministas.
 La traza identifica el origen y una causa breve de fallback, sin reproducir
 prompts, motivos del proveedor ni textos completos de excepciones.
 """
