@@ -18,6 +18,7 @@ from agentes.supervisor_llm import crear_proveedor_rutas
 
 @pytest.fixture(autouse=True)
 def isolated_tools(monkeypatch):
+    monkeypatch.setenv("SUPERVISOR_MODE", "reglas")
     # El sustituto y el finder evitan nuevas cargas si no ocurrió antes durante
     # colección. No deshacen imports previos: REGISTRY controla las llamadas.
     class BlockRag(MetaPathFinder):
@@ -108,9 +109,12 @@ def test_public_gate_is_used_without_invoking_it(monkeypatch):
     captured = {}
     monkeypatch.setattr(runtime, "AgentService", lambda **kwargs: captured.update(kwargs))
     crear_servicio_real()
-    assert requested == [True]
+    assert requested == []
     assert captured["instalaciones_node"] is nodo_instalaciones
     assert captured["route_provider"] is None
+    with pytest.raises(pytest.fail.Exception, match="No debe consultarse al construir"):
+        captured["documental_node"]({"user_message": "prueba"})
+    assert requested == [True]
 
 
 @pytest.mark.parametrize("approved", [True, False])
@@ -283,15 +287,62 @@ def test_installation_failure_is_not_confirmed_and_keeps_documental(mixed, insta
 
 
 def test_real_creation_failure_never_falls_back_to_demo(monkeypatch):
-    import agentes.grafo_documental as gd
     import agentes.demo as demo
 
-    def fail():
-        raise RuntimeError("Fallo real de prueba")
-
-    monkeypatch.setattr(gd, "obtener_grafo_documental", fail)
+    monkeypatch.setenv("SUPERVISOR_MODE", "invalido")
     monkeypatch.setattr(demo, "crear_servicio_demo", lambda: pytest.fail("Fallback prohibido"))
-    with pytest.raises(RuntimeError, match="Fallo real de prueba"):
+    with pytest.raises(ValueError, match="SUPERVISOR_MODE"):
         crear_servicio(modo="real")
     with pytest.raises(ValueError, match="modo"):
         crear_servicio(modo="mixto")
+
+
+@pytest.mark.parametrize("backend", ["google", "ollama"])
+@pytest.mark.parametrize("approved", [True, False])
+def test_configured_runtime_llm_full_lifecycle(monkeypatch, mixed, instalaciones, backend, approved):
+    import agentes.llm_google as google
+    import agentes.llm_ollama as ollama
+    from agentes.llm import LlmResponse
+    calls, constructed = [], []
+
+    class AdapterDouble:
+        def __init__(self, **kwargs):
+            constructed.append(kwargs)
+
+        def generate(self, **kwargs):
+            calls.append(kwargs)
+            view = json.loads(kwargs["messages"][1].content)
+            results = view["resultados_disponibles"]
+            route = ("documental" if not results else "instalaciones"
+                     if "instalaciones" not in results else "FINISH"
+                     if view["plan_listo"] else "sintetizar")
+            return LlmResponse(text=json.dumps({"ruta": route, "motivo": "Doble"}))
+
+    monkeypatch.setattr(google, "GoogleAdapter", AdapterDouble if backend == "google" else lambda **kw: pytest.fail("Google inesperado"))
+    monkeypatch.setattr(ollama, "OllamaAdapter", AdapterDouble if backend == "ollama" else lambda **kw: pytest.fail("Ollama inesperado"))
+    monkeypatch.setenv("SUPERVISOR_MODE", "llm")
+    monkeypatch.setenv("SUPERVISOR_PROVIDER", backend)
+    monkeypatch.setenv("SUPERVISOR_MODEL", "modelo-doble")
+    monkeypatch.setenv("GOOGLE_API_KEY", "clave-doble")
+    monkeypatch.setenv("SUPERVISOR_TIMEOUT", "7")
+    service = crear_servicio(modo="real")
+    assert constructed == [{"model": "modelo-doble"}]
+    assert calls == mixed[1] == instalaciones[1] == []
+    tid = service.nueva_conversacion()
+    pending = service.procesar_turno("Normativa y catálogo", tid)
+    assert set(pending["specialist_results"]) == {"documental", "instalaciones"}
+    assert pending["pendiente_hitl"] and pending["approved"] is None
+    assert len(calls) == 4
+    assert all(call["timeout"] == 7 and call["tools"] == [] for call in calls)
+    final = service.resolver_plan(tid, approved, plan_id=pending["plan_id"])
+    assert final["done"] is approved and not final["pendiente_hitl"]
+
+
+def test_manual_provider_bypasses_config(monkeypatch):
+    monkeypatch.setenv("SUPERVISOR_MODE", "invalido")
+    provider = lambda state: None
+    import agentes.runtime as runtime
+    captured = {}
+    monkeypatch.setattr(runtime, "AgentService", lambda **kw: captured.update(kw))
+    crear_servicio_real(route_provider=provider)
+    assert captured["route_provider"] is provider

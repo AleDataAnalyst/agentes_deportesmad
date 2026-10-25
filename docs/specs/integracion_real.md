@@ -14,13 +14,10 @@ distinta y sigue pendiente. Los resultados y el estado Git registrados más abaj
 corresponden a la entrega histórica original y no se reinterpretan como validación
 de esta conexión. No se presenta el MVP como terminado.
 
-La fixture de runtime evita llamadas reales durante los tests, pero no garantiza
-que RAG/Chroma no se hayan importado previamente durante la colección global.
-`tests/test_import_boundaries.py` verifica en procesos nuevos la construcción real
-con tool RAG doble y esos imports bloqueados. También comprueba que runtime en modo
-demo no carga ni el documental ni instalaciones; su import queda dentro de
-`crear_servicio_real`. Esto no certifica construcción real sin dependencias RAG
-cuando se usa la tool original.
+`tests/test_import_boundaries.py` verifica en procesos nuevos la construcción
+por reglas y con Ollama, bloqueando red e importaciones RAG/Chroma, sin sustituir
+la tool documental. La puerta documental se resuelve al ejecutar la consulta.
+Las pruebas de ciclo de vida sustituyen las dependencias externas.
 
 Comando exacto de la selección inicial de **444 pruebas** (antes de añadir la
 prueba de frontera de esta revisión):
@@ -32,16 +29,14 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 
 ### Proveedor de rutas del supervisor (25/10/2026)
 
-La rama `feature/supervisor-llm` incorpora por fast-forward `b06f154`, incluida
-la corrección de aislamiento revisada por David, y depende de la
-[PR #18 de instalaciones](https://github.com/AleDataAnalyst/agentes_deportesmad/pull/18),
-abierta al preparar esta rama. El diff exclusivo del supervisor se revisa
-contra `b06f154`; los cambios de instalaciones pertenecen a la PR anterior.
+La #20 está integrada en `origin/develop` (`b3ea868`). La rama de #22 incorpora
+ese destino mediante merge normal, incluidas las mejoras de clientes de #19.
+No incorpora la rama de #21 (`a84e899` al revisar).
 
 `agentes/supervisor_llm.py::crear_proveedor_rutas` recibe un adaptador con la
 interfaz `generate` existente y una `message_factory` compatible con `LlmMessage`.
 Los tipos de `agentes.llm` solo se importan bajo `TYPE_CHECKING`, sin duplicar su
-cliente SDK/HTTP ni modificar adaptadores. Produce mensajes system/user con
+cliente SDK/HTTP. Produce mensajes system/user con
 pedido acotado a 2000 caracteres, rutas permitidas, estados de los resultados y
 situación de respuesta/plan; excluye evidencias, datos internos y traza. Solicita
 solo JSON `{"ruta": "instalaciones", "motivo": "Consultar catálogo."}` y devuelve
@@ -55,52 +50,71 @@ Configuración consumida: argumentos explícitos `temperature=0`,
 llamada a `generate` por propuesta con `tools=[]`, sin reintentos propios ni logs
 de prompts/respuestas. Transmitir timeout no prueba que el transporte lo cumpla.
 
-**Proveedor implementado y montaje por inyección verificado con dobles; adaptador
-real pendiente y sin validación con modelo real.**
-`crear_servicio_real(route_provider=proveedor)` transmite el callable ya construido
-a `AgentService → build_graph → supervisor_node`. Construir el servicio no invoca
-el proveedor. Sin argumento (`None`) continúa por reglas; los clientes actuales y
-la selección `crear_servicio(modo="real"|"demo")` conservan su comportamiento.
-Las excepciones de inferencia usan el fallback del supervisor, sin activar demo.
-Las pruebas de runtime verifican selección parcial de especialistas, síntesis,
-aprobación/rechazo del mismo plan y fallo del modelo, con dependencias dobles;
-la frontera de importación/construcción se verifica en subproceso nuevo.
-El punto pendiente es construir adaptador real y `LlmMessage` de forma segura
-antes de pasarlos a `crear_proveedor_rutas`. La factoría real no se llama ni se
-habilita como conexión supuestamente operativa. Ejemplo del montaje por inyección:
+**Implementación y montaje configurado probados con dobles; aceptación con modelo
+real pendiente.** El recorrido ahora es:
 
 ```python
-servicio = crear_servicio_real(route_provider=proveedor)
+servicio = crear_servicio(modo="real")
+# runtime → crear_proveedor_configurado → crear_proveedor_supervisor_real
+# → crear_proveedor_rutas → AgentService → build_graph → supervisor_node
 ```
 
-Ajustes mínimos a coordinar con Héctor antes de ese montaje:
+CLI y Streamlit mantienen esa llamada. Runtime carga el `.env` de su repositorio
+con `override=False` antes de importar adaptadores y sus constantes. No modifica
+`GEN_*` ni recarga módulos previos: otros consumidores de constantes siguen
+siendo responsables de cargar el entorno antes de importarlas.
 
-- `agentes/llm.py`, import de `rag_preguntar` y `TOOL_REGISTRY`: diferir la
-  dependencia hasta ejecutar la tool. Actualmente importar mensajes o adaptadores
-  carga `agentes.tools.rag → rag.logic → rag.retrieve → chromadb`.
-- `agentes/llm.py::crear_adapter` / `agentes.config`: acordar configuración
-  explícita o cargarla antes de fijar `GEN_*`. `agentes.config` no carga `.env`,
-  mientras `rag.config` sí; cargarlo después no actualiza las constantes previas.
-- `agentes/llm_google.py::GoogleAdapter.generate`: aplicar `timeout` al transporte
-  y asegurar generación sin herramientas al recibir `tools=[]`. Hoy el timeout
-  no se utiliza y se construye una declaración de herramientas vacía. Ollama sí
-  pasa timeout a `requests.post`, pero también importa el módulo acoplado.
+| Variable consumida | Valores y comportamiento |
+| --- | --- |
+| SUPERVISOR_MODE | `reglas` por defecto, o `llm`; otro valor falla |
+| SUPERVISOR_PROVIDER | En LLM, obligatorio: `google` u `ollama` |
+| SUPERVISOR_MODEL | En LLM, obligatorio; sin nombre predeterminado ni disponibilidad verificada |
+| SUPERVISOR_TEMPERATURE | 0–2, finito; defecto 0 |
+| SUPERVISOR_MAX_OUTPUT_TOKENS | Entero 1–4096; defecto 256 |
+| SUPERVISOR_TIMEOUT | Entero 1–240 segundos por petición; defecto 30 |
+| GOOGLE_API_KEY | Obligatoria para Google; credencial del adaptador existente |
+| OLLAMA_BASE_URL | Consumida por Ollama; defecto `http://127.0.0.1:11434` |
 
-Las pruebas nuevas usan modelo/mensajes dobles y el servicio/grafo existentes;
-comprueban formato, vista, errores, selección parcial, inmutabilidad, límite e
-HITL, e import/construcción con RAG/Chroma/modelos bloqueados y red prohibida.
-Un `TimeoutError` simulado solo acredita el fallback. La aceptación del LLM de
-rutas requiere una prueba posterior autorizada, separada del RAG y sin índice.
-La selección anterior del proveedor superó 477 pruebas con dobles. La selección
-actual de backend, proveedor y montaje supera **481 pruebas**, incorporando la
-frontera revisada y aprobación/rechazo y fallback por inyección. No se ejecuta
-la suite completa ni se consultan APIs, modelos o el índice real.
+Las opciones LLM se validan en modo `llm`; reglas no exige modelo ni credenciales.
+Configuración inválida: error al construir, sin demo silenciosa. No se escribe
+el `.env` local. La inyección manual `crear_servicio_real(route_provider=proveedor)`
+prevalece sobre la selección del entorno. Inferencia inválida o excepción:
+fallback determinista y traza acotada, sin texto de la excepción. Se mantienen
+allowlist, límites, ambos especialistas y HITL.
+
+Construir no ejecuta inferencia/tools/HTTP ni importa RAG/Chroma. El único cambio
+del montaje documental difiere su puerta pública hasta el uso, sin cambiar
+contratos, estado, topología ni implementación del nodo. Google recibe `tools=[]`,
+instrucciones de sistema y timeout HTTP en milisegundos. La prueba con SDK y
+transporte HTTP doble verifica el timeout recibido por HTTPX para conexión,
+lectura, escritura y pool; no mide latencia real. Ollama conserva tres intentos y
+sus esperas: el timeout no es un plazo total del turno.
+
+**Solapamientos con #21:** conservar la carga diferida y `TOOL_REGISTRY` de
+`llm.py`; la importación directa de `agentes.tools.rag` en #21 reintroduciría la
+carga del RAG al importar adaptadores. Conservar sus mejoras válidas del prompt
+`INSTRUCCIONES_TOOLS` y `GEN_MAX_TOKENS`, junto con su configuración y consumidor.
+#21 no modifica `llm_google.py` en el diff revisado; preservar allí `tools=[]`,
+instrucciones de sistema y timeout HTTP de #22. Revisar de nuevo si cambia su HEAD.
+No se copian cambios de nodo documental, OCR, visión, embeddings ni evaluación.
+
+Validación de esta revisión: **514 pruebas offline superadas**, una advertencia
+de deprecación del SDK Google, y `git diff --check`. Selección ejecutada:
+
+```powershell
+python -B -m pytest -q -p no:cacheprovider tests/test_llm_supervisor_real.py tests/test_runtime.py tests/test_supervisor_llm.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py
+```
+
+Pendientes: aceptación de rutas con un modelo real disponible y aceptación
+conjunta con índice RAG compatible e instalaciones reales. No se declara
+terminado el MVP ni el RAG. No se ejecutó la suite completa ni se consultaron
+APIs, modelos o índice durante esta tarea.
 
 
 ## Qué se conecta
 
-`agentes/runtime.py::crear_servicio_real()` obtiene la puerta pública
-`obtener_grafo_documental()` y pasa su método `invoke` al adaptador existente.
+`agentes/runtime.py::crear_servicio_real()` pasa al adaptador un callable que
+resuelve la puerta pública `obtener_grafo_documental().invoke` al ejecutar la consulta.
 El nodo adaptado se inyecta en `AgentService`, junto a las implementaciones
 existentes `sintetizar` y `aplicar`. Pasar el método no ejecuta una consulta.
 

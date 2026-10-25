@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Any
 
 from google import genai
@@ -128,6 +129,3 @@ class GoogleAdapter(LlmAdapter):
             text=response.text or "",
             tool_calls=tool_calls,
         )
-        
-        
-        

@@ -12,12 +12,12 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 
 | Componente | Implementado y comprobado | Límite actual |
 | --- | --- | --- |
-| Supervisor y grafo | Rutas, fallback, límite de iteraciones y nodos inyectados | Supervisor por reglas; proveedor de rutas inyectable, sin router LLM conectado en runtime |
+| Supervisor y grafo | Rutas, fallback, límites y selección LLM/reglas desde runtime, probados con dobles | Aceptación con modelo real pendiente |
 | Servicio común | `AgentService`, conversaciones, estado y planes identificados | Estado y decisiones en memoria del proceso; sin recuperación tras reiniciar |
 | Montaje documental | Puerta pública documental conectada mediante adaptador en `runtime.py` | Recuperación y generación reales pendientes de un índice compatible |
 | Síntesis y aplicar | Síntesis determinista, plan informativo y pausa antes de aplicar | No realiza reservas, pagos ni envíos |
 | Revisión humana (HITL) | Aprobar/rechazar, mismo hilo, plan vigente e idempotencia | La aprobación no certifica la veracidad de la evidencia |
-| Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
+| Instalaciones | Nodo público conectado; fuentes, errores y fallback conservados | Aceptación con catálogo/avisos reales pendiente |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
 | Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes bajo la respuesta, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes y recuperación tras errores probadas solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
@@ -40,14 +40,28 @@ pedido → supervisor → documental → supervisor → instalaciones → superv
 
 El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
 
-`agentes/supervisor_llm.py::crear_proveedor_rutas` implementa el proveedor de rutas
-con adaptador y factoría de mensajes inyectables, probado con dobles.
-`crear_servicio_real(route_provider=proveedor)` lo transmite al supervisor;
-sin proveedor sigue por reglas, como los clientes actuales. Construir el
-adaptador real sigue pendiente de desacoplar su import del RAG, fijar el orden
-de configuración y aplicar el timeout de Google con Héctor. No se ha validado
-con un modelo real. Detalles y dependencia de la
-PR de instalaciones en [integración](docs/specs/integracion_real.md).
+`crear_servicio(modo="real")` carga el `.env` del repositorio sin sobrescribir el
+entorno y construye e inyecta el proveedor configurado. CLI y Streamlit mantienen
+esa misma llamada. `SUPERVISOR_MODE=reglas` (predeterminado) usa reglas;
+`SUPERVISOR_MODE=llm` exige `SUPERVISOR_PROVIDER=google|ollama` y
+`SUPERVISOR_MODEL` con un modelo disponible, sin nombre predeterminado.
+Google necesita `GOOGLE_API_KEY`; Ollama usa `OLLAMA_BASE_URL` del adaptador
+existente (por defecto `http://127.0.0.1:11434`). No cambia proveedor ni modelo
+`GEN_*` del RAG.
+
+`SUPERVISOR_TEMPERATURE` admite 0–2 (defecto 0),
+`SUPERVISOR_MAX_OUTPUT_TOKENS` 1–4096 (256) y `SUPERVISOR_TIMEOUT` 1–240 segundos
+(30). El timeout se aplica por petición; Ollama conserva sus reintentos.
+La configuración inválida falla al construir, sin demo silenciosa. Durante
+inferencia, respuestas inválidas y excepciones usan el fallback y la traza
+acotada del supervisor. Construir no consulta modelos/tools ni carga RAG/Chroma;
+la puerta documental se resuelve en su primera invocación.
+
+Se conserva `crear_servicio_real(route_provider=proveedor)` para inyección manual,
+que prevalece sobre la selección del entorno. Implementación y montaje están
+probados con dobles; la aceptación con modelo real y la aceptación conjunta con
+RAG e instalaciones siguen pendientes. Detalles y solapamientos con #21 en
+[integración](docs/specs/integracion_real.md).
 
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 

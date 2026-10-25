@@ -3,10 +3,10 @@ langgraph==1.2.11
 
 # Cliente web
 streamlit
+python-dotenv
 
 # Pendientes de acordar al integrar sus módulos:
 # pydantic
-# python-dotenv
 # httpx
 
 

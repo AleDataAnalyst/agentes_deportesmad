@@ -1,9 +1,8 @@
 """Proveedor de rutas sin transporte ni imports del RAG.
 
 Reutiliza por inyección generate y la factoría LlmMessage de agentes.llm.
-Los tipos se importan solo para análisis estático: su import real carga RAG.
-Runtime admite el callable ya construido. La construcción del adaptador real
-sigue pendiente; el montaje se verifica con dobles.
+Los tipos se importan solo para análisis estático. Runtime construye el proveedor
+configurado o admite el callable explícito; el montaje se verifica con dobles.
 """
 
 from __future__ import annotations
@@ -87,7 +86,7 @@ def crear_proveedor_rutas(
 ) -> RouteProvider:
     """Adapta una única generación a SupervisorDecision; no construye clientes.
 
-    message_factory será LlmMessage cuando sea seguro importar agentes.llm.
+    message_factory es LlmMessage con los adaptadores reales.
     En pruebas ambos objetos se inyectan sin cargar ese módulo. Configuración
     explícita, sin leer .env ni GEN_* del RAG. timeout se transmite al adaptador;
     esta capa no puede garantizar que un transporte lo aplique realmente.

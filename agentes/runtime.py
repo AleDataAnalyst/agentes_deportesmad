@@ -1,30 +1,38 @@
 """Conexión explícita de especialistas al grafo supervisor síncrono."""
 
+from pathlib import Path
+
+from dotenv import load_dotenv
+
 from agentes.agent import AgentService
 from agentes.documental_adapter import crear_adaptador_documental
 from agentes.nodes.aplicar import aplicar
 from agentes.nodes.supervisor import RouteProvider
 from agentes.nodes.sintetizar import sintetizar
-from agentes.nodes.vision import vision_node
 from agentes.settings import AgentSettings
 
 
 def crear_servicio_real(
     *, settings: AgentSettings | None = None, route_provider: RouteProvider | None = None,
 ) -> AgentService:
-    """Monta los especialistas y un proveedor ya construido, sin inferir al crear.
-
-    Sin proveedor, el supervisor conserva el modo por reglas. El runtime no
-    construye el adaptador LLM ni carga su configuración; lo aporta el llamador.
-    """
-    from agentes.grafo_documental import obtener_grafo_documental
+    """Carga configuración y monta el proveedor y especialistas sin consultarlos."""
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+    from agentes.nodes.vision import vision_node
     from agentes.nodes.instalaciones import nodo_instalaciones
+    from agentes.supervisor_llm_real import crear_proveedor_configurado
 
-    documental = obtener_grafo_documental()
+    if route_provider is None:
+        route_provider = crear_proveedor_configurado()
+
+    def ejecutar_documental(state):
+        # La puerta pública importa el RAG: diferir hasta la consulta evita
+        # abrir Chroma o cargar embeddings durante la construcción del servicio.
+        from agentes.grafo_documental import obtener_grafo_documental
+        return obtener_grafo_documental().invoke(state)
 
     return AgentService(
         documental_node=crear_adaptador_documental(
-            ejecutar_documental=documental.invoke
+            ejecutar_documental=ejecutar_documental
         ),
         instalaciones_node=nodo_instalaciones,
         sintetizar_node=sintetizar,
