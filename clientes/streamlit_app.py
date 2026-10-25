@@ -112,7 +112,10 @@ def _render_subida_imagen() -> None:
     if st.session_state.image_id:
         ruta = ruta_imagen(st.session_state.image_id)
         if ruta:
-            st.image(str(ruta), use_container_width=True)
+            try:
+                st.image(str(ruta), use_container_width=True)
+            except Exception:  # noqa: BLE001 - una vista previa ilegible no debe romper la página
+                st.caption("No se puede mostrar la vista previa de esta imagen.")
         st.caption(f"image_id: `{st.session_state.image_id}`")
         if _servicio_acepta_imagen(st.session_state.service):
             st.caption("La imagen se enviará con tus mensajes mientras siga subida.")
