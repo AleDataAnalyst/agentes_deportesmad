@@ -12,15 +12,15 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 
 | Componente | Implementado y comprobado | Límite actual |
 | --- | --- | --- |
-| Supervisor y grafo | Rutas, fallback, límite de iteraciones y nodos inyectados | Supervisor por reglas; proveedor de rutas inyectable, sin router LLM conectado en runtime |
+| Supervisor y grafo | Rutas, fallback, límites y selección LLM/reglas desde runtime, probados con dobles | Aceptación con modelo real pendiente |
 | Servicio común | `AgentService`, conversaciones, estado y planes identificados | Estado y decisiones en memoria del proceso; sin recuperación tras reiniciar |
 | Montaje documental | Puerta pública documental conectada mediante adaptador en `runtime.py` | Recuperación y generación reales pendientes de un índice compatible |
 | Síntesis y aplicar | Síntesis determinista, plan informativo y pausa antes de aplicar | No realiza reservas, pagos ni envíos |
 | Revisión humana (HITL) | Aprobar/rechazar, mismo hilo, plan vigente e idempotencia | La aprobación no certifica la veracidad de la evidencia |
-| Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
-| CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
+| Instalaciones | Nodo público conectado; fuentes, errores y fallback conservados | Aceptación con catálogo/avisos reales pendiente |
+| CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Consulta con fuentes, abstención, aprobar con segundo pedido y rechazar en conversación nueva comprobados a mano con el RAG real y el catálogo (registro del guion); memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
-| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes visibles solo en el panel de debug; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
+| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes y avisos por estado bajo la respuesta, subida de imágenes JPG/PNG, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | La imagen subida se envía como `image_id` con cada mensaje si el servicio lo acepta (PR #25); mientras no lo acepte, se avisa y no se envía; fuentes y avisos comprobados con el RAG real y el catálogo (capturas en `docs/evidencias/`); recuperación tras errores probada solo con un servicio simulado; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
 | Perfiles y benchmark TAG | Tres plantillas y sonda independiente; validación con dobles | Sin comparación completa real de estos perfiles ni validación del pipeline |
 | Visualización | Exportación ASCII/Mermaid y esquema SVG | Describe topología y montaje; no acredita una consulta RAG real |
 
@@ -30,15 +30,80 @@ La conexión documental está implementada y sus pruebas de montaje están super
 
 `agentes/runtime.py` conecta `obtener_grafo_documental().invoke` mediante `crear_adaptador_documental`. La construcción del servicio pasa el callable sin ejecutar una consulta. Un error del modo real nunca activa una demo.
 
-El recorrido principal es:
+El montaje de esta rama, con las actualizaciones de #22 y #23, queda así:
 
-```text
-pedido → supervisor → documental → supervisor → instalaciones → supervisor
-       → síntesis → supervisor → pausa antes de aplicar
-       → decisión humana sobre el plan vigente → aplicar → END
+```mermaid
+flowchart TD
+    C["CLI / Streamlit"] --> R["crear_servicio(modo=real)<br/>Configuración LLM o reglas"]
+    R --> A["AgentService<br/>Conversación y plan vigentes"]
+    A --> S["Supervisor<br/>LLM Google/Ollama o reglas<br/>Fallback y límite en Python"]
+    S --> Q{"Router Python"}
+    Q -->|documental| D["Adaptador → puerta documental<br/>RAG: respuesta, fuentes, error o abstención"]
+    Q -->|instalaciones| I["Nodo de instalaciones<br/>Catálogo / avisos / fallback histórico"]
+    Q -->|sintetizar| T["Síntesis determinista<br/>Respuesta y plan informativo"]
+    D --> S
+    I --> S
+    T --> S
+    Q -->|FINISH| P{"¿Respuesta y plan listos?"}
+    P -->|No| T
+    P -->|Sí| H["Pausa antes de aplicar<br/>Checkpoint del mismo hilo"]
+    H --> U["Decisión humana en CLI / Streamlit<br/>Aprobar o rechazar el plan vigente"]
+    U --> X["resolver_plan → aplicar → END<br/>Aprobado: done=True<br/>Rechazado: done=False; permite otro pedido"]
 ```
 
-El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
+El diagrama incluye clientes y controles explicativos: router, pausa y decisión
+humana no son nodos adicionales del grafo. Los especialistas se consultan en
+secuencia y vuelven al supervisor; el LLM puede seleccionar solo los pertinentes.
+Por reglas o fallback, el recorrido habitual es documental → instalaciones →
+síntesis → revisión humana. El supervisor propone rutas; Python las valida.
+Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback
+histórico se conservan en la síntesis. Aprobar cierra un plan informativo, sin
+reservas, pagos ni envíos.
+
+Al integrar #21 se conserva esta topología y se incorporan las mejoras del
+especialista documental detrás de su puerta pública. El backend ya transporta
+`image_id` por pedido hasta el contrato público
+multimodal documental, y Streamlit ya lo envía con cada mensaje mientras haya una imagen subida:
+
+```mermaid
+flowchart LR
+    IMG["Streamlit: JPG/PNG guardado"] -.->|"Streamlit: envía image_id"| API["AgentService: validar referencia por pedido"]
+    API --> AD["Adaptador documental: image_id del estado"]
+    AD --> DOC["Puerta pública documental"]
+    DOC -.->|"Aceptación real pendiente"| RES["RAG / visión y evidencias"]
+```
+
+`procesar_turno(mensaje, thread_id, *, image_id=None)` conserva las llamadas de
+dos argumentos. Admite JPG/JPEG/PNG existentes dentro de `output/imagenes/` y
+el asset `assets/imagen_demo.jpg` (o `imagen_demo`). Valida ruta resuelta,
+autorización, existencia y extensión sin abrir ni codificar la imagen; no
+acredita su contenido. El siguiente pedido sin imagen reinicia el campo a
+`None`. Las guardias impiden que un nodo lo sustituya. Transporte, aislamiento
+y HITL verificados con dobles; visión real y aceptación conjunta siguen
+pendientes. Ver [contrato para David](docs/handoff_imagen_por_pedido.md).
+
+`crear_servicio(modo="real")` carga el `.env` del repositorio sin sobrescribir el
+entorno y construye e inyecta el proveedor configurado. CLI y Streamlit mantienen
+esa misma llamada. `SUPERVISOR_MODE=reglas` (predeterminado) usa reglas;
+`SUPERVISOR_MODE=llm` exige `SUPERVISOR_PROVIDER=google|ollama` y
+`SUPERVISOR_MODEL` con un modelo disponible, sin nombre predeterminado.
+Google necesita `GOOGLE_API_KEY`; Ollama usa `OLLAMA_BASE_URL` del adaptador
+existente (por defecto `http://127.0.0.1:11434`). No cambia proveedor ni modelo
+`GEN_*` del RAG.
+
+`SUPERVISOR_TEMPERATURE` admite 0–2 (defecto 0),
+`SUPERVISOR_MAX_OUTPUT_TOKENS` 1–4096 (256) y `SUPERVISOR_TIMEOUT` 1–240 segundos
+(30). El timeout se aplica por petición; Ollama conserva sus reintentos.
+La configuración inválida falla al construir, sin demo silenciosa. Durante
+inferencia, respuestas inválidas y excepciones usan el fallback y la traza
+acotada del supervisor. Construir no consulta modelos/tools ni carga RAG/Chroma;
+la puerta documental se resuelve en su primera invocación.
+
+Se conserva `crear_servicio_real(route_provider=proveedor)` para inyección manual,
+que prevalece sobre la selección del entorno. Implementación y montaje están
+probados con dobles; la aceptación con modelo real y la aceptación conjunta con
+RAG e instalaciones siguen pendientes. Detalles y solapamientos con #21 en
+[integración](docs/specs/integracion_real.md).
 
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 
@@ -47,7 +112,6 @@ La pausa ocurre antes de `aplicar`. El cliente resuelve con el mismo `thread_id`
 El servicio, sus checkpoints y sus identificadores se conservan entre turnos durante la vida del proceso. No constituyen persistencia duradera.
 
 Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md), [cierre del backend](docs/specs/cierre_backend_supervisor_grafo.md), [síntesis y aplicar](docs/specs/sintetizar_aplicar.md) y [contratos](docs/specs/contratos.md).
-
 
 ## Estructura relevante
 
@@ -60,8 +124,6 @@ Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-2
 | `app.py` | Arranque de Streamlit |
 | `clientes/` | Clientes: CLI (`cli.py`), interfaz Streamlit (`streamlit_app.py`), botones de aprobar y rechazar (`hitl.py`) y panel de debug (`debug.py`) |
 | `.env.example` | Plantilla de configuración; no contiene secretos |
-
-
 
 ## Ejecutar la demo sin servicios externos
 
@@ -123,7 +185,7 @@ Streamlit se inicia con:
 python -m streamlit run app.py
 ```
 
-`app.py` solo arranca la página. El código está en `clientes/streamlit_app.py` (chat y botones) y en `clientes/debug.py` (panel de diagnóstico).
+`app.py` solo arranca la página. El código está en `clientes/streamlit_app.py` (chat y botones), `clientes/estados.py` (traduce cada resultado a respuesta, abstención o error), `clientes/imagenes.py` (guardado de imágenes subidas) y `clientes/debug.py` (panel de diagnóstico).
 
 Qué hace el cliente:
 
@@ -132,9 +194,29 @@ Qué hace el cliente:
 - **Comprueba las decisiones.** Antes de aprobar o rechazar verifica la conversación y el plan, y después revisa que la respuesta del servicio corresponde a esa misma conversación.
 - **No enseña secretos.** Errores, mensajes y debug pasan por `sin_secretos`.
 - **No repite la respuesta al aprobar.** Solo añade el mensaje de cierre.
+- **Muestra las fuentes bajo la respuesta del chat**, sin repetir y hasta un máximo de cinco. Si el especialista no aporta evidencia, como en una abstención, no se muestra ninguna.
+- **Avisa del estado de cada especialista** bajo la respuesta: un aviso azul si se abstiene, una caja roja si falla (con el mensaje ya filtrado) y un aviso amarillo con sus limitaciones. Los avisos se conservan en el historial del chat.
+- **Acepta una imagen** (solo JPG y PNG, hasta 10 MB) desde la barra lateral, con miniatura y botón para quitarla. Comprueba que el contenido corresponda al formato y la guarda con un nombre generado en `output/imagenes/` bajo la raíz del proyecto, arranque Streamlit desde donde arranque. El `image_id` es una ruta relativa a esa raíz (`output/imagenes/<nombre>`) y nunca se muestra una ruta absoluta. Se envía con cada mensaje mientras la imagen siga subida, solo si el servicio admite `procesar_turno(..., image_id=...)`; si no, la interfaz lo avisa y no lo envía.
+- **Se recupera de los errores.** Si falla una consulta o una decisión, vuelve a leer el estado real de la conversación antes de permitir nada más: si hay un plan pendiente lo enseña para decidir, si la ejecución quedó incompleta bloquea el chat y pide una nueva conversación, y si no puede comprobarlo ofrece reintentar. Es el equivalente de `/estado` en la CLI.
 - **Panel de debug** desplegable con la fase de la revisión humana, si la consulta ha terminado, las iteraciones y la traza. Para cada especialista muestra si ha respondido, si el dato es real, simulado o no disponible, la respuesta, las fuentes y las herramientas usadas. Los datos técnicos completos solo aparecen si los pides, y también van filtrados.
 
-Pendiente: mostrar las fuentes debajo de cada respuesta del chat y probarlo con el índice real.
+### Capturas de Streamlit
+
+Respuesta del especialista documental con fuentes reales, abstenciones y limitaciones bajo la respuesta del chat:
+
+![Respuesta con fuentes en Streamlit](./assets/streamlit-respuesta-fuentes.png)
+
+Plan pendiente de aprobación en la barra lateral, con los botones Aprobar y Rechazar (el chat queda bloqueado hasta decidir):
+
+<img src="./assets/streamlit-plan-pendiente.png" alt="Plan pendiente de aprobación en Streamlit" width="300">
+
+Subida de una imagen JPG o PNG, con su miniatura y su `image_id`:
+
+<img src="./assets/streamlit-subida-imagen.png" alt="Subida de imagen en Streamlit" width="300">
+
+Hay más capturas de cada caso de aceptación en [`docs/evidencias/`](docs/evidencias/), enlazadas desde el [registro del guion](docs/specs/guion_aceptacion_clientes.md).
+
+Pendiente: comprobar el envío del `image_id` con el backend integrado y la visión real, y la recuperación tras errores con un fallo real del servicio (cortando la red, los errores llegan como estados y no como excepciones, así que solo se ha podido verificar con un servicio simulado).
 
 ## Protecciones del backend compartido
 
@@ -145,6 +227,8 @@ Síntesis y aplicar validan sus campos permitidos y conservan las guardias HITL.
 Estas comprobaciones validan contratos de código Python. No aíslan efectos externos de un callable ni certifican resistencia semántica a prompt injection. Los identificadores de hilo y plan coordinan el flujo; no autentican usuarios.
 
 ## Ver el grafo
+
+![Montaje actual: clientes, supervisor configurable, especialistas y HITL](docs/specs/grafo_visual.svg)
 
 ```console
 python -m scripts.ver_grafo
@@ -173,10 +257,11 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
+| Revisión previa de #22 | 724 pruebas offline superadas el 25/10/2026 | Supervisor LLM/reglas, montaje, HITL, backend, CLI, presentación con dobles y exportación; sin aceptación con modelo o servicios reales. Selección exacta en [integración real](docs/specs/integracion_real.md) |
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
-| Streamlit en modo real, sin índice | Probado a mano: aprobar, rechazar, nueva conversación y bloqueo de un mensaje no válido funcionan | Sin índice el documental no encuentra nada, así que no se han podido ver fuentes reales; todavía no hay tests automáticos de `clientes/` |
+| Streamlit en modo real | Probado a mano con el RAG real y el catálogo: consulta con fuentes, abstención fuera del corpus, aprobar con segundo pedido, rechazar en conversación nueva, fallback sin red y subida de imagen (capturas en `docs/evidencias/`) | La recuperación tras errores solo se probó con un servicio simulado; el envío del `image_id` y la visión real dependen de la integración del backend; los tests de `clientes/` están en `tests/test_clientes_*.py` |
 | Selección histórica de backend y montaje | 276 pruebas superadas | Evidencia anterior a esta ampliación, con dobles donde corresponde; no se suma a las 433 |
 | Golden del grafo | 12 escenarios y 24 pruebas | Incluido en la selección conjunta; datos y fuentes sintéticos, sin evaluación semántica de un LLM |
 | Sonda adicional en la frontera RAG | 10 recorridos superados | Respuesta, abstención, vacío, error y timeout, con aprobación/rechazo; solo se sustituye `responder` |
@@ -242,11 +327,18 @@ python -m scripts.export_evidence --output output/evidencia_backend_simulado.jso
 
 Los contratos y el golden están versionados. Las evidencias temporales permanecen locales. La demo, los dobles y las pruebas de contratos no validan recuperación, generación, catálogo, imágenes ni calidad sobre el corpus municipal.
 
+El transporte de imagen por pedido tiene **186 casos offline distintos
+superados**, con dobles y sin visión/RAG reales. El supervisor real no se probó:
+la configuración efectiva es `SUPERVISOR_MODE=reglas`, sin
+`SUPERVISOR_PROVIDER` ni `SUPERVISOR_MODEL`; se hicieron cero inferencias.
+Comandos, incidencias y pendientes en el [handoff de imagen](docs/handoff_imagen_por_pedido.md).
+
 ## Configuración efectiva y RAG
 
 ---
-### advertencia 
-![warning](./assets/warning.png) 
+### Advertencia
+
+![warning](./assets/warning.png)
 
 `MAX_ITER` tiene significados y valores por defecto distintos en el supervisor y en el RAG:
 
@@ -255,15 +347,15 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 
 No son la misma configuración ni deben tratarse como un único límite global.
 
---- 
+---
 
 La configuración del supervisor y la del RAG tienen mecanismos distintos:
 
 - `agentes/settings.py` lee `MAX_ITER` al crear el servicio; valor predeterminado 8. No carga `.env` automáticamente.
 - `rag/config.py` carga dotenv sin sobrescribir variables del proceso y fija constantes al importar. Cambiar el entorno después de importar no basta para comparar configuraciones.
 - Embeddings, etiquetado (TAG) y generación tienen proveedores/modelos separados. Declarar una variable no garantiza que un adaptador la consuma.
-  
-> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. No la uses para configurar generación; utiliza `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` según el proveedor seleccionado.
+
+> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. La generación del RAG se configura mediante `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY`, según el proveedor seleccionado.
 
 Para validar el RAG real se necesita un índice compatible con el modelo, dimensión y configuración de embeddings que lo construyeron, su ruta/colección y una consulta con fuente esperada. Cambiar `EMBED_*` o `CHUNK_*` exige gestionar la reindexación indicada en las specs. No subir `.env`, claves, entornos virtuales ni índices pesados. Los ejemplos no certifican disponibilidad de los modelos, cuotas o compatibilidad del entorno local.
 
@@ -311,7 +403,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
 | Miguel | Nodo público de instalaciones y avisos entregado y conectado en runtime | Cerrar la auxiliar determinista reutilizando la función de fecha existente; participar en la aceptación con catálogo/avisos reales |
-| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Mostrar las fuentes en el chat, probarlo con el índice real, añadir tests de `clientes/` y preparar la demo de la presentación |
+| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Comprobar el envío del `image_id` con el backend integrado, probar fuentes, avisos y recuperación tras errores con el índice real, ampliar los tests de `clientes/` y preparar la demo de la presentación |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 

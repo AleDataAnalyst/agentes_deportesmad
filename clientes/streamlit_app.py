@@ -10,6 +10,8 @@ agentes.secret_filter, igual que en la CLI.
 
 from __future__ import annotations
 
+import inspect
+
 import streamlit as st
 
 from agentes.runtime import crear_servicio
@@ -21,13 +23,107 @@ from agentes.validation import (
     validar_id,
     validar_mensaje,
 )
-from clientes.hitl import render_hitl
-from clientes.debug import render_debug
+from clientes.hitl import mensaje_recuperacion, render_hitl
+from clientes.debug import fuentes_de_estado, render_debug
+from clientes.estados import avisos_de_estado, ayuda_arranque
+from clientes.imagenes import guardar_imagen_subida, ruta_imagen
 
 
 def _error(prefijo: str, exc: BaseException) -> None:
     """Muestra un error sin exponer secretos."""
     st.error(f"{prefijo}: {sin_secretos(str(exc))}")
+
+
+def _mostrar_avisos(avisos: list[tuple[str, str]] | None) -> None:
+    for nivel, texto in avisos or []:
+        getattr(st, nivel)(sin_secretos(texto))
+
+
+def _mostrar_fuentes(fuentes: list[str] | None) -> None:
+    if fuentes:
+        st.text("Fuentes:\n" + "\n".join(f"• {f}" for f in fuentes))
+
+
+def _error_y_recuperar(prefijo: str, exc: BaseException) -> None:
+    """Guarda el error y relanza: al volver se comprueba el estado real del hilo."""
+    st.session_state.estado_desconocido = True
+    st.session_state.error_pendiente = f"{prefijo}: {sin_secretos(str(exc))}"
+    st.rerun()
+
+
+def _recuperar_estado(service, thread_id: str) -> None:
+    """Tras un error, relee el checkpoint antes de permitir nada más."""
+    error = st.session_state.pop("error_pendiente", None)
+    if error:
+        st.error(error)
+    try:
+        estado = service.consultar_estado(thread_id)
+        validar_estado(estado, thread_id)
+    except Exception as exc:  # noqa: BLE001
+        _error("No se pudo comprobar el estado", exc)
+        return
+    st.session_state.estado = estado
+    st.session_state.estado_desconocido = False
+    nivel, texto = mensaje_recuperacion(estado)
+    getattr(st, nivel)(texto)
+
+
+def _servicio_acepta_imagen(service) -> bool:
+    """El backend admite image_id por pedido (procesar_turno(..., image_id=...))."""
+    try:
+        return "image_id" in inspect.signature(service.procesar_turno).parameters
+    except (TypeError, ValueError):
+        return False
+
+
+def _reiniciar_imagen() -> None:
+    """Olvida la imagen actual y vacía el selector de archivos."""
+    st.session_state.image_id = None
+    st.session_state.imagen_clave = None
+    st.session_state.imagen_error = None
+    st.session_state.uploader_n += 1
+
+
+def _render_subida_imagen() -> None:
+    """Acepta solo JPG y PNG y guarda su image_id (ruta relativa a la raíz del proyecto).
+
+    El image_id se envía con cada mensaje mientras la imagen siga subida; si el
+    backend aún no lo admite, se avisa y no se envía.
+    """
+    st.subheader("Imagen")
+    subida = st.file_uploader(
+        "Sube una imagen (JPG o PNG)",
+        type=["jpg", "jpeg", "png"],
+        key=f"uploader_{st.session_state.uploader_n}",
+    )
+    if subida is not None:
+        clave = getattr(subida, "file_id", None) or (subida.name, subida.size)
+        if st.session_state.imagen_clave != clave:
+            st.session_state.imagen_clave = clave
+            try:
+                st.session_state.image_id = guardar_imagen_subida(subida.name, subida.getvalue())
+                st.session_state.imagen_error = None
+            except ValueError as exc:
+                st.session_state.image_id = None
+                st.session_state.imagen_error = sin_secretos(str(exc))
+
+    if st.session_state.imagen_error:
+        st.error(st.session_state.imagen_error)
+    if st.session_state.image_id:
+        ruta = ruta_imagen(st.session_state.image_id)
+        if ruta:
+            try:
+                st.image(str(ruta), use_container_width=True)
+            except Exception:  # noqa: BLE001 - una vista previa ilegible no debe romper la página
+                st.caption("No se puede mostrar la vista previa de esta imagen.")
+        st.caption(f"image_id: `{st.session_state.image_id}`")
+        if _servicio_acepta_imagen(st.session_state.service):
+            st.caption("La imagen se enviará con tus mensajes mientras siga subida.")
+        else:
+            st.caption("La imagen se guarda, pero este servicio todavía no la recibe.")
+        if st.button("Quitar imagen", use_container_width=True):
+            _reiniciar_imagen()
+            st.rerun()
 
 
 def _texto_aprobacion(anterior: str, final: str) -> str:
@@ -57,6 +153,12 @@ def _init_session():
         st.session_state.messages = []
     if "estado" not in st.session_state:
         st.session_state.estado = None
+    if "estado_desconocido" not in st.session_state:
+        st.session_state.estado_desconocido = False
+    for clave, valor in (("image_id", None), ("imagen_clave", None),
+                         ("imagen_error", None), ("uploader_n", 0)):
+        if clave not in st.session_state:
+            st.session_state[clave] = valor
 
 
 def render():
@@ -64,11 +166,16 @@ def render():
         _init_session()
     except Exception as exc: 
         _error("No se pudo iniciar el servicio", exc)
+        ayuda = ayuda_arranque(exc)
+        if ayuda:
+            st.info(ayuda)
         st.stop()
 
     service = st.session_state.service
-    estado = st.session_state.estado
     thread_id = st.session_state.thread_id
+    if st.session_state.estado_desconocido:
+        _recuperar_estado(service, thread_id)
+    estado = st.session_state.estado
 
     # Sidebar
     with st.sidebar:
@@ -83,15 +190,21 @@ def render():
             else:
                 st.session_state.messages = []
                 st.session_state.estado = None
+                st.session_state.estado_desconocido = False
                 st.session_state.thread_id = nuevo_id
+                _reiniciar_imagen()
                 st.rerun()
 
+        st.divider()
+        _render_subida_imagen()
         st.divider()
 
         # Controles HITL
         if estado and estado.get("pendiente_hitl"):
 
             def _resolver(aprobado: bool) -> None:
+                if st.session_state.estado_desconocido:
+                    return
                 accion = "aprobar" if aprobado else "rechazar"
                 try:
                     validar_decision(aprobado)
@@ -115,7 +228,7 @@ def render():
                     )
                     st.rerun()
                 except Exception as exc:
-                    _error(f"Error al {accion}", exc)
+                    _error_y_recuperar(f"Error al {accion}", exc)
 
             def on_aprobar():
                 _resolver(True)
@@ -123,7 +236,12 @@ def render():
             def on_rechazar():
                 _resolver(False)
 
-            render_hitl(estado=estado, on_aprobar=on_aprobar, on_rechazar=on_rechazar)
+            render_hitl(
+                estado=estado,
+                on_aprobar=on_aprobar,
+                on_rechazar=on_rechazar,
+                bloqueado=st.session_state.estado_desconocido,
+            )
 
     # Título
     st.title("🏟️ Asistente Deporte Municipal Madrid")
@@ -133,9 +251,16 @@ def render():
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(sin_secretos(msg["content"]))
+            _mostrar_avisos(msg.get("avisos"))
+            _mostrar_fuentes(msg.get("fuentes"))
 
     # Chat input
-    if not (estado and estado.get("pendiente_hitl")):
+    if st.session_state.estado_desconocido:
+        st.warning("No se pudo confirmar el estado de la conversación. Reintenta o empieza una nueva.")
+        st.button("Reintentar comprobación")
+    elif estado and estado.get("ejecucion_incompleta"):
+        st.warning("Ejecución incompleta: empieza una nueva conversación para continuar.")
+    elif not (estado and estado.get("pendiente_hitl")):
         if prompt := st.chat_input("Escribe tu consulta...", max_chars=MAX_ENTRADA):
             try:
                 validar_mensaje(prompt)
@@ -148,23 +273,32 @@ def render():
 
                 with st.spinner("Procesando..."):
                     try:
-                        resultado = service.procesar_turno(prompt, thread_id)
+                        if st.session_state.image_id and _servicio_acepta_imagen(service):
+                            resultado = service.procesar_turno(
+                                prompt, thread_id, image_id=st.session_state.image_id)
+                        else:
+                            resultado = service.procesar_turno(prompt, thread_id)
                         validar_estado(resultado, thread_id)
                         st.session_state.estado = resultado
 
                         respuesta = resultado.get("final_answer") or ""
+                        fuentes = fuentes_de_estado(resultado)
+                        avisos = avisos_de_estado(resultado)
                         with st.chat_message("assistant"):
                             st.markdown(sin_secretos(respuesta))
+                            _mostrar_avisos(avisos)
+                            _mostrar_fuentes(fuentes)
                             if resultado.get("pendiente_hitl"):
                                 st.info("Plan pendiente de aprobación — revisa el sidebar.")
 
                         st.session_state.messages.append(
-                            {"role": "assistant", "content": respuesta}
+                            {"role": "assistant", "content": respuesta,
+                             "avisos": avisos, "fuentes": fuentes}
                         )
                         st.rerun()
 
-                    except Exception as exc:  
-                        _error("Error", exc)
+                    except Exception as exc:
+                        _error_y_recuperar("Error", exc)
     else:
         st.info("Aprueba o rechaza el plan en el sidebar para continuar.")
 

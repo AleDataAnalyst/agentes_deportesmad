@@ -10,11 +10,27 @@ import streamlit as st
 from agentes.secret_filter import sin_secretos
 
 
-def render_hitl(estado: dict, on_aprobar, on_rechazar) -> None:
-    """Muestra el plan pendiente y los botones de aprobación/rechazo."""
-    plan = estado.get("plan", [])
+def mensaje_recuperacion(estado: dict) -> tuple[str, str]:
+    """Nivel y texto para avisar del estado real del hilo tras un error."""
+    if estado.get("pendiente_hitl"):
+        return "info", "El error ocurrió con un plan ya generado: revísalo en la barra lateral y apruébalo o recházalo."
+    if estado.get("ejecucion_incompleta"):
+        return "warning", "La ejecución quedó incompleta: empieza una nueva conversación para continuar."
+    return "success", "Estado comprobado: no hay ningún plan pendiente. Puedes continuar."
 
+
+def render_hitl(estado: dict, on_aprobar, on_rechazar, bloqueado: bool = False) -> None:
+    """Muestra el plan pendiente y los botones de aprobación/rechazo.
+
+    Con el estado sin confirmar (tras un error) no se enseña el plan anterior
+    ni se puede decidir hasta recuperarlo.
+    """
     st.subheader("Plan pendiente de aprobación")
+    if bloqueado:
+        st.warning("Estado sin confirmar: no se puede aprobar ni rechazar hasta comprobarlo.")
+        return
+
+    plan = estado.get("plan", [])
     if plan:
         for item in plan:
             st.markdown(f"- {sin_secretos(item)}")

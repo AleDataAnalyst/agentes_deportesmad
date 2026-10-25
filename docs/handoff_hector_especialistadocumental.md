@@ -1,9 +1,9 @@
 # Handoff: Especialista documental y multimodal
 
-**Fecha:** 2026-10-22  
-**Autor/a:** Héctor González Lebredo   
-**Rama / PR:** `feature/especialista-documental` a `develop`  
-**Estado:** borrador / ~listo para revisión~ / ~aceptado~
+- **Fecha:** 2026-10-22
+- **Autor/a:** Héctor González Lebredo
+- **Rama / PR:** `feature/especialista-documental` a `develop`
+- **Estado:** borrador / ~listo para revisión~ / ~aceptado~
 
 ## 1. Objetivo
 
@@ -19,7 +19,7 @@ pedido → supervisor → `instalaciones` → síntesis → HITL → aplicar
 |---|---|---|---|
 | Nodo de especialista | Implementado | `agentes/nodes/documental` | pytest / demo / prueba manual |
 | Indexación del catálogo | Implementado | `rag/pipeline` | pytest / demo / prueba manual |
-| 
+|
 | Visión | Parcial | `...` | Qué falta exactamente |
 
 No mezcles aquí lo que está hecho con lo que está previsto.
@@ -157,6 +157,3 @@ python -B -m pytest -q -p no:cacheprovider \
 - [ ] Se separan evidencias simuladas y reales.
 - [ ] Los errores y abstenciones se propagan correctamente.
 - [ ] El README y el handoff quedan actualizados.
-- [ ] La cobertura de RAG está consolidada en `tests/test_tool_rag.py` y la frontera de errores de red/timeout en `tests/test_rag_error_boundary.py`.
-- [ ] `tests/test_tools.py` ha sido eliminado o justificado explícitamente si se conserva.
-- [ ] La suite de visión dedicada (`tests/test_tool_vision.py`) está implementada o registrada como pendiente.

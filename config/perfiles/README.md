@@ -1,6 +1,6 @@
 # Perfiles y sonda pequeña de etiquetado RAG
 
-Preparación del 20/10/2026, separada del cierre de supervisor/grafo. No modifica el RAG de Héctor, clientes, dependencias ni pruebas ajenas. Las únicas validaciones de esta entrega usan dobles explícitos, sin llamadas a Ollama, corpus completo, embeddings ni Chroma.
+Perfiles y sonda de etiquetado RAG preparados el 20/10/2026. La sonda utiliza los adaptadores existentes sin modificar el pipeline RAG. La validación registrada usa dobles explícitos, sin llamadas a Ollama, corpus completo, embeddings ni Chroma.
 
 ## Qué representa cada plantilla
 
@@ -16,7 +16,7 @@ Los tres perfiles conservan el mismo generador, corpus de referencia `data/corpu
 
 ## Selección y ejecución en PowerShell
 
-Desde la raíz, con la `.venv` existente. No instalar paquetes, copiar plantillas a `.env` ni cambiar variables de entorno para estos comandos.
+Los comandos se ejecutan desde la raíz con la `.venv` existente. La sonda carga las plantillas sin copiarlas a `.env` ni cambiar las variables de entorno del proceso principal.
 
 Validación local sin red ni mediciones reales de hardware/modelos:
 
@@ -87,30 +87,14 @@ El equipo de referencia tiene RTX 3060 de 6 GB y 64 GB RAM. No se deduce que el 
 
 Las evidencias anteriores mostraron que el 27B acotado a 4096/512 y temperatura 0 devolvió etiquetas respaldadas en tres casos, con 152.985, 120.619 y 196.163 s, pero usó timeout de prueba de **600 s**, distinto de los 300 s de esta plantilla. El 3B produjo categorías válidas pero una etiqueta injustificada y otra discutible. Estos antecedentes motivan el diseño, **no son resultados de estos nuevos perfiles**. No se ha ejecutado aún su comparación real ni probado recuperación/calidad sobre el corpus completo.
 
-## Propuesta concreta para Héctor (pendiente de coordinación)
+## Limitaciones de configuración TAG
 
-1. Hacer configurable un timeout específico de TAG, por ejemplo `TAG_TIMEOUT`, conservando 120 s como default compatible.
-2. Añadir opciones específicas y opcionales de TAG, por ejemplo `OLLAMA_TAG_NUM_CTX` y `OLLAMA_TAG_NUM_PREDICT`, validadas como enteros positivos antes de enviarlas en `options`.
-3. Aplicar de forma efectiva los límites declarados: traducir `TAG_MAX_TOKENS` y `GEN_MAX_TOKENS` a `num_predict` en Ollama, acordando precedencia si existe un override específico. Documentar que el razonamiento también puede consumir el presupuesto y detectar truncamiento/contenido vacío.
-4. Acordar la temperatura de TAG, validación de esquema/taxonomía y tratamiento observable de fallbacks antes de considerar operativo un perfil acotado. Mantener los contratos públicos y validar con Héctor los cambios.
+El adaptador TAG revisado mantiene el timeout fijo en 120 s y no consume opciones específicas de contexto o salida de Ollama. Los límites de la vía experimental pertenecen exclusivamente a la sonda. `TAG_MAX_TOKENS` y `GEN_MAX_TOKENS` no se traducen a `num_predict` en los adaptadores Ollama revisados. El perfil acotado no constituye una configuración operativa del pipeline completo.
 
-Esta entrega **no implementa** esa propuesta. Aumentar el timeout solo permite esperar más; no acelera el procesamiento. Cambiar TAG puede cambiar categorías, etiquetas, relevancia, scoring y los ganadores de deduplicación. No mezclar resultados como si fueran el mismo índice. Un índice se consulta con el mismo modelo, dimensión y configuración de embeddings con que se construyó; un cambio exige gestionar un índice compatible distinto.
+Aumentar el timeout permite esperar más; no acelera el procesamiento. Cambiar TAG puede cambiar categorías, etiquetas, relevancia, scoring y los ganadores de deduplicación, por lo que las evidencias de cada configuración se registran por separado. Un índice se consulta con el mismo modelo, dimensión y configuración de embeddings con que se construyó; un cambio exige un índice compatible distinto.
 
 ## Validación de esta entrega
 
 Pasaron tres procesos independientes con `--doble`, nueve respuestas principales simuladas y 15 comprobaciones de calidad/fallos por perfil, con sockets bloqueados. Se verificaron los payloads enviados, el timeout 120 frente a 300, la ausencia de opciones añadidas en la vía del adaptador, la distinción primera/siguientes llamadas, el estado residente simulado y la generación de evidencias nuevas. También se comprobó que omitir `--perfil` falla y que variables RAG/credenciales de prueba en el padre no se filtran al hijo. Los textos coinciden exactamente con las evidencias anteriores.
 
-Se conservaron los hashes de los 146 archivos preexistentes comprobados, incluido `.env`. No se ejecutaron llamadas reales, la comparación completa de modelos ni indexación. El código de TAG se cargó sin importar Chroma. Las evidencias locales de validación están bajo `tmp/benchmark_rag_tag/` y `tmp/preparacion_benchmark_rag_20261020/`; no se proponen para el commit. Los tiempos y metadatos marcados `simulated=true` no describen hardware ni modelos reales.
-
-## Archivos para un commit independiente (no realizado)
-
-Solo estos seis archivos, sin incluir `.env`, `tmp/`, diagnósticos previos ni el cierre de supervisor/grafo:
-
-```text
-config/perfiles/rag_ligero.env.example
-config/perfiles/rag_27b_acotado.env.example
-config/perfiles/rag_hector.env.example
-config/perfiles/README.md
-scripts/benchmark_rag_tag.py
-scripts/benchmark_rag_tag_casos.json
-```
+Se conservaron los hashes de los 146 archivos preexistentes comprobados, incluido `.env`. No se ejecutaron llamadas reales, la comparación completa de modelos ni indexación. El código de TAG se cargó sin importar Chroma. Las evidencias locales de validación están bajo `tmp/benchmark_rag_tag/` y `tmp/preparacion_benchmark_rag_20261020/`. Los tiempos y metadatos marcados `simulated=true` no describen hardware ni modelos reales.

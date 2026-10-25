@@ -130,15 +130,18 @@ def test_explicit_options_and_payload_are_isolated():
         return output
     node = crear_adaptador_documental(
         ejecutar_documental=invoke,
-        contexto_permitido=context, image_id="img-1", presupuesto_tools=2,
+        contexto_permitido=context, image_id="imagen_demo", presupuesto_tools=2,
         preparar_borrador=True)
     context.clear()
-    result = node(initial_state("Consulta"))["specialist_results"]["documental"]
+    legacy_state = initial_state("Consulta")
+    legacy_state.pop("image_id")  # Consumidor anterior al campo por pedido.
+    result = node(legacy_state)["specialist_results"]["documental"]
     responses[0]["documental"]["eventos"][0]["ok"] = False
     assert result.data["eventos"][0]["ok"] is True
-    node(initial_state("Otra consulta"))
+    node({**legacy_state, "user_message": "Otra consulta"})
     assert all(call["contexto_permitido"] == ["test://normativa"] for call in calls)
-    assert calls[0]["image_id"] == "img-1"
+    from agentes.image_input import validar_image_id
+    assert calls[0]["image_id"] == validar_image_id("imagen_demo")
     assert calls[0]["presupuesto_tools"] == 2 and calls[0]["preparar_borrador"] is True
 
 

@@ -113,7 +113,7 @@ implementación real ni simulación predeterminada.
 |---|---|
 | `user_message` → `pedido` | Texto vigente, sin historial implícito |
 | `request_id` | UUID nuevo por invocación; `thread_id` identifica conversación, no pedido. Se verifica coincidencia de la respuesta |
-| Opciones | Contexto, imagen, presupuesto y borrador explícitos al construir el adaptador; copias independientes por ejecución |
+| Opciones | Contexto, presupuesto y borrador explícitos al construir; imagen del estado por pedido, incluida ausencia explícita, prevalece sobre la opción de construcción (solo fallback para estados antiguos sin clave); copias independientes por ejecución |
 | `resultado` → `answer` | Se conserva incluso si es parcial o el especialista se abstiene |
 | `fuentes` → `evidence` | Una `Evidence(source=referencia, content="")` por referencia; sin fragmentos, scores ni fechas inventados |
 | Sobre completo → `data` | Copia de `request_id`, resultado, fuentes, abstención, errores, limitaciones y eventos; conserva también campos adicionales |

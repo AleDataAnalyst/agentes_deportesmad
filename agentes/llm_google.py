@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Any
 
 from google import genai
@@ -28,9 +29,18 @@ class GoogleAdapter(LlmAdapter):
         max_output_tokens: int,
         timeout: int,
     ) -> LlmResponse:
-        contents = [self._to_gemini(message) for message in messages]
+        instrucciones = [
+            message.content
+            for message in messages
+            if message.role == "system"
+        ]
+        contents = [
+            self._to_gemini(message)
+            for message in messages
+            if message.role != "system"
+        ]
 
-        declarations = [
+        declaraciones = [
             types.FunctionDeclaration(
                 name=tool["name"],
                 description=tool["description"],
@@ -39,11 +49,26 @@ class GoogleAdapter(LlmAdapter):
             for tool in tools
         ]
 
-        config = types.GenerateContentConfig(
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            tools=[types.Tool(function_declarations=declarations)],
-        )
+        if timeout <= 0:
+            raise ValueError("timeout debe ser positivo")
+
+        opciones = {
+            "temperature": temperature,
+            "max_output_tokens": max_output_tokens,
+            "http_options": types.HttpOptions(
+                timeout=timeout * 1000,
+            ),
+        }
+
+        if instrucciones:
+            opciones["system_instruction"] = "\n\n".join(instrucciones)
+
+        if declaraciones:
+            opciones["tools"] = [
+                types.Tool(function_declarations=declaraciones)
+            ]
+
+        config = types.GenerateContentConfig(**opciones)
 
         response = self.client.models.generate_content(
             model=self.model,
@@ -104,6 +129,3 @@ class GoogleAdapter(LlmAdapter):
             text=response.text or "",
             tool_calls=tool_calls,
         )
-        
-        
-        

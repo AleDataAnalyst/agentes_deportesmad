@@ -60,6 +60,17 @@ def _origen(resultado: Any) -> str:
     return "real"
 
 
+def fuentes_de_estado(estado: dict) -> list[str]:
+    """Fuentes citadas por los especialistas, sin repetir y ya filtradas."""
+    vistas: list[str] = []
+    for resultado in (estado.get("specialist_results") or {}).values():
+        for ev in _campo(resultado, "evidence") or []:
+            fuente = _seguro(_campo(ev, "source"), 200)
+            if fuente and fuente not in vistas:
+                vistas.append(fuente)
+    return vistas[:MAX_FUENTES]
+
+
 def _fase_hitl(estado: dict) -> str:
     if estado.get("pendiente_hitl"):
         return "pendiente de decisión"
@@ -116,6 +127,8 @@ def _render_resultado(nombre: str, resultado: Any) -> None:
 def render_debug(estado: dict, thread_id: str) -> None:
     with st.expander("Debug — estado del agente"):
         st.markdown(f"**thread_id:** `{_seguro(thread_id, 80)}`")
+        if estado.get("plan_id"):
+            st.markdown(f"**plan_id:** `{_seguro(estado['plan_id'], 80)}`")
 
         c1, c2, c3 = st.columns(3)
         c1.metric("Fase HITL", _fase_hitl(estado))
