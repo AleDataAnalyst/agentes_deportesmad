@@ -30,15 +30,53 @@ La conexión documental está implementada y sus pruebas de montaje están super
 
 `agentes/runtime.py` conecta `obtener_grafo_documental().invoke` mediante `crear_adaptador_documental`. La construcción del servicio pasa el callable sin ejecutar una consulta. Un error del modo real nunca activa una demo.
 
-El recorrido principal es:
+El montaje de esta rama, con las actualizaciones de #22 y #23, queda así:
 
-```text
-pedido → supervisor → documental → supervisor → instalaciones → supervisor
-       → síntesis → supervisor → pausa antes de aplicar
-       → decisión humana sobre el plan vigente → aplicar → END
+```mermaid
+flowchart TD
+    C["CLI / Streamlit"] --> R["crear_servicio(modo=real)<br/>Configuración LLM o reglas"]
+    R --> A["AgentService<br/>Conversación y plan vigentes"]
+    A --> S["Supervisor<br/>LLM Google/Ollama o reglas<br/>Fallback y límite en Python"]
+    S --> Q{"Router Python"}
+    Q -->|documental| D["Adaptador → puerta documental<br/>RAG: respuesta, fuentes, error o abstención"]
+    Q -->|instalaciones| I["Nodo de instalaciones<br/>Catálogo / avisos / fallback histórico"]
+    Q -->|sintetizar| T["Síntesis determinista<br/>Respuesta y plan informativo"]
+    D --> S
+    I --> S
+    T --> S
+    Q -->|FINISH| P{"¿Respuesta y plan listos?"}
+    P -->|No| T
+    P -->|Sí| H["Pausa antes de aplicar<br/>Checkpoint del mismo hilo"]
+    H --> U["Decisión humana en CLI / Streamlit<br/>Aprobar o rechazar el plan vigente"]
+    U --> X["resolver_plan → aplicar → END<br/>Aprobado: done=True<br/>Rechazado: done=False; permite otro pedido"]
 ```
 
-El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
+El diagrama incluye clientes y controles explicativos: router, pausa y decisión
+humana no son nodos adicionales del grafo. Los especialistas se consultan en
+secuencia y vuelven al supervisor; el LLM puede seleccionar solo los pertinentes.
+Por reglas o fallback, el recorrido habitual es documental → instalaciones →
+síntesis → revisión humana. El supervisor propone rutas; Python las valida.
+Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback
+histórico se conservan en la síntesis. Aprobar cierra un plan informativo, sin
+reservas, pagos ni envíos.
+
+Al integrar #21 se conserva esta topología y se incorporan las mejoras del
+especialista documental detrás de su puerta pública. El objetivo de la entrada
+multimodal, una vez acordado y conectado el transporte de `image_id`, es:
+
+```mermaid
+flowchart LR
+    IMG["Streamlit: JPG/PNG guardado<br/>Implementado en #23"] -.->|"Pendiente: transportar image_id"| API["Servicio y adaptador documental"]
+    API -.->|"Pendiente de integración y aceptación"| DOC["Especialista documental #21<br/>RAG y tool de imagen con presupuesto"]
+    DOC -.-> RES["Resultado y evidencias<br/>Retorno al supervisor"]
+```
+
+Las flechas discontinuas describen integración pendiente. Actualmente la imagen
+se guarda en Streamlit y no llega al agente. En #21, la tool de imagen se consulta
+si hay respuesta documental válida y queda presupuesto; no supone una ruta
+independiente de visión en el supervisor. `preparar_reporte` sigue sin estar
+disponible. La integración prevista no acredita funcionamiento real: faltan
+aceptación con modelo, índice RAG compatible y fuentes externas.
 
 `crear_servicio(modo="real")` carga el `.env` del repositorio sin sobrescribir el
 entorno y construye e inyecta el proveedor configurado. CLI y Streamlit mantienen
@@ -172,6 +210,8 @@ Síntesis y aplicar validan sus campos permitidos y conservan las guardias HITL.
 Estas comprobaciones validan contratos de código Python. No aíslan efectos externos de un callable ni certifican resistencia semántica a prompt injection. Los identificadores de hilo y plan coordinan el flujo; no autentican usuarios.
 
 ## Ver el grafo
+
+![Montaje actual: clientes, supervisor configurable, especialistas y HITL](docs/specs/grafo_visual.svg)
 
 ```console
 python -m scripts.ver_grafo

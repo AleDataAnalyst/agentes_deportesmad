@@ -1,25 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1380" viewBox="0 0 1500 1380">
 <title>Supervisor y grafo: clientes, montaje y revisión humana</title>
 <desc>Flujo síncrono actual. Los especialistas y síntesis retornan al supervisor.
-FINISH con plan listo conduce a la pausa antes de aplicar. CLI pendiente de entrega separada;
-Streamlit es estructura base en esta rama. RAG sin validación real e instalaciones no disponibles.</desc>
+FINISH con plan listo conduce a la pausa antes de aplicar. CLI y Streamlit conectados.
+Supervisor LLM o reglas e instalaciones conectados; aceptación real pendiente.
+La imagen de Streamlit todavía no se envía al servicio.</desc>
 <defs><marker id="flecha" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#43627e"/></marker>
 <marker id="retorno" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#157a80"/></marker></defs>
 <rect width="1500" height="1380" fill="#f5f8fc"/>
 
 <text x="55" y="55" font-family="Arial, sans-serif" font-size="32" fill="#233c55" font-weight="700">Supervisor y grafo: del pedido a la decisión</text>
-<text x="55" y="90" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Estado local · 20/10/2026 · ejecución síncrona · sin consultas externas para generar esta vista</text>
-<rect x="65" y="130" width="610" height="112" rx="14" fill="#fff3df" stroke="#c79b4b" stroke-width="2"/>
-<text x="85" y="163" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">CLI · entrega separada pendiente</text>
-<text x="85" y="194" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Ampliación local fuera de esta entrega del grafo</text>
-<text x="85" y="222" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Integración prevista mediante runtime y HITL manual</text>
-<rect x="825" y="130" width="610" height="112" rx="14" fill="#fff3df" stroke="#c79b4b" stroke-width="2"/>
-<text x="845" y="163" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Streamlit · estructura base</text>
-<text x="845" y="194" font-family="Arial, sans-serif" font-size="19" fill="#233c55">app.py y cliente: estructura base</text>
-<text x="845" y="222" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Integración del cliente pendiente de David</text>
-<path d="M370 242 V265 H650 V285" fill="none" stroke="#43627e" stroke-width="2.8" stroke-dasharray="8 6"/>
+<text x="55" y="90" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Montaje #22 + #23 · 25/10/2026 · síncrono · aceptación con servicios reales pendiente</text>
+<rect x="65" y="130" width="610" height="112" rx="14" fill="#e5f4ed" stroke="#5e9c7d" stroke-width="2"/>
+<text x="85" y="163" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">CLI · conectada a runtime</text>
+<text x="85" y="194" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Consultas, fuentes, debug y decisión HITL</text>
+<text x="85" y="222" font-family="Arial, sans-serif" font-size="19" fill="#233c55">crear_servicio(modo=real)</text>
+<rect x="825" y="130" width="610" height="112" rx="14" fill="#e5f4ed" stroke="#5e9c7d" stroke-width="2"/>
+<text x="845" y="163" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Streamlit · conectado a runtime</text>
+<text x="845" y="194" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Chat, fuentes, avisos por estado y decisión HITL</text>
+<text x="845" y="222" font-family="Arial, sans-serif" font-size="19" fill="#233c55">JPG/PNG guardado; image_id aún no llega al agente</text>
+<path d="M370 242 V265 H650 V285" fill="none" stroke="#43627e" stroke-width="2.8"/>
 <polygon points="650.0,285.0 644.0,273.0 656.0,273.0" fill="#43627e"/>
-<path d="M1130 242 V265 H850 V285" fill="none" stroke="#43627e" stroke-width="2.8" stroke-dasharray="8 6"/>
+<path d="M1130 242 V265 H850 V285" fill="none" stroke="#43627e" stroke-width="2.8"/>
 <polygon points="850.0,285.0 844.0,273.0 856.0,273.0" fill="#43627e"/>
 <rect x="420" y="285" width="660" height="115" rx="14" fill="#ffffff" stroke="#9fb5c9" stroke-width="2"/>
 <text x="440" y="318" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">AgentService · API común</text>
@@ -29,9 +30,9 @@ Streamlit es estructura base en esta rama. RAG sin validación real e instalacio
 <polygon points="750.0,440.0 744.0,428.0 756.0,428.0" fill="#43627e"/>
 <text x="775" y="428" font-family="Arial, sans-serif" font-size="16" fill="#233c55">START</text>
 <rect x="485" y="440" width="530" height="105" rx="14" fill="#e9edff" stroke="#909bd1" stroke-width="2"/>
-<text x="505" y="473" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Supervisor</text>
-<text x="505" y="504" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Reglas · fallback · MAX_ITER en Python</text>
-<text x="505" y="531" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Proveedor de rutas inyectable; LLM sin conectar</text>
+<text x="505" y="473" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Supervisor · configuración desde runtime</text>
+<text x="505" y="504" font-family="Arial, sans-serif" font-size="18" fill="#233c55">LLM Google/Ollama o reglas; inyección manual</text>
+<text x="505" y="531" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Fallback y MAX_ITER controlados en Python</text>
 <text x="750" y="580" font-family="Arial, sans-serif" font-size="18" fill="#233c55" font-weight="700" text-anchor="middle">Router Python: valida destino y plan</text>
 <path d="M560 545 V605 H270 V650" fill="none" stroke="#43627e" stroke-width="2.8"/>
 <polygon points="270.0,650.0 264.0,638.0 276.0,638.0" fill="#43627e"/>
@@ -41,16 +42,16 @@ Streamlit es estructura base en esta rama. RAG sin validación real e instalacio
 <polygon points="1230.0,650.0 1224.0,638.0 1236.0,638.0" fill="#43627e"/>
 <rect x="65" y="650" width="410" height="160" rx="14" fill="#e9f2fc" stroke="#6a9fcb" stroke-width="2"/>
 <text x="85" y="683" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Documental</text>
-<text x="85" y="714" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Adaptador → puerta pública</text>
+<text x="85" y="714" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Adaptador → puerta pública diferida</text>
 <text x="85" y="741" font-family="Arial, sans-serif" font-size="18" fill="#233c55">→ nodo documental → tool RAG</text>
-<text x="85" y="768" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Montaje conectado</text>
-<text x="85" y="795" font-family="Arial, sans-serif" font-size="18" fill="#233c55">RAG real: índice pendiente</text>
-<rect x="545" y="650" width="410" height="160" rx="14" fill="#fff3df" stroke="#c79b4b" stroke-width="2"/>
-<text x="565" y="683" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Instalaciones</text>
-<text x="565" y="714" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Ruta ya disponible en el grafo</text>
-<text x="565" y="741" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Runtime declara abstención</text>
-<text x="565" y="768" font-family="Arial, sans-serif" font-size="18" fill="#233c55">available=False</text>
-<text x="565" y="795" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Nodo real pendiente de Miguel</text>
+<text x="85" y="768" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Mejoras de #21: por integrar</text>
+<text x="85" y="795" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Índice y aceptación real pendientes</text>
+<rect x="545" y="650" width="410" height="160" rx="14" fill="#e9f2fc" stroke="#6a9fcb" stroke-width="2"/>
+<text x="565" y="683" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Instalaciones · conectado</text>
+<text x="565" y="714" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Nodo público de catálogo y avisos</text>
+<text x="565" y="741" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Fuentes, error o abstención</text>
+<text x="565" y="768" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Conserva fallback histórico</text>
+<text x="565" y="795" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Aceptación externa pendiente</text>
 <rect x="1025" y="650" width="410" height="160" rx="14" fill="#e5f4ed" stroke="#5e9c7d" stroke-width="2"/>
 <text x="1045" y="683" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Sintetizar</text>
 <text x="1045" y="714" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Implementación determinista</text>
@@ -93,6 +94,6 @@ Streamlit es estructura base en esta rama. RAG sin validación real e instalacio
 <text x="55" y="1099" font-family="Arial, sans-serif" font-size="18" fill="#233c55">• Estado en memoria del proceso.</text>
 <rect x="55" y="1230" width="1380" height="105" rx="12" fill="#e7eef6"/>
 <text x="75" y="1260" font-family="Arial, sans-serif" font-size="20" fill="#233c55" font-weight="700">Lectura de esta vista</text>
-<text x="75" y="1291" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Ámbar: integración pendiente. Flechas verdes: retorno al supervisor. Las tarjetas indican el estado actual.</text>
-<text x="75" y="1318" font-family="Arial, sans-serif" font-size="18" fill="#233c55">La topología se exporta desde build_graph con nodos demo; esta figura no acredita RAG ni HTTP reales.</text>
+<text x="75" y="1291" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Verde: retorno al supervisor. #21 conserva la topología; image_id y la aceptación multimodal siguen pendientes.</text>
+<text x="75" y="1318" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Topología exportada con nodos demo: no acredita modelo, RAG ni HTTP reales. Visión no tiene ruta propia.</text>
 </svg>
