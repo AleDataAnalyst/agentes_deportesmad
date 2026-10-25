@@ -200,6 +200,7 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
         "error": None,
         # añado respuesta LLM
         "respuesta_llm": respuesta,
+        "distancia_mejor": _mejor_distancia(chunks_vector),
     }
 
 

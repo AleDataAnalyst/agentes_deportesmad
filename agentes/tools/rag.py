@@ -44,7 +44,7 @@ def rag_preguntar(consulta: str, con_diagnostico: bool | None = None) -> dict[st
         return {
             "respuesta": "",
             "fuentes": [],
-            "abstained": True,
+            "abstained": False,
             "error": f"Error interno del RAG: {e}",
         }
 
