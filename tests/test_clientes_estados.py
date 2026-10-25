@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from agentes.documental_adapter import crear_adaptador_documental
-from clientes.estados import avisos_de_estado, vista_resultado
+from clientes.estados import avisos_de_estado, ayuda_arranque, vista_resultado
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -116,3 +116,27 @@ def test_streamlit_pinta_abstencion_y_error_sin_secretos():
     errores = [e.value for e in at.error]
     assert any("instalaciones" in e for e in errores)
     assert all("secreto-1234567890abc" not in e for e in errores)
+
+
+def test_ayuda_arranque_solo_para_errores_del_supervisor():
+    assert "SUPERVISOR_MODE" in ayuda_arranque(ValueError("SUPERVISOR_MODE debe ser reglas o llm"))
+    assert ayuda_arranque(ValueError("Falta SUPERVISOR_MODEL: indica un modelo")) is not None
+    assert ayuda_arranque(RuntimeError("otro fallo")) is None
+
+
+def _app_arranque_fallido():
+    import clientes.streamlit_app as m
+
+    def falla(modo="real"):
+        raise ValueError("SUPERVISOR_MODE debe ser reglas o llm")
+
+    m.crear_servicio = falla
+    m.render()
+
+
+def test_streamlit_explica_el_fallo_de_configuracion():
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_function(_app_arranque_fallido, default_timeout=20).run()
+    assert any("SUPERVISOR_MODE debe ser reglas o llm" in e.value for e in at.error)
+    assert any("SUPERVISOR_PROVIDER" in i.value and ".env" in i.value for i in at.info)
