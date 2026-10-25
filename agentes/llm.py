@@ -14,14 +14,21 @@ from typing import Any, Callable, Literal, Protocol
 from agentes import config
 from agentes.tools.rag import rag_preguntar
 
-INSTRUCCIONES_TOOLS = """
-Eres un asistente técnico. Responde en español.
+INSTRUCCIONES_TOOLS = """Eres un asistente técnico. Responde en español.
 
-Puedes usar la herramienta `rag_preguntar` para consultar la base de conocimiento RAG.
-Si la pregunta depende de documentos internos, llama a la herramienta antes de responder.
-No inventes fuentes, datos ni respuestas. Si la herramienta indica abstención o error,
-explica brevemente que no hay información suficiente.
-"""
+Para cualquier pregunta sobre documentos, instalaciones, servicios, normas,
+fechas, precios, horarios, requisitos o condiciones, llama SIEMPRE primero a
+`rag_preguntar`.
+
+Después de recibir el resultado:
+- Usa únicamente `respuesta` y `fuentes` como base de tu respuesta.
+- Cita las fuentes devueltas por la herramienta.
+- Si `abstained` es true, responde exactamente que no dispones de información
+  suficiente en los documentos y pide el documento o dato que falta.
+- Si `error` no es null, informa de que la consulta no pudo completarse.
+- Nunca completes huecos con conocimiento general, suposiciones ni fuentes inventadas.
+- No repites el contenido de la herramienta literalmente si puedes resumirlo,
+  pero no añadas datos que no estén en ella."""
 
 
 TOOL_SCHEMAS = [
@@ -152,7 +159,7 @@ def run_tool_rag(
             messages=messages,
             tools=TOOL_SCHEMAS,
             temperature=config.GEN_TEMPERATURE,
-            max_output_tokens=1024,
+            max_output_tokens=config.GEN_MAX_TOKENS,
             timeout=config.GEN_TIMEOUT,
         )
 

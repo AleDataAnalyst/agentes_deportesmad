@@ -22,19 +22,18 @@ except ImportError:
 
 
 INSTRUCCIONES_SISTEMA = f"""Eres un asistente experto en deporte municipal del Ayuntamiento de Madrid.
-Tu tarea es responder preguntas del usuario utilizando ÚNICAMENTE la información
-contenida en el CONTEXTO proporcionado.
+
+Responde EXCLUSIVAMENTE con información contenida en el bloque CONTEXTO.
 
 Reglas obligatorias:
-1. Responde ÚNICAMENTE con la información del CONTEXTO.
-2. NO inventes datos (fechas, precios, horarios, direcciones…).
-3. Si el CONTEXTO SÍ contiene información relevante para la pregunta,
-   RESponde con esa información, extrayendo los datos concretos.
-4. Si el CONTEXTO NO contiene NADA relevante para la pregunta,
-   responde literalmente: "{ABSTENTION_MESSAGE}"
-5. Cuando cites un hecho, menciona la fuente si aparece en el contexto.
-6. Sé conciso y directo. No repitas la pregunta.
-7. Responde en español."""
+1. No uses conocimiento previo, intuiciones ni información externa al CONTEXTO.
+2. Si el CONTEXTO contiene la respuesta, extrae los datos concretos: fechas, horarios, precios, direcciones, requisitos o condiciones.
+3. Si solo hay información parcial, responde únicamente la parte confirmada y añade: "No consta en los documentos recuperados: <dato que falta>."
+4. Si ningún fragmento es relevante para la pregunta, responde exactamente:
+"{ABSTENTION_MESSAGE}"
+5. Cita la procedencia usando el número de fragmento, por ejemplo: [Fragmento 2].
+6. No repitas la pregunta, no expliques tu razonamiento y no añadas advertencias genéricas.
+7. Responde en español, de forma breve y directa."""
 
 
 def formatear_contexto(chunks: list[dict]) -> str:
@@ -55,7 +54,7 @@ def formatear_contexto(chunks: list[dict]) -> str:
         fuente = chunk.get("source", "desconocido")
         texto = (chunk.get("text") or "").strip()
         fragmentos.append(
-            f"--- Fragmento {i} (fuente: {fuente}) ---\n{texto}"
+            f"[Fragmento {i}] Fuente: {fuente}\n{texto}"
         )
     return "\n\n".join(fragmentos)
 

@@ -1,9 +1,9 @@
 [
   {
     "id": 1,
-    "pregunta": "¿Cuánto cuesta el bono de piscina de verano y cuantas sesiones tiene?",
-    "categoria_esperada": "tarifas",
-    "fuente_esperada": "PreciosPublicos2026.pdf"
+    "pregunta": "¿Tiene el centro deportivo de la Cea Bermudez pistas para practicar el Padel?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
   },
   {
     "id": 2,
@@ -32,7 +32,7 @@
   },
   {
     "id": 6,
-    "pregunta": "¿Puedo accedere con mi botella de agua de cristal a los entrenamientos o tengo que comprar el agua en las intalaciones deportivas?",
+    "pregunta": "¿Puedo acceder con mi botella de agua de cristal al recinto deportivo o tengo que comprar el agua en las intalaciones deportivas?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"
   },  
@@ -144,12 +144,6 @@
   },
   {
     "id": 24,
-    "pregunta": "¿Tiene el centro deportivo de la Cea Bermudez pistas para practicar el Padel?",
-    "categoria_esperada": "instalaciones",
-    "fuente_esperada": "200186-0-polideportivos.csv"
-  },
-  {
-    "id": 25,
     "pregunta": "¿Es posible acceder con sillas o tumbonas propias si las propias de las instalaciones ya han sido ocupadas?",
     "categoria_esperada": "normativa",
     "fuente_esperada": "reglamento_instalaciones.pdf"

@@ -107,7 +107,7 @@ TOP_K: int = int(os.getenv("TOP_K", "5"))
 MAX_CHUNKS: int = int(os.getenv("MAX_CHUNKS", "5"))
 
 # --- Generación (online) ---
-GEN_TEMPERATURE: float = float(os.getenv("GEN_TEMPERATURE", "0.2"))
+GEN_TEMPERATURE: float = float(os.getenv("GEN_TEMPERATURE", "0.1"))
 # Tope de tokens de salida del LLM generador (RAG online).
 GEN_MAX_TOKENS: int = int(os.getenv("GEN_MAX_TOKENS", "1024"))
 

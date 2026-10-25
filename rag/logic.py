@@ -90,6 +90,7 @@ def _hay_evidencia(chunks: list[dict], umbral: float = UMBRAL_ABSTENCION) -> boo
     mejor_dist = min(c.get("distance", 1.0) for c in chunks)
     return mejor_dist <= umbral
 
+
 def _mejor_distancia(chunks: list[dict]) -> float:
     """Devuelve la distancia coseno más baja entre la pregunta y los chunks.
 
@@ -98,6 +99,7 @@ def _mejor_distancia(chunks: list[dict]) -> float:
     if not chunks:
         return 1.0
     return min(c.get("distance", 1.0) for c in chunks)
+
 
 def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
     """
@@ -129,52 +131,39 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
         with medir_tiempo("retrieval", metricas):
             if RETRIEVAL_MODE == "hibrido":
                 chunks = recuperar_hibrido(pregunta, top_k=k)
+                chunks_vector = recuperar(pregunta, top_k=k)
             else:
                 chunks = recuperar(pregunta, top_k=k)
+                chunks_vector = chunks
     except Exception as e:
         log_error(f"Fallo en retrieval: {e}")
         return _resultado_error(f"Error recuperando contexto: {e}")
 
-    if not _hay_evidencia(chunks):
-        ...
-        return {
-            "respuesta": ABSTENTION_MESSAGE,
-            "chunks": chunks,
-            "fuentes": _extraer_fuentes(chunks),
-            "distancia_mejor": _mejor_distancia(chunks),   # <-- NUEVO
-            "motivo_abstencion": "Sin evidencia suficiente (guardrail)",  # <-- NUEVO
-            "contexto": "",
-            "metrics": {**metricas, "top_k": k, "n_chunks": 0},
-            "abstained": True,
-            "error": None,
-        }
-
-
-
-    # 3) Guardrail de evidencia: sin chunks o distancias altas -> abstención sin LLM
-    if not _hay_evidencia(chunks):
+    if not _hay_evidencia(chunks_vector):
         log_info(
             f"Sin evidencia suficiente para: {pregunta!r} "
-            f"(top-k={k}, chunks={len(chunks)})"
+            f"(top_k={k}, chunks={len(chunks)})"
         )
         return {
             "respuesta": ABSTENTION_MESSAGE,
             "chunks": chunks,
             "fuentes": _extraer_fuentes(chunks),
+            "distancia_mejor": _mejor_distancia(chunks),
+            "motivo_abstencion": "Sin evidencia suficiente (guardrail)",
             "contexto": "",
-            "metrics": {**metricas, "top_k": k, "n_chunks": 0},
+            "metrics": {**metricas, "top_k": k, "n_chunks": len(chunks)},
             "abstained": True,
             "error": None,
         }
 
-    # 4) Limitar chunks que entran al prompt (MAX_CHUNKS)
+    # 3) Limitar chunks que entran al prompt (MAX_CHUNKS)
     chunks_prompt = chunks[:MAX_CHUNKS]
     fuentes = _extraer_fuentes(chunks_prompt)
 
-    # 5) Prompt con grounding
+    # 4) Prompt con grounding
     prompt = construir_prompt_desde_chunks(chunks_prompt, pregunta)
 
-    # 6) Generación
+    # 5) Generación
     try:
         with medir_tiempo("generation", metricas):
             respuesta = generar(prompt)
@@ -182,11 +171,11 @@ def responder(pregunta: str, top_k: int | None = None) -> dict[str, Any]:
         log_error(f"Fallo en generación: {e}")
         return _resultado_error(f"Error generando respuesta: {e}")
 
-    # 7) Detección de abstención del LLM: si el modelo devuelve el mensaje literal,
+    # 6) Detección de abstención del LLM: si el modelo devuelve el mensaje literal,
     #    lo marcamos como abstención (aunque haya pasado el guardrail de distancia).
     abstained = ABSTENTION_MESSAGE.lower() in respuesta.lower()
 
-    # 8) Logging estructurado
+    # 7) Logging estructurado
     log_consulta(
         pregunta=pregunta,
         top_k=k,
