@@ -1,4 +1,8 @@
-"""Montaje real con tools dobles: sin red, modelos ni implementación RAG."""
+"""Montaje con tools dobles y sin llamadas RAG/red durante los tests.
+
+La colección global puede haber importado RAG antes de estas fixtures. La
+frontera de importación se verifica en subproceso en test_import_boundaries.py.
+"""
 from copy import deepcopy
 from importlib.abc import MetaPathFinder
 import socket
@@ -12,8 +16,8 @@ from agentes.runtime import crear_servicio, crear_servicio_real
 
 @pytest.fixture(autouse=True)
 def isolated_tools(monkeypatch):
-    # Aislar antes de importar el documental: sustituir solo REGISTRY después
-    # del import ya habría cargado rag.logic y sus dependencias Chroma.
+    # El sustituto y el finder evitan nuevas cargas si no ocurrió antes durante
+    # colección. No deshacen imports previos: REGISTRY controla las llamadas.
     class BlockRag(MetaPathFinder):
         def find_spec(self, fullname, path=None, target=None):
             if fullname.split(".")[0] in {"rag", "chromadb"}:
@@ -30,6 +34,8 @@ def isolated_tools(monkeypatch):
     monkeypatch.setattr(sys, "meta_path", [BlockRag(), *sys.meta_path])
     monkeypatch.setattr(socket.socket, "connect", forbidden)
     import agentes.nodes.instalaciones as ni
+    import agentes.nodes.documental as nd
+    monkeypatch.setitem(nd.REGISTRY, "rag", forbidden)
     monkeypatch.setattr(ni, "consultar_instalaciones", forbidden)
     yield
     # No dejar un documental ligado a la tool doble para otras suites.

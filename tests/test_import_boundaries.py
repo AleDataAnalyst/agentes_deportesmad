@@ -24,20 +24,53 @@ def test_backend_imports_without_loading_documental_or_rag():
 
         class BlockRag(MetaPathFinder):
             def find_spec(self, fullname, path=None, target=None):
-                if (fullname == "agentes.nodes.documental"
+                if (fullname in {"agentes.nodes.documental", "agentes.nodes.instalaciones"}
                         or fullname == "agentes.tools.rag"
-                        or fullname == "rag" or fullname.startswith("rag.")):
+                        or fullname.split('.')[0] in {"rag", "chromadb"}):
                     raise AssertionError(f"Carga inesperada: {fullname}")
 
         sys.meta_path.insert(0, BlockRag())
         from agentes.agent import AgentService
-        from agentes.demo import crear_servicio_demo
+        from agentes.runtime import crear_servicio
         import agentes.tools
 
-        service = crear_servicio_demo()
+        service = crear_servicio(modo="demo")
         state = service.procesar_turno("Consulta de prueba", service.nueva_conversacion())
         assert state["pendiente_hitl"]
         assert state["approved"] is None
+    ''')
+
+
+def test_real_runtime_construction_with_tool_double_does_not_import_rag_or_chroma():
+    run_python('''
+        import sys
+        from importlib.abc import MetaPathFinder
+        from types import ModuleType
+
+        class BlockRag(MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname.split('.')[0] in {"rag", "chromadb"}:
+                    raise AssertionError(f"Carga inesperada: {fullname}")
+
+        def forbidden(*args, **kwargs):
+            raise AssertionError("Consulta inesperada durante construcción")
+
+        sys.meta_path.insert(0, BlockRag())
+        tool = ModuleType("agentes.tools.rag")
+        tool.rag_preguntar = forbidden
+        sys.modules["agentes.tools.rag"] = tool
+
+        def block_network(event, args):
+            if event in {"socket.connect", "socket.getaddrinfo"}:
+                raise AssertionError(f"Red inesperada: {event}")
+        sys.addaudithook(block_network)
+
+        import agentes.nodes.instalaciones as ni
+        ni.consultar_instalaciones = forbidden
+        from agentes.runtime import crear_servicio_real
+        service = crear_servicio_real()
+        assert service.nueva_conversacion()
+        assert not any(name.split('.')[0] in {"rag", "chromadb"} for name in sys.modules)
     ''')
 
 

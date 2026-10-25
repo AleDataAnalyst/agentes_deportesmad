@@ -6,13 +6,29 @@ Héctor y Miguel y los clientes de David permanecen bajo su responsabilidad.
 Actualización del montaje (25/10/2026): Miguel ya entregó `nodo_instalaciones`
 y runtime lo inyecta directamente, sin modificar su implementación ni sus tools.
 `tests/test_runtime.py` usa el nodo de instalaciones y el grafo documental reales,
-con la dependencia externa de instalaciones y la tool RAG sustituidas por dobles
-antes de cargar el documental. Verifica construcción sin consultas, conservación
+con la dependencia externa de instalaciones y la entrada RAG de `REGISTRY`
+sustituidas por dobles. Verifica construcción sin consultas, conservación
 de resultados/fuentes/metadatos, fallback histórico, error/abstención y ciclo HITL.
 La aceptación con catálogo/avisos reales y RAG operativo es una comprobación
 distinta y sigue pendiente. Los resultados y el estado Git registrados más abajo
 corresponden a la entrega histórica original y no se reinterpretan como validación
 de esta conexión. No se presenta el MVP como terminado.
+
+La fixture de runtime evita llamadas reales durante los tests, pero no garantiza
+que RAG/Chroma no se hayan importado previamente durante la colección global.
+`tests/test_import_boundaries.py` verifica en procesos nuevos la construcción real
+con tool RAG doble y esos imports bloqueados. También comprueba que runtime en modo
+demo no carga ni el documental ni instalaciones; su import queda dentro de
+`crear_servicio_real`. Esto no certifica construcción real sin dependencias RAG
+cuando se usa la tool original.
+
+Comando exacto de la selección inicial de **444 pruebas** (antes de añadir la
+prueba de frontera de esta revisión):
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+.\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider --basetemp="$env:TEMP/agentes-backend-conexion" tests/test_runtime.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py
+```
 
 ## Qué se conecta
 
