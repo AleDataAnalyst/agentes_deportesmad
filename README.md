@@ -20,7 +20,7 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 | Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
-| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes visibles solo en el panel de debug; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
+| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes bajo la respuesta, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes y recuperación tras errores probadas solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
 | Perfiles y benchmark TAG | Tres plantillas y sonda independiente; validación con dobles | Sin comparación completa real de estos perfiles ni validación del pipeline |
 | Visualización | Exportación ASCII/Mermaid y esquema SVG | Describe topología y montaje; no acredita una consulta RAG real |
 
@@ -132,9 +132,11 @@ Qué hace el cliente:
 - **Comprueba las decisiones.** Antes de aprobar o rechazar verifica la conversación y el plan, y después revisa que la respuesta del servicio corresponde a esa misma conversación.
 - **No enseña secretos.** Errores, mensajes y debug pasan por `sin_secretos`.
 - **No repite la respuesta al aprobar.** Solo añade el mensaje de cierre.
+- **Muestra las fuentes bajo la respuesta del chat**, sin repetir y hasta un máximo de cinco. Si el especialista no aporta evidencia, como en una abstención, no se muestra ninguna.
+- **Se recupera de los errores.** Si falla una consulta o una decisión, vuelve a leer el estado real de la conversación antes de permitir nada más: si hay un plan pendiente lo enseña para decidir, si la ejecución quedó incompleta bloquea el chat y pide una nueva conversación, y si no puede comprobarlo ofrece reintentar. Es el equivalente de `/estado` en la CLI.
 - **Panel de debug** desplegable con la fase de la revisión humana, si la consulta ha terminado, las iteraciones y la traza. Para cada especialista muestra si ha respondido, si el dato es real, simulado o no disponible, la respuesta, las fuentes y las herramientas usadas. Los datos técnicos completos solo aparecen si los pides, y también van filtrados.
 
-Pendiente: mostrar las fuentes debajo de cada respuesta del chat y probarlo con el índice real.
+Pendiente: probar las fuentes y la recuperación tras errores con el índice real y con un fallo real de red o de servicio.
 
 ## Protecciones del backend compartido
 
@@ -176,7 +178,7 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
-| Streamlit en modo real, sin índice | Probado a mano: aprobar, rechazar, nueva conversación y bloqueo de un mensaje no válido funcionan | Sin índice el documental no encuentra nada, así que no se han podido ver fuentes reales; todavía no hay tests automáticos de `clientes/` |
+| Streamlit en modo real, sin índice | Probado a mano: aprobar, rechazar, nueva conversación y bloqueo de un mensaje no válido funcionan | Sin índice el documental no encuentra nada, así que no se han podido ver fuentes reales; la recuperación tras errores se probó con un servicio simulado; los tests de `clientes/` son pocos (`tests/test_clientes_seguridad.py`) |
 | Selección histórica de backend y montaje | 276 pruebas superadas | Evidencia anterior a esta ampliación, con dobles donde corresponde; no se suma a las 433 |
 | Golden del grafo | 12 escenarios y 24 pruebas | Incluido en la selección conjunta; datos y fuentes sintéticos, sin evaluación semántica de un LLM |
 | Sonda adicional en la frontera RAG | 10 recorridos superados | Respuesta, abstención, vacío, error y timeout, con aprobación/rechazo; solo se sustituye `responder` |
@@ -286,7 +288,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
 | Miguel | Nodo público de instalaciones y avisos entregado y conectado en runtime | Cerrar la auxiliar determinista reutilizando la función de fecha existente; participar en la aceptación con catálogo/avisos reales |
-| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Mostrar las fuentes en el chat, probarlo con el índice real, añadir tests de `clientes/` y preparar la demo de la presentación |
+| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Probar fuentes y recuperación tras errores con el índice real, ampliar los tests de `clientes/` y preparar la demo de la presentación |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 
