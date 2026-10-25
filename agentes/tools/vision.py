@@ -27,7 +27,7 @@ from pathlib import Path
 import requests
 from langchain_core.tools import tool
 
-from ...rag.config import (
+from rag.config import (
     GOOGLE_API_KEY,
     IMAGE_VISION_MODEL,
 )
