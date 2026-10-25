@@ -21,13 +21,42 @@ from agentes.validation import (
     validar_id,
     validar_mensaje,
 )
-from clientes.hitl import render_hitl
-from clientes.debug import render_debug
+from clientes.hitl import mensaje_recuperacion, render_hitl
+from clientes.debug import fuentes_de_estado, render_debug
 
 
 def _error(prefijo: str, exc: BaseException) -> None:
     """Muestra un error sin exponer secretos."""
     st.error(f"{prefijo}: {sin_secretos(str(exc))}")
+
+
+def _mostrar_fuentes(fuentes: list[str] | None) -> None:
+    if fuentes:
+        st.text("Fuentes:\n" + "\n".join(f"• {f}" for f in fuentes))
+
+
+def _error_y_recuperar(prefijo: str, exc: BaseException) -> None:
+    """Guarda el error y relanza: al volver se comprueba el estado real del hilo."""
+    st.session_state.estado_desconocido = True
+    st.session_state.error_pendiente = f"{prefijo}: {sin_secretos(str(exc))}"
+    st.rerun()
+
+
+def _recuperar_estado(service, thread_id: str) -> None:
+    """Tras un error, relee el checkpoint antes de permitir nada más."""
+    error = st.session_state.pop("error_pendiente", None)
+    if error:
+        st.error(error)
+    try:
+        estado = service.consultar_estado(thread_id)
+        validar_estado(estado, thread_id)
+    except Exception as exc:  # noqa: BLE001
+        _error("No se pudo comprobar el estado", exc)
+        return
+    st.session_state.estado = estado
+    st.session_state.estado_desconocido = False
+    nivel, texto = mensaje_recuperacion(estado)
+    getattr(st, nivel)(texto)
 
 
 def _texto_aprobacion(anterior: str, final: str) -> str:
@@ -57,6 +86,8 @@ def _init_session():
         st.session_state.messages = []
     if "estado" not in st.session_state:
         st.session_state.estado = None
+    if "estado_desconocido" not in st.session_state:
+        st.session_state.estado_desconocido = False
 
 
 def render():
@@ -67,8 +98,10 @@ def render():
         st.stop()
 
     service = st.session_state.service
-    estado = st.session_state.estado
     thread_id = st.session_state.thread_id
+    if st.session_state.estado_desconocido:
+        _recuperar_estado(service, thread_id)
+    estado = st.session_state.estado
 
     # Sidebar
     with st.sidebar:
@@ -83,6 +116,7 @@ def render():
             else:
                 st.session_state.messages = []
                 st.session_state.estado = None
+                st.session_state.estado_desconocido = False
                 st.session_state.thread_id = nuevo_id
                 st.rerun()
 
@@ -115,7 +149,7 @@ def render():
                     )
                     st.rerun()
                 except Exception as exc:
-                    _error(f"Error al {accion}", exc)
+                    _error_y_recuperar(f"Error al {accion}", exc)
 
             def on_aprobar():
                 _resolver(True)
@@ -133,9 +167,15 @@ def render():
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(sin_secretos(msg["content"]))
+            _mostrar_fuentes(msg.get("fuentes"))
 
     # Chat input
-    if not (estado and estado.get("pendiente_hitl")):
+    if st.session_state.estado_desconocido:
+        st.warning("No se pudo confirmar el estado de la conversación. Reintenta o empieza una nueva.")
+        st.button("Reintentar comprobación")
+    elif estado and estado.get("ejecucion_incompleta"):
+        st.warning("Ejecución incompleta: empieza una nueva conversación para continuar.")
+    elif not (estado and estado.get("pendiente_hitl")):
         if prompt := st.chat_input("Escribe tu consulta...", max_chars=MAX_ENTRADA):
             try:
                 validar_mensaje(prompt)
@@ -153,18 +193,20 @@ def render():
                         st.session_state.estado = resultado
 
                         respuesta = resultado.get("final_answer") or ""
+                        fuentes = fuentes_de_estado(resultado)
                         with st.chat_message("assistant"):
                             st.markdown(sin_secretos(respuesta))
+                            _mostrar_fuentes(fuentes)
                             if resultado.get("pendiente_hitl"):
                                 st.info("Plan pendiente de aprobación — revisa el sidebar.")
 
                         st.session_state.messages.append(
-                            {"role": "assistant", "content": respuesta}
+                            {"role": "assistant", "content": respuesta, "fuentes": fuentes}
                         )
                         st.rerun()
 
-                    except Exception as exc:  
-                        _error("Error", exc)
+                    except Exception as exc:
+                        _error_y_recuperar("Error", exc)
     else:
         st.info("Aprueba o rechaza el plan en el sidebar para continuar.")
 
