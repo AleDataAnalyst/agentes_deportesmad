@@ -73,3 +73,11 @@ def avisos_de_estado(estado: dict) -> list[tuple[str, str]]:
         if limitaciones:
             avisos.append(("warning", f"{rol} · Limitaciones: {limitaciones}"))
     return avisos
+
+
+def ayuda_arranque(exc: BaseException) -> str | None:
+    """Pista para el usuario cuando el servicio no arranca por la configuración del supervisor."""
+    if "SUPERVISOR_" in str(exc):
+        return ("Revisa SUPERVISOR_MODE, SUPERVISOR_PROVIDER y SUPERVISOR_MODEL en el .env "
+                "y reinicia Streamlit.")
+    return None

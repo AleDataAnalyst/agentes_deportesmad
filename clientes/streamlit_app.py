@@ -23,7 +23,7 @@ from agentes.validation import (
 )
 from clientes.hitl import mensaje_recuperacion, render_hitl
 from clientes.debug import fuentes_de_estado, render_debug
-from clientes.estados import avisos_de_estado
+from clientes.estados import avisos_de_estado, ayuda_arranque
 from clientes.imagenes import guardar_imagen_subida
 
 
@@ -148,6 +148,9 @@ def render():
         _init_session()
     except Exception as exc: 
         _error("No se pudo iniciar el servicio", exc)
+        ayuda = ayuda_arranque(exc)
+        if ayuda:
+            st.info(ayuda)
         st.stop()
 
     service = st.session_state.service
