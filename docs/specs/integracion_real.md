@@ -30,6 +30,73 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 .\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider --basetemp="$env:TEMP/agentes-backend-conexion" tests/test_runtime.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py
 ```
 
+### Proveedor de rutas del supervisor (25/10/2026)
+
+La rama `feature/supervisor-llm` incorpora por fast-forward `b06f154`, incluida
+la corrección de aislamiento revisada por David, y depende de la
+[PR #18 de instalaciones](https://github.com/AleDataAnalyst/agentes_deportesmad/pull/18),
+abierta al preparar esta rama. El diff exclusivo del supervisor se revisa
+contra `b06f154`; los cambios de instalaciones pertenecen a la PR anterior.
+
+`agentes/supervisor_llm.py::crear_proveedor_rutas` recibe un adaptador con la
+interfaz `generate` existente y una `message_factory` compatible con `LlmMessage`.
+Los tipos de `agentes.llm` solo se importan bajo `TYPE_CHECKING`, sin duplicar su
+cliente SDK/HTTP ni modificar adaptadores. Produce mensajes system/user con
+pedido acotado a 2000 caracteres, rutas permitidas, estados de los resultados y
+situación de respuesta/plan; excluye evidencias, datos internos y traza. Solicita
+solo JSON `{"ruta": "instalaciones", "motivo": "Consultar catálogo."}` y devuelve
+`SupervisorDecision`. No exige visitar todos los especialistas. Rechaza formatos
+inválidos y llamadas a tools; el supervisor existente conserva allowlist,
+protección de roles ya consultados, fallback, límite e HITL.
+
+Configuración consumida: argumentos explícitos `temperature=0`,
+`max_output_tokens=256`, `timeout=30` (segundos), validados al construir. No lee
+`.env` ni cambia `GEN_*`, embeddings, TAG o generación del RAG. Ejecuta una sola
+llamada a `generate` por propuesta con `tools=[]`, sin reintentos propios ni logs
+de prompts/respuestas. Transmitir timeout no prueba que el transporte lo cumpla.
+
+**Proveedor implementado y montaje por inyección verificado con dobles; adaptador
+real pendiente y sin validación con modelo real.**
+`crear_servicio_real(route_provider=proveedor)` transmite el callable ya construido
+a `AgentService → build_graph → supervisor_node`. Construir el servicio no invoca
+el proveedor. Sin argumento (`None`) continúa por reglas; los clientes actuales y
+la selección `crear_servicio(modo="real"|"demo")` conservan su comportamiento.
+Las excepciones de inferencia usan el fallback del supervisor, sin activar demo.
+Las pruebas de runtime verifican selección parcial de especialistas, síntesis,
+aprobación/rechazo del mismo plan y fallo del modelo, con dependencias dobles;
+la frontera de importación/construcción se verifica en subproceso nuevo.
+El punto pendiente es construir adaptador real y `LlmMessage` de forma segura
+antes de pasarlos a `crear_proveedor_rutas`. La factoría real no se llama ni se
+habilita como conexión supuestamente operativa. Ejemplo del montaje por inyección:
+
+```python
+servicio = crear_servicio_real(route_provider=proveedor)
+```
+
+Ajustes mínimos a coordinar con Héctor antes de ese montaje:
+
+- `agentes/llm.py`, import de `rag_preguntar` y `TOOL_REGISTRY`: diferir la
+  dependencia hasta ejecutar la tool. Actualmente importar mensajes o adaptadores
+  carga `agentes.tools.rag → rag.logic → rag.retrieve → chromadb`.
+- `agentes/llm.py::crear_adapter` / `agentes.config`: acordar configuración
+  explícita o cargarla antes de fijar `GEN_*`. `agentes.config` no carga `.env`,
+  mientras `rag.config` sí; cargarlo después no actualiza las constantes previas.
+- `agentes/llm_google.py::GoogleAdapter.generate`: aplicar `timeout` al transporte
+  y asegurar generación sin herramientas al recibir `tools=[]`. Hoy el timeout
+  no se utiliza y se construye una declaración de herramientas vacía. Ollama sí
+  pasa timeout a `requests.post`, pero también importa el módulo acoplado.
+
+Las pruebas nuevas usan modelo/mensajes dobles y el servicio/grafo existentes;
+comprueban formato, vista, errores, selección parcial, inmutabilidad, límite e
+HITL, e import/construcción con RAG/Chroma/modelos bloqueados y red prohibida.
+Un `TimeoutError` simulado solo acredita el fallback. La aceptación del LLM de
+rutas requiere una prueba posterior autorizada, separada del RAG y sin índice.
+La selección anterior del proveedor superó 477 pruebas con dobles. La selección
+actual de backend, proveedor y montaje supera **481 pruebas**, incorporando la
+frontera revisada y aprobación/rechazo y fallback por inyección. No se ejecuta
+la suite completa ni se consultan APIs, modelos o el índice real.
+
+
 ## Qué se conecta
 
 `agentes/runtime.py::crear_servicio_real()` obtiene la puerta pública

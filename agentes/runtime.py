@@ -3,12 +3,20 @@
 from agentes.agent import AgentService
 from agentes.documental_adapter import crear_adaptador_documental
 from agentes.nodes.aplicar import aplicar
+from agentes.nodes.supervisor import RouteProvider
 from agentes.nodes.sintetizar import sintetizar
 from agentes.nodes.vision import vision_node
 from agentes.settings import AgentSettings
 
 
-def crear_servicio_real(*, settings: AgentSettings | None = None) -> AgentService:
+def crear_servicio_real(
+    *, settings: AgentSettings | None = None, route_provider: RouteProvider | None = None,
+) -> AgentService:
+    """Monta los especialistas y un proveedor ya construido, sin inferir al crear.
+
+    Sin proveedor, el supervisor conserva el modo por reglas. El runtime no
+    construye el adaptador LLM ni carga su configuración; lo aporta el llamador.
+    """
     from agentes.grafo_documental import obtener_grafo_documental
     from agentes.nodes.instalaciones import nodo_instalaciones
 
@@ -22,6 +30,7 @@ def crear_servicio_real(*, settings: AgentSettings | None = None) -> AgentServic
         sintetizar_node=sintetizar,
         aplicar_node=aplicar,
         vision_node=vision_node,
+        route_provider=route_provider,
         settings=settings,
     )
 

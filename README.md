@@ -40,6 +40,15 @@ pedido → supervisor → documental → supervisor → instalaciones → superv
 
 El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
 
+`agentes/supervisor_llm.py::crear_proveedor_rutas` implementa el proveedor de rutas
+con adaptador y factoría de mensajes inyectables, probado con dobles.
+`crear_servicio_real(route_provider=proveedor)` lo transmite al supervisor;
+sin proveedor sigue por reglas, como los clientes actuales. Construir el
+adaptador real sigue pendiente de desacoplar su import del RAG, fijar el orden
+de configuración y aplicar el timeout de Google con Héctor. No se ha validado
+con un modelo real. Detalles y dependencia de la
+PR de instalaciones en [integración](docs/specs/integracion_real.md).
+
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 
 La pausa ocurre antes de `aplicar`. El cliente resuelve con el mismo `thread_id`, un booleano explícito y el `plan_id` vigente. Se rechazan planes antiguos y nuevos pedidos incompatibles con una decisión pendiente. Repetir la misma resolución es idempotente; rechazar limpia la propuesta y los resultados operativos y conserva la traza. Un nuevo pedido reinicia sus datos operativos.

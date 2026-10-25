@@ -5,13 +5,15 @@ frontera de importación se verifica en subproceso en test_import_boundaries.py.
 """
 from copy import deepcopy
 from importlib.abc import MetaPathFinder
+import json
 import socket
 import sys
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
 from agentes.runtime import crear_servicio, crear_servicio_real
+from agentes.supervisor_llm import crear_proveedor_rutas
 
 
 @pytest.fixture(autouse=True)
@@ -108,6 +110,60 @@ def test_public_gate_is_used_without_invoking_it(monkeypatch):
     crear_servicio_real()
     assert requested == [True]
     assert captured["instalaciones_node"] is nodo_instalaciones
+    assert captured["route_provider"] is None
+
+
+@pytest.mark.parametrize("approved", [True, False])
+def test_injected_llm_provider_reaches_supervisor_and_preserves_hitl(mixed, instalaciones, approved):
+    _, rag_calls = mixed
+    model_calls = []
+
+    def generate(**kwargs):
+        model_calls.append(kwargs)
+        view = json.loads(kwargs["messages"][1].content)
+        route = ("FINISH" if view["plan_listo"] else "sintetizar"
+                 if "instalaciones" in view["resultados_disponibles"] else "instalaciones")
+        return SimpleNamespace(text=json.dumps({"ruta": route, "motivo": "Modelo doble"}), tool_calls=[])
+
+    provider = crear_proveedor_rutas(
+        adapter=SimpleNamespace(generate=generate), message_factory=SimpleNamespace)
+    service = crear_servicio_real(route_provider=provider)
+    assert model_calls == rag_calls == instalaciones[1] == []
+    tid = service.nueva_conversacion()
+    pending = service.procesar_turno("Catálogo municipal", tid)
+    assert set(pending["specialist_results"]) == {"instalaciones"}
+    assert pending["specialist_results"]["instalaciones"].status == "ok"
+    assert len(model_calls) == 3 and len(instalaciones[1]) == 1 and rag_calls == []
+    decisions = [line for line in pending["debug_trace"] if ": supervisor ->" in line]
+    assert decisions == [
+        f"iter {i}: supervisor -> {role}; origen=proveedor"
+        for i, role in enumerate(("instalaciones", "sintetizar", "FINISH"), 1)
+    ]
+    assert pending["pendiente_hitl"] and pending["approved"] is None and not pending["done"]
+    final = service.resolver_plan(tid, approved, plan_id=pending["plan_id"])
+    assert final["thread_id"] == tid and final["plan_id"] == pending["plan_id"]
+    assert final["done"] is approved and not final["pendiente_hitl"]
+    assert len(model_calls) == 3 and len(instalaciones[1]) == 1 and rag_calls == []
+
+
+def test_injected_provider_failure_uses_rules_fallback_in_real_runtime(mixed, instalaciones):
+    _, rag_calls = mixed
+    model_calls = []
+
+    def generate(**kwargs):
+        model_calls.append(kwargs)
+        raise TimeoutError("Fallo inmediato del modelo doble")
+
+    provider = crear_proveedor_rutas(
+        adapter=SimpleNamespace(generate=generate), message_factory=SimpleNamespace)
+    service = crear_servicio_real(route_provider=provider)
+    assert model_calls == rag_calls == instalaciones[1] == []
+    pending = service.procesar_turno("Catálogo municipal", service.nueva_conversacion())
+    assert len(model_calls) == 4 and len(rag_calls) == len(instalaciones[1]) == 1
+    assert set(pending["specialist_results"]) == {"documental", "instalaciones"}
+    decisions = [line for line in pending["debug_trace"] if ": supervisor ->" in line]
+    assert all("origen=fallback; causa=excepcion_proveedor" in line for line in decisions)
+    assert pending["pendiente_hitl"] and pending["approved"] is None and not pending["done"]
 
 
 @pytest.mark.parametrize("approved", [True, False])
