@@ -127,6 +127,8 @@ def _render_resultado(nombre: str, resultado: Any) -> None:
 def render_debug(estado: dict, thread_id: str) -> None:
     with st.expander("Debug — estado del agente"):
         st.markdown(f"**thread_id:** `{_seguro(thread_id, 80)}`")
+        if estado.get("plan_id"):
+            st.markdown(f"**plan_id:** `{_seguro(estado['plan_id'], 80)}`")
 
         c1, c2, c3 = st.columns(3)
         c1.metric("Fase HITL", _fase_hitl(estado))

@@ -88,3 +88,22 @@ def test_no_se_decide_hasta_recuperar_el_estado():
     at.run()
     etiquetas = [b.label for b in at.sidebar.button]
     assert any("Aprobar" in e for e in etiquetas) and any("Rechazar" in e for e in etiquetas)
+
+
+def _app_debug_plan_id():
+    from clientes.debug import render_debug
+
+    render_debug({"plan_id": "plan-abc123", "pendiente_hitl": True, "done": False,
+                  "iterations": 1, "specialist_results": {}}, "deportes-xyz")
+    render_debug({"plan_id": None, "pendiente_hitl": False, "done": False,
+                  "iterations": 1, "specialist_results": {}}, "deportes-sin-plan")
+
+
+def test_debug_muestra_el_plan_id_solo_si_existe():
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_function(_app_debug_plan_id, default_timeout=20).run()
+    assert not at.exception
+    textos = [m.value for m in at.markdown]
+    assert sum("plan_id" in t for t in textos) == 1
+    assert any("plan-abc123" in t for t in textos)
