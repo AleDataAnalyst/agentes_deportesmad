@@ -1,0 +1,23 @@
+{
+  "_descripcion": "Resultado válido del especialista documental: respuesta fundamentada con fuentes y eventos de tool.",
+  "_uso": "Sustituir {{request_id}} por el request_id generado en la invocación antes de devolver el sobre al adaptador.",
+  "documental": {
+    "request_id": "{{request_id}}",
+    "resultado": "El abono anual de las instalaciones deportivas municipales cuesta 45 euros para personas adultas. El abono incluye acceso a pistas y gimnasio según la normativa vigente.",
+    "fuentes": [
+      "data/corpus/abonos.csv",
+      "data/corpus/normativa_instalaciones.pdf"
+    ],
+    "abstained": false,
+    "errores": [],
+    "limitaciones": [],
+    "eventos": [
+      {
+        "tool": "rag",
+        "ok": true,
+        "consulta": "precio abono anual instalaciones deportivas",
+        "fuentes_recuperadas": 2
+      }
+    ]
+  }
+}

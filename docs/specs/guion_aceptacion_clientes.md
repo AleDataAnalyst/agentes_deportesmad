@@ -184,11 +184,34 @@ CLI y Streamlit no comparten estado, porque `MemorySaver` vive en la memoria de 
 
 ## 6. Registro de ejecución
 
-Copiar una fila por caso y cliente:
+Una fila por caso y cliente. Ejecutado el 25/10/2026 con el servicio real, sin dobles y con el supervisor por reglas (`origen=reglas` en la traza). La evidencia es la salida de consola o de Streamlit; no hay capturas guardadas todavía.
 
-| Caso | Cliente | Fecha | sha | SO | Comando | Red | Dobles | Resultado | Evidencia |
-|---|---|---|---|---|---|---|---|---|---|
-| A1 | CLI | | | | | sí/no | no | ACEPTADO / FALLA / BLOQUEADO | ruta captura |
+| Caso | Cliente | Fecha | sha | SO | Comando | Red | Dobles | Supervisor | Resultado | Evidencia |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A1 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | BLOQUEADO | El documental se abstiene: falta el índice RAG correcto y la consulta de A1 |
+| A1 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | BLOQUEADO | Ídem |
+| A2 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | ACEPTADO | Consulta de instalaciones, no la de A1. Hilo `c310a6c7…`; plan `7074e6ea…` aprobado (`approved=True`, `done=True`); con plan pendiente la consulta se bloquea; segundo pedido en el mismo hilo con plan `b7ecad41…` |
+| A2 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | PENDIENTE | Visto: chat bloqueado con el plan pendiente y aprobación completada. Sin confirmar: segundo pedido con `plan_id` nuevo |
+| A3 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | ACEPTADO | Consulta de instalaciones. Hilo nuevo `2bda8408…`; plan `79dab47c…` rechazado (`approved=False`, `pendiente_hitl=False`); la consulta siguiente se acepta |
+| A3 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | PENDIENTE | Sin ejecutar |
+| A4 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | BLOQUEADO | Con el índice actual cualquier pregunta se abstiene; no discrimina fuera de corpus |
+| A4 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | BLOQUEADO | Ídem |
+| A5 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | ACEPTADO | `centros deportivos en moncloa`: `status=ok`, `origen=api`, `n=82`, `fecha_consulta` 2026-10-25T13:35:12+01:00, con fuentes |
+| A5 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | ACEPTADO | `status=ok`, `origen=api`, `fecha_consulta` 2026-10-25T19:15:12+01:00 en la respuesta, con fuentes |
+| A6 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | no | no | reglas | PENDIENTE | Sin ejecutar |
+| A6 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | no | no | reglas | ACEPTADO | Corte: wifi apagado (corte total, no solo `datos.madrid.es`). `origen=fallback`, captura histórica 2026-10-16, aviso "Fallback histórico: no acredita condiciones actuales". El documental también falló por la falta de red |
+| A7 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | BLOQUEADO | La imagen no está enrutada en el grafo |
+| A7 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | BLOQUEADO | La subida guarda el `image_id` pero no se envía al agente: el servicio aún no lo acepta |
+| A8 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | BLOQUEADO | Herramienta auxiliar sin implementar |
+| A8 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | sí | no | reglas | BLOQUEADO | Ídem |
+| A9 | CLI | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -B main.py --modo real --debug` | sí | no | reglas | PENDIENTE | Sin ejecutar |
+| A9 | Streamlit | 2026-10-25 | `20fc64a` | macOS (Darwin 25.3.0) | `python -m streamlit run app.py` | no | no | reglas | NO REPRODUCIBLE | Sin red, el servicio no lanza excepciones: los fallos llegan como estados de error y avisos. La recuperación solo está verificada con un servicio simulado (`tests/test_clientes_seguridad.py`) |
+
+Observaciones:
+
+- Las consultas de A2, A3 y A5 son de instalaciones, no la de A1, porque el documental se abstiene con el índice actual. Cuando el índice funcione hay que repetir A2 y A3 con la consulta de A1.
+- Sin red, el documental falló con `module 'requests' has no attribute 'ChunkedEncodingError'` (`rag/embed.py`, líneas 137 y 244: la clase está en `requests.exceptions`). Pendiente de corregir por el responsable del RAG.
+- "PENDIENTE" significa que no se ha ejecutado o no se ha completado; no equivale a aceptado.
 
 ## 7. Qué no valida este guion
 
