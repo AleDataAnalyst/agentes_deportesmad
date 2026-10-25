@@ -1,7 +1,7 @@
 # Coordinación de integración: supervisor, grafo y RAG
 
 ## Trabajo actual
-Alejandra está preparando `contracts.py`, `state.py` y el supervisor para avanzar en la construcción del grafo. 
+Alejandra está preparando `contracts.py`, `state.py` y el supervisor para avanzar en la construcción del grafo.
 
 Las estructuras relacionadas con el RAG son provisionales y se revisarán cuando Héctor aporte el contrato del conector.
 
@@ -98,14 +98,13 @@ Queda pendiente acordar con Héctor cómo consumirá el supervisor la interfaz d
 
 ## Siguiente paso
 
-Cuando esté disponible el contrato RAG, revisaremos juntos su encaje con `contracts.py` y `state.py`, y ajustaremos la integración necesaria.
-
+La compatibilidad del contrato RAG con `contracts.py` y `state.py` queda pendiente de revisión conjunta.
 
 ## Retrieval Augmented Generation (RAG)
 
-### Generación de indexación 
+### Generación de indexación
 
-#### IMPORTANTE:  
+#### IMPORTANTE:
 
 Primero es preciso tener la configuración local en el archivo `.env`.
 
@@ -113,14 +112,14 @@ Además y debido a reconocimiento OCR dentro de archivos PDF, requiere de instal
 
 ##### En Ubuntu/Debian
 
-```bash 
+```bash
 sudo apt-get install tesseract-ocr
-```  
+```
 
 ##### En macOS con Brew
-```bash  
-brew install tesseract 
-``` 
+```bash
+brew install tesseract
+```
 
 ##### En Windows Powershell
 ```powershell
@@ -128,37 +127,36 @@ winget install tesseract-ocr.tesseract
 ```
 
 Tras este primer paso, que se realiza una única vez por Sistema Operativo, es preciso tener un archivo `.env` con la variable `OCR_AGENT` fijada a `tesseract`:
-```text 
+```text
 # OCR para PDF
 OCR_AGENT=tesseract
 ```
 
 Tras estos pasos de instalación y declaración ya se puede pasar a las fases indexación/re-indexación.
 
-
 #### Llamada a indexación:
 
 Se ha expuesto la herramienta para ejecutar el pipeline de ingesta. Los datos a indexar residen en `data/corpus/` y para realizar la indexación es preciso lanzar la instrucción siguiente desde el raíz del proyecto:
 
-```bash  
+```bash
 python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/corpus')"
-``` 
+```
 
-#### IMPORTANTE:  
+#### IMPORTANTE:
 
 Si lo que se quiere hacer es una reindexación (porque ya se ha hecho la indexación) es preciso indicarlo con el parámetro recreate_index=True en la llamada al final del comando, porque de lo contrario dará **error de dimensiones en ChromaDB**:
 
-```bash  
+```bash
 python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/corpus', recreate_index=True)"
-``` 
+```
 
 ### Comprobación de nodo y herramienta
 
 Se han expuesto por una parte `nodo_documental` y por otro `rag_preguntar` como herramienta. Se puede verificar con la siguiente instrucción desde el raíz del proyecto:
 
-```bash  
+```bash
 python -c "from agentes.tools import rag_preguntar; from agentes.nodes import nodo_documental; print('ok: agentes.*')"
-``` 
+```
 
 ### Firmas públicas
 
@@ -204,7 +202,7 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 ### Ejemplos de respuesta
 
 1. Respuesta normal:
-```json 
+```json
 {
   "respuesta": "El abono de piscina para temporada cuesta 90 € para empadronados; hay descuentos para menores, mayores y personas en paro.",
   "chunks": [
@@ -232,7 +230,7 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
   "abstained": false,
   "error": null
 }
-``` 
+```
 
 2. Abstención:
 ```json
@@ -259,7 +257,7 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 ```
 
 3. Error (posible fallo antes o durante el pipeline RAG)
-```json  
+```json
 {
   "respuesta": "",
   "chunks": [],
@@ -269,4 +267,4 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
   "abstained": false,
   "error": "Error recuperando contexto: <mensaje de la excepción>"
 }
-```  
+```

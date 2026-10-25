@@ -1,8 +1,8 @@
 # Handoff para Miguel: especialista de instalaciones y avisos
 
-**Responsable de continuar esta tarea:** Miguel  
-**Investigación y recopilación de fuentes:** Alejandra  
-**Corte de la comprobación:** 13/10/2026
+- **Responsable de continuar esta tarea:** Miguel
+- **Investigación y recopilación de fuentes:** Alejandra
+- **Corte de la comprobación:** 13/10/2026
 
 ## Alcance de este handoff
 

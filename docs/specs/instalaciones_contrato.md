@@ -1,9 +1,9 @@
 # Contrato del especialista de instalaciones y avisos
 
-**Proyecto:** Proyect-Break-2  
-**Responsable:** Miguel López  
-**Rama:** `feature/instalaciones-avisos`  
-**Estado:** Contrato funcional acordado; pendiente de validación de compatibilidad con las interfaces compartidas.
+- **Proyecto:** Proyect-Break-2
+- **Responsable:** Miguel López
+- **Rama:** `feature/instalaciones-avisos`
+- **Estado:** Contrato funcional acordado; pendiente de validación de compatibilidad con las interfaces compartidas.
 
 ## 1. Objetivo
 

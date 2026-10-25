@@ -109,7 +109,6 @@ El servicio, sus checkpoints y sus identificadores se conservan entre turnos dur
 
 Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-20.md), [cierre del backend](docs/specs/cierre_backend_supervisor_grafo.md), [síntesis y aplicar](docs/specs/sintetizar_aplicar.md) y [contratos](docs/specs/contratos.md).
 
-
 ## Estructura relevante
 
 | Ruta | Contenido |
@@ -121,8 +120,6 @@ Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-2
 | `app.py` | Arranque de Streamlit |
 | `clientes/` | Clientes: CLI (`cli.py`), interfaz Streamlit (`streamlit_app.py`), botones de aprobar y rechazar (`hitl.py`) y panel de debug (`debug.py`) |
 | `.env.example` | Plantilla de configuración; no contiene secretos |
-
-
 
 ## Ejecutar la demo sin servicios externos
 
@@ -237,7 +234,6 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 ## Pruebas y evidencias
 
-
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
@@ -287,8 +283,9 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 ## Configuración efectiva y RAG
 
 ---
-### advertencia 
-![warning](./assets/warning.png) 
+### Advertencia
+
+![warning](./assets/warning.png)
 
 `MAX_ITER` tiene significados y valores por defecto distintos en el supervisor y en el RAG:
 
@@ -297,15 +294,15 @@ Los contratos y el golden están versionados. Las evidencias temporales permanec
 
 No son la misma configuración ni deben tratarse como un único límite global.
 
---- 
+---
 
 La configuración del supervisor y la del RAG tienen mecanismos distintos:
 
 - `agentes/settings.py` lee `MAX_ITER` al crear el servicio; valor predeterminado 8. No carga `.env` automáticamente.
 - `rag/config.py` carga dotenv sin sobrescribir variables del proceso y fija constantes al importar. Cambiar el entorno después de importar no basta para comparar configuraciones.
 - Embeddings, etiquetado (TAG) y generación tienen proveedores/modelos separados. Declarar una variable no garantiza que un adaptador la consuma.
-  
-> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. No la uses para configurar generación; utiliza `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY` según el proveedor seleccionado.
+
+> `GEMINI_MODEL` no tiene consumidor confirmado en el código actual. La generación del RAG se configura mediante `GEN_PROVIDER`, `GOOGLE_GEN_MODEL` y `GOOGLE_API_KEY`, según el proveedor seleccionado.
 
 Para validar el RAG real se necesita un índice compatible con el modelo, dimensión y configuración de embeddings que lo construyeron, su ruta/colección y una consulta con fuente esperada. Cambiar `EMBED_*` o `CHUNK_*` exige gestionar la reindexación indicada en las specs. No subir `.env`, claves, entornos virtuales ni índices pesados. Los ejemplos no certifican disponibilidad de los modelos, cuotas o compatibilidad del entorno local.
 

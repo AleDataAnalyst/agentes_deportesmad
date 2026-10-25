@@ -109,5 +109,3 @@ Para monitorización necesitaríamos registrar al menos tres métricas: tasa de 
 El corpus de tarifas se actualiza cada año; habría que automatizar la re-indexación cuando cambien los PDFs fuente.
 
 Para despliegue separaríamos el servicio de indexación del de inferencia, con el índice ChromaDB montado como volumen persistente.
-
-> **@Alejandra** — ¿añades aquí algo sobre el grafo asíncrono o SqliteSaver que mencionaste en Slack?

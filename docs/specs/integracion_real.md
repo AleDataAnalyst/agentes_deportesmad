@@ -126,7 +126,6 @@ conjunta con índice RAG compatible e instalaciones reales. No se declara
 terminado el MVP ni el RAG. No se ejecutó la suite completa ni se consultaron
 APIs, modelos o índice durante esta tarea.
 
-
 ## Qué se conecta
 
 `agentes/runtime.py::crear_servicio_real()` pasa al adaptador un callable que
