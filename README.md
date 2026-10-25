@@ -20,7 +20,7 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 | Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
-| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes bajo la respuesta, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes y recuperación tras errores probadas solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
+| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes y avisos por estado bajo la respuesta, subida de imágenes JPG/PNG, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | La imagen subida se guarda pero aún no se envía al agente (el servicio no acepta `image_id`); fuentes, avisos y recuperación tras errores probados solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
 | Perfiles y benchmark TAG | Tres plantillas y sonda independiente; validación con dobles | Sin comparación completa real de estos perfiles ni validación del pipeline |
 | Visualización | Exportación ASCII/Mermaid y esquema SVG | Describe topología y montaje; no acredita una consulta RAG real |
 
@@ -132,7 +132,7 @@ Streamlit se inicia con:
 python -m streamlit run app.py
 ```
 
-`app.py` solo arranca la página. El código está en `clientes/streamlit_app.py` (chat y botones) y en `clientes/debug.py` (panel de diagnóstico).
+`app.py` solo arranca la página. El código está en `clientes/streamlit_app.py` (chat y botones), `clientes/estados.py` (traduce cada resultado a respuesta, abstención o error), `clientes/imagenes.py` (guardado de imágenes subidas) y `clientes/debug.py` (panel de diagnóstico).
 
 Qué hace el cliente:
 
@@ -142,10 +142,12 @@ Qué hace el cliente:
 - **No enseña secretos.** Errores, mensajes y debug pasan por `sin_secretos`.
 - **No repite la respuesta al aprobar.** Solo añade el mensaje de cierre.
 - **Muestra las fuentes bajo la respuesta del chat**, sin repetir y hasta un máximo de cinco. Si el especialista no aporta evidencia, como en una abstención, no se muestra ninguna.
+- **Avisa del estado de cada especialista** bajo la respuesta: un aviso azul si se abstiene, una caja roja si falla (con el mensaje ya filtrado) y un aviso amarillo con sus limitaciones. Los avisos se conservan en el historial del chat.
+- **Acepta una imagen** (solo JPG y PNG, hasta 10 MB) desde la barra lateral, con miniatura y botón para quitarla. Comprueba que el contenido corresponda al formato y la guarda con un nombre generado en `output/imagenes/`. El `image_id` queda en la sesión, pero todavía **no se envía al agente**: el servicio aún no lo acepta.
 - **Se recupera de los errores.** Si falla una consulta o una decisión, vuelve a leer el estado real de la conversación antes de permitir nada más: si hay un plan pendiente lo enseña para decidir, si la ejecución quedó incompleta bloquea el chat y pide una nueva conversación, y si no puede comprobarlo ofrece reintentar. Es el equivalente de `/estado` en la CLI.
 - **Panel de debug** desplegable con la fase de la revisión humana, si la consulta ha terminado, las iteraciones y la traza. Para cada especialista muestra si ha respondido, si el dato es real, simulado o no disponible, la respuesta, las fuentes y las herramientas usadas. Los datos técnicos completos solo aparecen si los pides, y también van filtrados.
 
-Pendiente: probar las fuentes y la recuperación tras errores con el índice real y con un fallo real de red o de servicio.
+Pendiente: enviar el `image_id` al agente cuando el servicio lo acepte, y probar las fuentes, los avisos y la recuperación tras errores con el índice real y con un fallo real de red o de servicio.
 
 ## Protecciones del backend compartido
 
@@ -297,7 +299,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
 | Miguel | Nodo público de instalaciones y avisos entregado y conectado en runtime | Cerrar la auxiliar determinista reutilizando la función de fecha existente; participar en la aceptación con catálogo/avisos reales |
-| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Probar fuentes y recuperación tras errores con el índice real, ampliar los tests de `clientes/` y preparar la demo de la presentación |
+| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Enviar el `image_id` al agente cuando el servicio lo acepte, probar fuentes, avisos y recuperación tras errores con el índice real, ampliar los tests de `clientes/` y preparar la demo de la presentación |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 
