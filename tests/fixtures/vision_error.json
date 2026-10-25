@@ -1,0 +1,24 @@
+{
+  "_descripcion": "Fallo de la herramienta de vision: la imagen no es valida o no puede procesarse. El especialista documental no inventa contenido y registra el error tecnico.",
+  "_uso": "Sustituir {{request_id}} por el request_id generado en la invocacion antes de devolver el sobre al adaptador.",
+  "documental": {
+    "request_id": "{{request_id}}",
+    "resultado": "",
+    "fuentes": [],
+    "abstained": true,
+    "errores": [
+      "La herramienta de vision no ha podido procesar la imagen: formato no valido o archivo ilegible."
+    ],
+    "limitaciones": [
+      "No se ha podido extraer texto de la imagen solicitada."
+    ],
+    "eventos": [
+      {
+        "tool": "vision",
+        "ok": false,
+        "image_id": "imagen_demo",
+        "error": "Formato de imagen no valido o archivo ilegible"
+      }
+    ]
+  }
+}
