@@ -45,7 +45,7 @@ def test_real_runtime_construction_with_tool_double_does_not_import_rag_or_chrom
     run_python('''
         import sys
         from importlib.abc import MetaPathFinder
-        from types import ModuleType
+        from types import ModuleType, SimpleNamespace
 
         class BlockRag(MetaPathFinder):
             def find_spec(self, fullname, path=None, target=None):
@@ -68,7 +68,10 @@ def test_real_runtime_construction_with_tool_double_does_not_import_rag_or_chrom
         import agentes.nodes.instalaciones as ni
         ni.consultar_instalaciones = forbidden
         from agentes.runtime import crear_servicio_real
-        service = crear_servicio_real()
+        from agentes.supervisor_llm import crear_proveedor_rutas
+        provider = crear_proveedor_rutas(
+            adapter=SimpleNamespace(generate=forbidden), message_factory=SimpleNamespace)
+        service = crear_servicio_real(route_provider=provider)
         assert service.nueva_conversacion()
         assert not any(name.split('.')[0] in {"rag", "chromadb"} for name in sys.modules)
     ''')
