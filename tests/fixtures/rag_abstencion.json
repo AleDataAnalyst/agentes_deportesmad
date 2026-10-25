@@ -1,0 +1,22 @@
+{
+  "_descripcion": "Abstención del especialista documental: no hay evidencia suficiente para responder.",
+  "_uso": "Sustituir {{request_id}} por el request_id generado en la invocación antes de devolver el sobre al adaptador.",
+  "documental": {
+    "request_id": "{{request_id}}",
+    "resultado": "",
+    "fuentes": [],
+    "abstained": true,
+    "errores": [],
+    "limitaciones": [
+      "No se han recuperado fragmentos con evidencia suficiente para responder a la consulta."
+    ],
+    "eventos": [
+      {
+        "tool": "rag",
+        "ok": true,
+        "consulta": "horario de la piscina olimpica en agosto",
+        "fuentes_recuperadas": 0
+      }
+    ]
+  }
+}

@@ -23,11 +23,18 @@ from agentes.validation import (
 )
 from clientes.hitl import mensaje_recuperacion, render_hitl
 from clientes.debug import fuentes_de_estado, render_debug
+from clientes.estados import avisos_de_estado
+from clientes.imagenes import guardar_imagen_subida
 
 
 def _error(prefijo: str, exc: BaseException) -> None:
     """Muestra un error sin exponer secretos."""
     st.error(f"{prefijo}: {sin_secretos(str(exc))}")
+
+
+def _mostrar_avisos(avisos: list[tuple[str, str]] | None) -> None:
+    for nivel, texto in avisos or []:
+        getattr(st, nivel)(sin_secretos(texto))
 
 
 def _mostrar_fuentes(fuentes: list[str] | None) -> None:
@@ -59,6 +66,48 @@ def _recuperar_estado(service, thread_id: str) -> None:
     getattr(st, nivel)(texto)
 
 
+def _reiniciar_imagen() -> None:
+    """Olvida la imagen actual y vacía el selector de archivos."""
+    st.session_state.image_id = None
+    st.session_state.imagen_clave = None
+    st.session_state.imagen_error = None
+    st.session_state.uploader_n += 1
+
+
+def _render_subida_imagen() -> None:
+    """Acepta solo JPG y PNG y guarda su image_id.
+
+    El servicio aún no recibe el image_id: queda en st.session_state.image_id
+    para pasarlo cuando exista esa vía.
+    """
+    st.subheader("Imagen")
+    subida = st.file_uploader(
+        "Sube una imagen (JPG o PNG)",
+        type=["jpg", "jpeg", "png"],
+        key=f"uploader_{st.session_state.uploader_n}",
+    )
+    if subida is not None:
+        clave = getattr(subida, "file_id", None) or (subida.name, subida.size)
+        if st.session_state.imagen_clave != clave:
+            st.session_state.imagen_clave = clave
+            try:
+                st.session_state.image_id = guardar_imagen_subida(subida.name, subida.getvalue())
+                st.session_state.imagen_error = None
+            except ValueError as exc:
+                st.session_state.image_id = None
+                st.session_state.imagen_error = sin_secretos(str(exc))
+
+    if st.session_state.imagen_error:
+        st.error(st.session_state.imagen_error)
+    if st.session_state.image_id:
+        st.image(st.session_state.image_id, use_container_width=True)
+        st.caption(f"image_id: `{st.session_state.image_id}`")
+        st.caption("La imagen se guarda, pero todavía no se envía al agente.")
+        if st.button("Quitar imagen", use_container_width=True):
+            _reiniciar_imagen()
+            st.rerun()
+
+
 def _texto_aprobacion(anterior: str, final: str) -> str:
     """Devuelve solo lo que el cierre añade a la respuesta ya mostrada.
 
@@ -88,6 +137,10 @@ def _init_session():
         st.session_state.estado = None
     if "estado_desconocido" not in st.session_state:
         st.session_state.estado_desconocido = False
+    for clave, valor in (("image_id", None), ("imagen_clave", None),
+                         ("imagen_error", None), ("uploader_n", 0)):
+        if clave not in st.session_state:
+            st.session_state[clave] = valor
 
 
 def render():
@@ -118,8 +171,11 @@ def render():
                 st.session_state.estado = None
                 st.session_state.estado_desconocido = False
                 st.session_state.thread_id = nuevo_id
+                _reiniciar_imagen()
                 st.rerun()
 
+        st.divider()
+        _render_subida_imagen()
         st.divider()
 
         # Controles HITL
@@ -174,6 +230,7 @@ def render():
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(sin_secretos(msg["content"]))
+            _mostrar_avisos(msg.get("avisos"))
             _mostrar_fuentes(msg.get("fuentes"))
 
     # Chat input
@@ -201,14 +258,17 @@ def render():
 
                         respuesta = resultado.get("final_answer") or ""
                         fuentes = fuentes_de_estado(resultado)
+                        avisos = avisos_de_estado(resultado)
                         with st.chat_message("assistant"):
                             st.markdown(sin_secretos(respuesta))
+                            _mostrar_avisos(avisos)
                             _mostrar_fuentes(fuentes)
                             if resultado.get("pendiente_hitl"):
                                 st.info("Plan pendiente de aprobación — revisa el sidebar.")
 
                         st.session_state.messages.append(
-                            {"role": "assistant", "content": respuesta, "fuentes": fuentes}
+                            {"role": "assistant", "content": respuesta,
+                             "avisos": avisos, "fuentes": fuentes}
                         )
                         st.rerun()
 
