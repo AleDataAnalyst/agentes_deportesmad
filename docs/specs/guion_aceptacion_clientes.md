@@ -4,7 +4,8 @@ Desarrolla los criterios de [aceptacion.md](aceptacion.md) en escenarios verific
 
 ## 1. Reglas de la aceptación
 
-- **Nunca autoaprobar.** Toda aprobación o rechazo la hace una persona con `/aprobar`, `/rechazar` o los botones de Streamlit.
+- **Nunca autoaprobar.** En los casos A1–A9, toda aprobación o rechazo la hace una persona con `/aprobar`, `/rechazar` o los botones de Streamlit.
+- **`smoke_real` no es un caso de este guion.** Es una sonda automática que sí toma decisiones por su cuenta (por ejemplo, aprueba y rechaza para comprobar el contrato del backend). Sirve para verificar la preparación y el backend, pero no sustituye ni acredita ningún caso A1–A9, que se hacen a mano y con una decisión humana.
 - **Comparar el contrato, no el texto.** La respuesta generada puede variar entre ejecuciones y entre clientes. Lo que tiene que coincidir son el estado (`status`), las fuentes, el origen de los datos y la fase HITL.
 - **Un caso sin evidencia no está aceptado.** Tener el código conectado no equivale a haber aceptado una consulta real.
 - **Registrar siempre** el sha del commit, el sistema operativo, el comando, si hubo red y si se usó algún doble.
@@ -29,7 +30,7 @@ git rev-parse --short HEAD          # anotar sha
 python -m scripts.smoke_real        # comprueba índice y claves sin ingesta
 ```
 
-`smoke_real` debe informar `index_file_present: true` y las claves presentes. Si informa `RAG_INDEX_MISSING`, falta el índice y no se debe continuar con A1–A4.
+La sonda `smoke_real` es automática y toma decisiones por su cuenta; aquí solo se usa para comprobar la preparación. Debe informar `index_file_present: true` y las claves presentes. Si informa `RAG_INDEX_MISSING`, falta el índice y no se debe continuar con A1–A4.
 
 > `index_file_present` solo comprueba que existe `chroma.sqlite3`. Antes de dar por bueno el índice, comprobar además que una búsqueda devuelve el número de resultados pedido.
 
@@ -82,7 +83,7 @@ En todos los casos, "contrato esperado" se refiere al estado que devuelve `Agent
 
 **Contrato esperado:** `approved == False` y `pendiente_hitl == False`, sin respuesta aplicada como confirmada. Streamlit muestra "Plan rechazado. Puedes enviar un nuevo mensaje."
 
-**Comprobación adicional (opcional):** intentar resolver con un `plan_id` antiguo debe devolver `PLAN_NOT_CURRENT`. `scripts/smoke_real.py` ya cubre este caso, así que basta con citar su salida.
+**Comprobación adicional (opcional):** intentar resolver con un `plan_id` antiguo debe devolver `PLAN_NOT_CURRENT`. `scripts/smoke_real.py` ya cubre este caso de forma automática; su salida se puede citar como apoyo, pero no sustituye al rechazo manual de A3, que lo decide una persona.
 
 **Evidencia:** `plan_id` rechazado y captura del estado final.
 

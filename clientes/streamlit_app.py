@@ -126,6 +126,8 @@ def render():
         if estado and estado.get("pendiente_hitl"):
 
             def _resolver(aprobado: bool) -> None:
+                if st.session_state.estado_desconocido:
+                    return
                 accion = "aprobar" if aprobado else "rechazar"
                 try:
                     validar_decision(aprobado)
@@ -157,7 +159,12 @@ def render():
             def on_rechazar():
                 _resolver(False)
 
-            render_hitl(estado=estado, on_aprobar=on_aprobar, on_rechazar=on_rechazar)
+            render_hitl(
+                estado=estado,
+                on_aprobar=on_aprobar,
+                on_rechazar=on_rechazar,
+                bloqueado=st.session_state.estado_desconocido,
+            )
 
     # Título
     st.title("🏟️ Asistente Deporte Municipal Madrid")
