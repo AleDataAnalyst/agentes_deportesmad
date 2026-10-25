@@ -139,7 +139,30 @@ La compatibilidad del contrato RAG con `contracts.py` y `state.py` queda pendien
 
 Primero es preciso tener la configuración local en el archivo `.env`.
 
-Además y debido a reconocimiento OCR dentro de archivos PDF, requiere de instalación del paquete Tesseract para su uso dentro de la aplicación y previo a cualquier operación de indexación/re-indexación, que se puede realizar según Sistema Operativo como sigue:
+El OCR de PDFs requiere Tesseract. En Windows, si se procesan PDFs escaneados,
+también puede requerir Poppler si su ejecutable no está en `PATH`.
+
+##### En Windows PowerShell
+
+```powershell
+winget install tesseract-ocr.tesseract
+
+# Sesión actual
+$env:Path = "$env:Path;$env:ProgramFiles\Tesseract-OCR"
+
+# Persistente para el usuario actual
+[Environment]::SetEnvironmentVariable(
+  "Path",
+  "$env:Path;$env:ProgramFiles\Tesseract-OCR",
+  "User"
+)
+```
+
+Si `pdf2image` no encuentra Poppler, define su ruta en `.env`:
+
+```env
+POPPLER_PATH=C:\Program Files\poppler-24.08.0\Library\bin
+```
 
 ##### En Ubuntu/Debian
 
@@ -165,9 +188,9 @@ OCR_AGENT=tesseract
 
 Tras estos pasos de instalación y declaración ya se puede pasar a las fases indexación/re-indexación.
 
-#### Llamada a indexación:
+#### Llamada a indexación
 
-Se ha expuesto la herramienta para ejecutar el pipeline de ingesta. Los datos a indexar residen en `data/corpus/` y para realizar la indexación es preciso lanzar la instrucción siguiente desde el raíz del proyecto:
+Los datos a indexar residen en `data/corpus/`. Desde la raíz del proyecto:
 
 ```bash
 python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/corpus')"
@@ -175,11 +198,30 @@ python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/c
 
 #### IMPORTANTE:
 
-Si lo que se quiere hacer es una reindexación (porque ya se ha hecho la indexación) es preciso indicarlo con el parámetro recreate_index=True en la llamada al final del comando, porque de lo contrario dará **error de dimensiones en ChromaDB**:
+Si ya existe un índice, usa `recreate_index=True`. De lo contrario, pueden
+producirse errores de dimensiones en ChromaDB:
 
 ```bash
 python -c "from rag.pipeline import ejecutar_pipeline; ejecutar_pipeline('data/corpus', recreate_index=True)"
 ```
+
+#### PDFs TAB y OCR
+
+Los PDFs que requieren tratamiento especial se declaran en
+`data/corpus/especiales.txt`:
+
+```text
+# nombre.pdf: TAB | OCR
+documento-tabular.pdf: TAB
+documento-escaneado.pdf: OCR
+```
+
+- `TAB`: extrae tablas con `pdfplumber`; cada fila se indexa junto a su cabecera,
+  página y número de tabla.
+- `OCR`: convierte el PDF a imágenes a 200 DPI y aplica Tesseract con `--psm 6`.
+  Si el OCR falla, se intenta extracción directa como fallback.
+
+El manifiesto se procesa una vez por indexación, no una vez por cada PDF.
 
 ### Comprobación de nodo y herramienta
 

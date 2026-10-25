@@ -55,8 +55,6 @@ Indica el punto exacto donde otra persona debe enchufar tu trabajo:
 | David / Streamlit | `AgentService` | Consumir el mismo `thread_id` y `plan_id` |
 | Héctor / RAG | Adaptador documental | Entregar índice compatible y consulta de aceptación |
 
-Esto es especialmente importante en PB02: el README distingue claramente el backend, el RAG documental, instalaciones y el cliente Streamlit. [48]
-
 ## 5. Pendientes y criterio de cierre
 
 | Pendiente | Responsable | Criterio de aceptación |
@@ -73,8 +71,11 @@ Incluye solo comandos reproducibles:
 
 ```console
 source .venv/bin/activate
-python -B main.py --modo demo
-python -B -m pytest -q -p no:cacheprovider tests/test_runtime.py
+python -B -m pytest -q -p no:cacheprovider \
+  tests/test_tool_rag.py \
+  tests/test_rag_error_boundary.py \
+  tests/test_node_documental.py \
+  tests/test_documental_adapter.py
 ```
 
 Añade variables de entorno necesarias **sin valores sensibles**, referenciando `.env.example`.
@@ -86,7 +87,52 @@ Añade variables de entorno necesarias **sin valores sensibles**, referenciando 
 - Qué **no** valida esa evidencia.
 - Limitaciones conocidas: sin persistencia durable, sin router LLM, sin instalaciones reales, etc.
 
-El README ya establece una distinción importante: las pruebas con dobles no acreditan RAG, instalaciones ni servicios externos reales. [48]
+### Limpieza y cobertura de pruebas — 25/10/2026
+
+Se revisó la carpeta `tests/` para eliminar duplicidades y dejar clara la cobertura del especialista documental. La limpieza no modifica el contrato público de la tool RAG ni el comportamiento del nodo documental.
+
+#### Decisión de limpieza
+
+- Se elimina `tests/test_tools.py` porque duplica la cobertura de la tool RAG ya incluida en `tests/test_tool_rag.py`: contrato de salida, consulta vacía, error interno y evaluación contra el índice. 
+- Se conserva `tests/test_rag_error_boundary.py`, reducido a `TimeoutError` y `ConnectionError`. Estos casos comprueban que un fallo de red o timeout se normaliza como `error`, sin lanzar excepción, sin devolver respuesta y sin confundirse con una abstención.
+- El caso genérico `RuntimeError` permanece en `tests/test_tool_rag.py::test_error_interno_no_lanza`, evitando duplicarlo.
+- `tests/test_tool_rag.py` se mantiene como única suite principal de la tool RAG: valida el contrato `respuesta`, `fuentes`, `abstained` y `error`; la consulta vacía; el fallo interno; el diagnóstico opcional y la evaluación con índice cuando está disponible.
+
+#### Cobertura por capas
+
+| Capa | Archivo de prueba | Alcance |
+|---|---|---|
+| Tool RAG | `tests/test_tool_rag.py` | Contrato público, consulta vacía, fallo interno, diagnóstico opcional y evaluación con índice cuando existe |
+| Frontera de errores RAG | `tests/test_rag_error_boundary.py` | Normalización de `TimeoutError` y `ConnectionError` como error controlado |
+| Nodo documental | `tests/test_node_documental.py` | Contrato del nodo, fuentes, abstención, presupuesto de tools, contexto permitido y error de tool |
+| Adaptador documental | `tests/test_documental_adapter.py` | Conversión del sobre documental a `ToolResult`, validación de `request_id`, aislamiento del estado y opciones |
+| Integración simulada | `tests/test_golden_graph.py`, `tests/test_export_evidence.py` | Recorridos completos con especialistas dobles; no validan RAG ni visión reales |
+
+#### Comprobación reproducible
+
+```console
+python -B -m pytest -q -p no:cacheprovider \
+  tests/test_tool_rag.py \
+  tests/test_rag_error_boundary.py \
+  tests/test_node_documental.py \
+  tests/test_documental_adapter.py
+```
+
+#### Evidencia obtenida
+
+- La tool RAG devuelve un diccionario controlado con `respuesta`, `fuentes`, `abstained` y `error`.
+- Los fallos técnicos se representan como `error`; no se convierten en respuesta válida ni en abstención.
+- El nodo documental conserva fuentes, abstención, limitaciones y eventos, actualizando únicamente su campo autorizado del estado.
+- El adaptador documental valida el sobre recibido, comprueba la coincidencia de `request_id` y lo convierte en un `ToolResult` para el grafo.
+
+#### Límites de esta evidencia
+
+- Estas pruebas usan dobles, fixtures o simulaciones; no acreditan recuperación real, generación con LLM ni calidad semántica sobre el corpus municipal.
+- No validan un índice Chroma poblado ni compatible con la configuración de embeddings empleada.
+- La visión multimodal no dispone todavía de una suite dedicada. El caso de imagen no disponible está cubierto en `tests/test_node_documental.py`.
+- Falta `tests/test_tool_vision.py` para validar imagen válida, imagen inexistente, formato no soportado y contenido ilegible.
+- La eliminación de `tests/test_tools.py` no reduce la cobertura efectiva:
+  sus casos relevantes ya están representados en `tests/test_tool_rag.py`.
 
 ## 8. Decisiones abiertas
 

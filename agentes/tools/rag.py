@@ -27,12 +27,17 @@ from rag.logic import responder
 import os
 con_diagnostico = os.environ.get("RAG_CON_DIAGNOSTICO", "").lower() in {"1", "true", "yes"}
 
-def rag_preguntar(consulta: str, con_diagnostico: bool = False) -> dict[str, Any]:
+def rag_preguntar(consulta: str, con_diagnostico: bool | None = None) -> dict[str, Any]:
     """Devuelve el dict de contrato (4 claves) por defecto.
     
-    Si con_diagnostico=True se añaden 3 campos extra para depurar
+    Si con_diagnostico=True (o RAG_CON_DIAGNOSTICO=1/true/yes) se añaden 3 campos extra para depurar
     abstenciones. Nunca se eliminan las 4 claves del contrato.
     """
+    if con_diagnostico is None:
+        con_diagnostico = os.environ.get(
+            "RAG_CON_DIAGNOSTICO", ""
+        ).lower() in {"1", "true", "yes"}
+    
     try:
         resultado = responder(consulta)
     except Exception as e:
