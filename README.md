@@ -20,7 +20,7 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 | Instalaciones | Nodo público conectado; fuentes, errores y fallback conservados | Aceptación con catálogo/avisos reales pendiente |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
-| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes y avisos por estado bajo la respuesta, subida de imágenes JPG/PNG, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | La imagen subida se envía como `image_id` con cada mensaje si el servicio lo acepta (PR #25); mientras no lo acepte, se avisa y no se envía; fuentes, avisos y recuperación tras errores probados solo con datos y un servicio simulados; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
+| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, fuentes y avisos por estado bajo la respuesta, subida de imágenes JPG/PNG, comprobación del estado real del hilo tras un error, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | La imagen subida se envía como `image_id` con cada mensaje si el servicio lo acepta (PR #25); mientras no lo acepte, se avisa y no se envía; fuentes y avisos comprobados con el RAG real y el catálogo (capturas en `docs/evidencias/`); recuperación tras errores probada solo con un servicio simulado; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
 | Perfiles y benchmark TAG | Tres plantillas y sonda independiente; validación con dobles | Sin comparación completa real de estos perfiles ni validación del pipeline |
 | Visualización | Exportación ASCII/Mermaid y esquema SVG | Describe topología y montaje; no acredita una consulta RAG real |
 
@@ -196,7 +196,23 @@ Qué hace el cliente:
 - **Se recupera de los errores.** Si falla una consulta o una decisión, vuelve a leer el estado real de la conversación antes de permitir nada más: si hay un plan pendiente lo enseña para decidir, si la ejecución quedó incompleta bloquea el chat y pide una nueva conversación, y si no puede comprobarlo ofrece reintentar. Es el equivalente de `/estado` en la CLI.
 - **Panel de debug** desplegable con la fase de la revisión humana, si la consulta ha terminado, las iteraciones y la traza. Para cada especialista muestra si ha respondido, si el dato es real, simulado o no disponible, la respuesta, las fuentes y las herramientas usadas. Los datos técnicos completos solo aparecen si los pides, y también van filtrados.
 
-Pendiente: comprobar el envío del `image_id` con el backend integrado y la visión real, y probar las fuentes, los avisos y la recuperación tras errores con el índice real y con un fallo real de red o de servicio.
+### Capturas de Streamlit
+
+Respuesta del especialista documental con fuentes reales, abstenciones y limitaciones bajo la respuesta del chat:
+
+![Respuesta con fuentes en Streamlit](./assets/streamlit-respuesta-fuentes.png)
+
+Plan pendiente de aprobación en la barra lateral, con los botones Aprobar y Rechazar (el chat queda bloqueado hasta decidir):
+
+<img src="./assets/streamlit-plan-pendiente.png" alt="Plan pendiente de aprobación en Streamlit" width="300">
+
+Subida de una imagen JPG o PNG, con su miniatura y su `image_id`:
+
+<img src="./assets/streamlit-subida-imagen.png" alt="Subida de imagen en Streamlit" width="300">
+
+Hay más capturas de cada caso de aceptación en [`docs/evidencias/`](docs/evidencias/), enlazadas desde el [registro del guion](docs/specs/guion_aceptacion_clientes.md).
+
+Pendiente: comprobar el envío del `image_id` con el backend integrado y la visión real, y la recuperación tras errores con un fallo real del servicio (cortando la red, los errores llegan como estados y no como excepciones, así que solo se ha podido verificar con un servicio simulado).
 
 ## Protecciones del backend compartido
 
@@ -240,7 +256,7 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
-| Streamlit en modo real, sin índice | Probado a mano: aprobar, rechazar, nueva conversación y bloqueo de un mensaje no válido funcionan | Sin índice el documental no encuentra nada, así que no se han podido ver fuentes reales; la recuperación tras errores se probó con un servicio simulado; los tests de `clientes/` son pocos (`tests/test_clientes_seguridad.py`) |
+| Streamlit en modo real | Probado a mano con el RAG real y el catálogo: consulta con fuentes, abstención fuera del corpus, aprobar con segundo pedido, rechazar en conversación nueva, fallback sin red y subida de imagen (capturas en `docs/evidencias/`) | La recuperación tras errores solo se probó con un servicio simulado; el envío del `image_id` y la visión real dependen de la integración del backend; los tests de `clientes/` están en `tests/test_clientes_*.py` |
 | Selección histórica de backend y montaje | 276 pruebas superadas | Evidencia anterior a esta ampliación, con dobles donde corresponde; no se suma a las 433 |
 | Golden del grafo | 12 escenarios y 24 pruebas | Incluido en la selección conjunta; datos y fuentes sintéticos, sin evaluación semántica de un LLM |
 | Sonda adicional en la frontera RAG | 10 recorridos superados | Respuesta, abstención, vacío, error y timeout, con aprobación/rechazo; solo se sustituye `responder` |
