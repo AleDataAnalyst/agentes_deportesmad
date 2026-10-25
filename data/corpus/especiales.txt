@@ -11,4 +11,3 @@
 
 PiscinasAireLibre2026.pdf: TAB
 PreciosPublicos2026.pdf: TAB
-```
