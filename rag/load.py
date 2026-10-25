@@ -404,6 +404,7 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
     # 4. Cargar documentos
     documentos: list[Document] = []
 
+
     for archivo in archivos:
         ext = Path(archivo).suffix.lower()
         loader_fn = _LOADERS[ext]
@@ -425,7 +426,7 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
             d.metadata.setdefault(
                 "format",
                 _formato_documento(os.path.basename(archivo)),
-
             )
+            documentos.append(d)
 
     return documentos
