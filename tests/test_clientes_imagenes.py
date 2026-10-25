@@ -1,13 +1,22 @@
 """Subida de imágenes: solo JPG y PNG reales, con nombre generado."""
 
+import io
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 import clientes.imagenes as img
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"datos"
-JPG = b"\xff\xd8\xff\xe0" + b"datos"
+def _imagen(formato: str) -> bytes:
+    """Imagen real (2x2) para que Pillow y Streamlit puedan abrirla."""
+    buffer = io.BytesIO()
+    Image.new("RGB", (2, 2), "white").save(buffer, formato)
+    return buffer.getvalue()
+
+
+PNG = _imagen("PNG")
+JPG = _imagen("JPEG")
 
 
 @pytest.fixture(autouse=True)
@@ -42,6 +51,8 @@ def test_no_usa_el_nombre_original(_directorio):
     ("vacia.png", b"", "IMAGE_EMPTY"),
     ("falsa.png", b"no soy una imagen", "IMAGE_INVALID"),
     ("cambiada.png", JPG, "IMAGE_INVALID"),
+    ("truncada.png", PNG[:20], "IMAGE_INVALID"),
+    ("firma-sola.png", b"\x89PNG\r\n\x1a\ndatos", "IMAGE_INVALID"),
 ])
 def test_rechaza_lo_que_no_es_una_imagen_valida(_directorio, nombre, contenido, codigo):
     with pytest.raises(ValueError, match=codigo):
@@ -113,7 +124,12 @@ def _app_envio_imagen(acepta: bool):
     if "llamadas" not in st.session_state:
         raiz = Path(tempfile.mkdtemp())
         (raiz / "output" / "imagenes").mkdir(parents=True)
-        (raiz / "output" / "imagenes" / "a.png").write_bytes(b"\x89PNG\r\n\x1a\ndatos")
+        import io as _io
+        from PIL import Image as _Image
+
+        buffer = _io.BytesIO()
+        _Image.new("RGB", (2, 2), "white").save(buffer, "PNG")
+        (raiz / "output" / "imagenes" / "a.png").write_bytes(buffer.getvalue())
         imgmod.RAIZ = raiz
 
         class Con:
@@ -149,6 +165,7 @@ def test_streamlit_envia_el_image_id_si_el_backend_lo_acepta():
 
     at = AppTest.from_function(_app_envio_imagen, args=(True,), default_timeout=20).run()
     assert not at.exception
+    assert at.sidebar.get("image"), "la vista previa debe mostrarse con una imagen válida"
     assert any("se enviará" in c.value for c in at.sidebar.caption)
     assert not any("/" in c.value and c.value.startswith(("/", "C:")) for c in at.sidebar.caption)
     at.chat_input[0].set_value("hola").run()
@@ -162,3 +179,47 @@ def test_streamlit_avisa_y_no_envia_si_el_backend_no_lo_acepta():
     assert any("todavía no la recibe" in c.value for c in at.sidebar.caption)
     at.chat_input[0].set_value("hola").run()
     assert at.session_state.llamadas == ["sin-soporte"]
+
+
+def _app_vista_previa_rota():
+    import tempfile
+    from pathlib import Path
+
+    import streamlit as st
+    import clientes.imagenes as imgmod
+    import clientes.streamlit_app as m
+
+    if "listo" not in st.session_state:
+        raiz = Path(tempfile.mkdtemp())
+        (raiz / "output" / "imagenes").mkdir(parents=True)
+        (raiz / "output" / "imagenes" / "a.png").write_bytes(b"no es una imagen")
+        imgmod.RAIZ = raiz
+
+        class Falso:
+            def nueva_conversacion(self):
+                return "deportes-abc123"
+
+            def procesar_turno(self, mensaje, thread_id, *, image_id=None):
+                return {}
+
+        st.session_state.service = Falso()
+        st.session_state.thread_id = "deportes-abc123"
+        st.session_state.messages = []
+        st.session_state.estado = None
+        st.session_state.image_id = "output/imagenes/a.png"
+        st.session_state.listo = True
+
+    def falla(*args, **kwargs):
+        raise OSError("cannot identify image file")
+
+    st.image = falla
+    m.render()
+
+
+def test_una_vista_previa_ilegible_no_rompe_la_pagina():
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_function(_app_vista_previa_rota, default_timeout=20).run()
+    assert not at.exception
+    assert any("No se puede mostrar la vista previa" in c.value for c in at.sidebar.caption)
+    assert any("se enviará" in c.value for c in at.sidebar.caption)

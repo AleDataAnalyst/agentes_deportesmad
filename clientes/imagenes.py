@@ -9,6 +9,7 @@ muestra una ruta absoluta al usuario.
 """
 from __future__ import annotations
 
+import io
 import uuid
 from pathlib import Path
 
@@ -23,6 +24,20 @@ FIRMAS = {
 }
 
 
+def _es_legible(contenido: bytes) -> bool:
+    """La imagen se puede abrir y no está truncada ni corrupta (si Pillow no está, no se comprueba)."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return True
+    try:
+        with Image.open(io.BytesIO(contenido)) as imagen:
+            imagen.verify()
+    except Exception:  # noqa: BLE001
+        return False
+    return True
+
+
 def guardar_imagen_subida(nombre_archivo: str, contenido: bytes) -> str:
     """Guarda la imagen y devuelve su image_id; ValueError con un código si no vale."""
     extension = Path(nombre_archivo or "").suffix.lower()
@@ -34,6 +49,8 @@ def guardar_imagen_subida(nombre_archivo: str, contenido: bytes) -> str:
         raise ValueError(f"IMAGE_TOO_LARGE: la imagen supera {MAX_BYTES // (1024 * 1024)} MB")
     if not contenido.startswith(FIRMAS[extension]):
         raise ValueError("IMAGE_INVALID: el contenido no corresponde a una imagen de ese formato")
+    if not _es_legible(contenido):
+        raise ValueError("IMAGE_INVALID: la imagen está dañada o no se puede abrir")
 
     DIRECTORIO_IMAGENES.mkdir(parents=True, exist_ok=True)
     nombre = f"{uuid.uuid4().hex}{extension}"
@@ -45,7 +62,8 @@ def ruta_imagen(image_id: str | None) -> Path | None:
     """Ruta real de un image_id guardado, solo para mostrarla; None si no existe o no es nuestra."""
     if not image_id or ".." in image_id or Path(image_id).is_absolute():
         return None
-    ruta = (RAIZ / image_id).resolve()
-    if not ruta.is_relative_to(RAIZ / PREFIJO_IMAGE_ID) or not ruta.is_file():
+    raiz = RAIZ.resolve()
+    ruta = (raiz / image_id).resolve()
+    if not ruta.is_relative_to(raiz / PREFIJO_IMAGE_ID) or not ruta.is_file():
         return None
     return ruta
