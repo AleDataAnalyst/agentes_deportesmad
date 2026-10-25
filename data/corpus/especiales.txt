@@ -1,0 +1,13 @@
+# Este archivo tiene como fin marcar ciertos documentos en este corpus que deben
+# tener un tratamiento especial o distinto, y hasta el momento se contemplan dos +
+# opciones distintas que hacen un procesado de los mismos fuera del standard:
+# a) `TAB` son archivos de naturaleza tabular, que son procesados directamente
+#    como texto plano key-value (sin transformación a Markdown)
+# b) `OCR` son archivos que por su naturaleza de mapa de pixeles pueden incorporar
+#    texto en el bitmap que no está incrustado en el documento como tal y ha de ser
+#    reconocido por el algoritmo OCR. Tras el reconocimiento, se trata como key-value.
+#
+# nombre_de_archivo: OCR
+
+PiscinasAireLibre2026.pdf: TAB
+PreciosPublicos2026.pdf: TAB

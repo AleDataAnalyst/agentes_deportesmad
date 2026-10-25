@@ -1,0 +1,151 @@
+[
+  {
+    "id": 1,
+    "pregunta": "¿Tiene el centro deportivo de la Cea Bermudez pistas para practicar el Padel?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 2,
+    "pregunta": "¿Hay descuentos para familia numerosa?",
+    "categoria_esperada": "tarifas",
+    "fuente_esperada": "300097-0-deportes-descuentos.csv"
+  },
+  {
+    "id": 3,
+    "pregunta": "¿Cuánto cuesta una entrada para la piscina cubierta?",
+    "categoria_esperada": "tarifas",
+    "fuente_esperada": "PreciosPublicos2026.pdf"
+  },
+  {
+    "id": 4,
+    "pregunta": "¿Quién ganó el Mundial de fútbol en 2026?",
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },
+  {
+    "id": 5,
+    "pregunta": "¿Cómo se adquiere el Abono Deporte Madrid (ADM)?",
+    "categoria_esperada": "abonos",
+    "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
+  },
+  {
+    "id": 6,
+    "pregunta": "¿Puedo acceder con mi botella de agua de cristal al recinto deportivo o tengo que comprar el agua en las intalaciones deportivas?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
+  },  
+  {
+    "id": 7,
+    "pregunta": "¿Puedo comprar el abono de deportes municipal de manera online?",
+    "categoria_esperada": "abonos",
+    "fuente_esperada": "20250912_InfografíaCómoAdquirirOrenovarUnADM.pdf"
+  },
+  {
+    "id": 8,
+    "pregunta": "¿He perdido un objeto personal en el vestuario, cómo contacto con objetos perdidos para preguntarles?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
+  },
+  {
+    "id": 9,
+    "pregunta": "¿Cómo puedo hacer una dieta paleolítica?",
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },
+  {
+    "id": 10,
+    "pregunta": "¿Puedo cancelar una reserva para piscina cubierta tres horas antes?",
+    "categoria_esperada": "reservas",
+    "fuente_esperada": "DecretoAnulacionReservasConCoste.pdf"
+  },
+  {
+    "id": 11,
+    "pregunta": "¿Cómo puedo hacer una anulación de reserva?",
+    "categoria_esperada": "reservas",
+    "fuente_esperada": "DecretoAnulacionReservasConCoste.pdf"
+  },
+  {
+    "id": 12,
+    "pregunta": "¿Puedo usar las instalaciones deportivas si no soy residente en Madrid?",
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },
+  {
+    "id": 13,
+    "pregunta": "¿Se requiere supervisión en las salas de musculación?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
+  },
+  {
+    "id": 14,
+    "pregunta": "¿Cuándo ganó el Real Madrid su última liga?",
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },
+  {
+    "id": 15,
+    "pregunta": "¿Cómo recupero mis enseres del guardarropa si he perdido la ficha que me entregaron?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
+  },
+  {
+    "id": 16,
+    "pregunta": "¿Qué piscinas al aire libre están abiertas para el verano?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "PiscinasAireLibre2026.pdf"
+  },
+  {
+    "id": 17,
+    "pregunta": "¿Qué dias abre el centro deportivo de Arganzuela?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 18,
+    "pregunta": "¿Hay instalaciones adaptadas para personas con movilidad reducida en el Centro Deportivo de Hortaleza?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 19,
+    "pregunta": "¿Cuándo se celebran los Juegos Deportivos Municipales?",
+    "categoria_esperada": "agenda",
+    "fuente_esperada": "BasesDeportesEquipo47jdm_1Sp.pdf"
+  },
+  {
+    "id": 20,
+    "pregunta": "¿Cómo se inscribe un club deportivo en las competiciones municipales?",
+    "categoria_esperada": "agenda",
+    "fuente_esperada": "normativaGeneral46jdm.pdf"
+  },
+  {
+    "id": 21,
+    "pregunta": "¿En qué fecha finalizan las jornadas de ajedrez en los parques?",
+    "categoria_esperada": "agenda",
+    "fuente_esperada": "212504-0-agenda-actividades-deportes.csv"
+  },
+  {
+    "id": 22,
+    "pregunta": "¿Cuál es la mejor marca de zapatillas para correr?",
+    "categoria_esperada": "out_of_corpus",
+    "fuente_esperada": null,
+    "out_of_corpus": true
+  },
+  {
+    "id": 23,
+    "pregunta": "¿Qué servicios tiene el Estadio Municipal Vallehermoso?",
+    "categoria_esperada": "instalaciones",
+    "fuente_esperada": "200186-0-polideportivos.csv"
+  },
+  {
+    "id": 24,
+    "pregunta": "¿Es posible acceder con sillas o tumbonas propias si las propias de las instalaciones ya han sido ocupadas?",
+    "categoria_esperada": "normativa",
+    "fuente_esperada": "reglamento_instalaciones.pdf"
+  }
+]

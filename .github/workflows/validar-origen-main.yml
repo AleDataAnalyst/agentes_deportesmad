@@ -1,0 +1,26 @@
+name: Validar origen de PR hacia main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions: {}
+
+jobs:
+  validar-origen:
+    name: main-solo-desde-develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar rama y repositorio de origen
+        shell: bash
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [[ "$HEAD_BRANCH" != "develop" || "$HEAD_REPO" != "$BASE_REPO" ]]; then
+            echo "::error::main solo admite PR desde develop del mismo repositorio."
+            exit 1
+          fi
+          echo "Origen válido: develop del mismo repositorio."

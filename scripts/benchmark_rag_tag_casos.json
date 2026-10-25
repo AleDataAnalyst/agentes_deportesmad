@@ -1,0 +1,29 @@
+[
+  {
+    "id": "tarifas",
+    "text": "La entrada individual a la piscina municipal cuesta 6 euros. La tarifa reducida es de 3 euros para personas con derecho a descuento.",
+    "expected_category": "tarifas",
+    "supported_tags": ["piscina", "tarifa", "precio", "descuento"],
+    "unjustified_tags": ["empadronado", "reserva", "cancelación", "devolución", "competición", "inscripción", "temporada", "accesibilidad", "aire_libre"],
+    "review_tags": ["abono", "horario", "instalación"],
+    "rationale": "Precios, entrada de piscina y descuento explícitos. No consta empadronamiento ni reglas de reserva. Abono/horario no constan; instalación es una generalización que requiere revisión."
+  },
+  {
+    "id": "cancelacion_reservas",
+    "text": "La reserva de piscina municipal se puede cancelar hasta 24 horas antes. La cancelación dentro de plazo permite la devolución del importe; fuera de plazo no hay devolución.",
+    "expected_category": "reservas",
+    "supported_tags": ["piscina", "reserva", "cancelación", "devolución"],
+    "unjustified_tags": ["empadronado", "descuento", "competición", "accesibilidad", "aire_libre", "inscripción", "temporada", "abono"],
+    "review_tags": ["horario", "tarifa", "precio", "instalación"],
+    "rationale": "Reserva, cancelación, devolución y piscina explícitas. Horario para un plazo de 24 horas y precio/tarifa para una devolución son ambiguos: revisión humana."
+  },
+  {
+    "id": "instalaciones",
+    "text": "El Centro Deportivo Municipal de prueba dispone de piscina cubierta, pista deportiva al aire libre y vestuarios accesibles. Su catálogo de instalaciones incluye accesibilidad para personas con movilidad reducida.",
+    "expected_category": "instalaciones",
+    "supported_tags": ["piscina", "instalación", "accesibilidad", "aire_libre"],
+    "unjustified_tags": ["empadronado", "descuento", "tarifa", "precio", "reserva", "cancelación", "devolución", "abono", "competición", "horario", "inscripción", "temporada"],
+    "review_tags": [],
+    "rationale": "Equipamientos, aire libre y accesibilidad explícitos. No hay requisitos de empadronamiento ni precios, horarios o reglas de reserva."
+  }
+]

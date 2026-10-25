@@ -1,0 +1,39 @@
+# Handoff: conexiones pendientes tras la CLI y las guardias del backend
+
+Estado revisado el 25/10/2026 sobre la rama de #22, con #20 y #23 integradas desde develop. El README contiene las instrucciones de ejecución y el alcance implementado; este documento recoge el estado de las conexiones y sus criterios de cierre. Los responsables corresponden al reparto existente; las decisiones de contrato requieren acuerdo del equipo.
+
+Actualización tras integrar #22 (`60b076d`): el backend acepta imagen por pedido.
+Contrato listo para conectar por David en [imagen por pedido](handoff_imagen_por_pedido.md).
+Prueba real del supervisor bloqueada por falta de `SUPERVISOR_PROVIDER` y
+`SUPERVISOR_MODEL`, con modo efectivo `reglas`; cero inferencias.
+
+## Conexiones que faltan
+
+| Responsable | Archivos y punto de conexión | Trabajo pendiente | Criterio de cierre |
+| --- | --- | --- | --- |
+| Miguel; montaje común con Alejandra | [`agentes/nodes/instalaciones.py`](../agentes/nodes/instalaciones.py) y `crear_servicio_real()` en [`agentes/runtime.py`](../agentes/runtime.py) | Nodo público ya conectado; montaje, resultados y fallback probados con dobles. Pendiente aceptación con catálogo/avisos reales y la auxiliar determinista acordada. | Catálogo y avisos reales devuelven el `ToolResult` común con fuentes, errores, abstención y fallback fechado. El nodo solo escribe su resultado y su traza, pasa las guardias y completa el recorrido HITL sin simular éxito ante un fallo. |
+| Héctor; aceptación conjunta con Alejandra | [`rag/config.py`](../rag/config.py), [`agentes/tools/rag.py`](../agentes/tools/rag.py), [`agentes/grafo_documental.py`](../agentes/grafo_documental.py) y [`agentes/documental_adapter.py`](../agentes/documental_adapter.py) | Entregar el índice completo Google/Gemini y su configuración reproducible: modelos/proveedores efectivos, dimensión de embeddings, ruta, colección, versiones, URL de descarga y checksum. La puerta documental ya está conectada en `runtime.py`; falta aceptación con recursos reales. Los checkpoints de indexación a cargo de Héctor no persisten la sesión de la CLI. | Verificar integridad y compatibilidad antes de abrir el índice. Ejecutar una consulta con respuesta/fuente esperadas, otra sin evidencia con abstención y un fallo controlado, conservando procedencia y decisiones HITL. Un error o una demo no cuentan como aceptación real. |
+| David | `_init_session()` y `render()` en [`clientes/streamlit_app.py`](../clientes/streamlit_app.py), [`clientes/hitl.py`](../clientes/hitl.py), [`clientes/debug.py`](../clientes/debug.py), [`clientes/estados.py`](../clientes/estados.py) y [`clientes/imagenes.py`](../clientes/imagenes.py) | Cliente conectado a `crear_servicio(modo="real")`, con HITL, fuentes, avisos por estado y guardado de JPG/PNG. Backend ya transporta `image_id` por pedido; falta enviarlo desde el cliente y la aceptación con RAG y fallos reales. | La imagen llega al documental mediante un contrato acordado; evidencia visual, fuentes, abstenciones y errores se muestran sin confundirse con normativa. HITL mantiene el mismo hilo y plan, sin decisiones automáticas ni exposición de secretos. |
+| Alejandra | [`agentes/supervisor_llm_real.py`](../agentes/supervisor_llm_real.py), [`agentes/runtime.py`](../agentes/runtime.py) y [`agentes/nodes/supervisor.py`](../agentes/nodes/supervisor.py) | Selección LLM/reglas, Google/Ollama, modelo y límites conectados; inyección manual y fallback conservados. Pendiente aceptación del router con un modelo real disponible. | Una consulta de rutas usa el adaptador y modelo configurados, sin tools ni aprobación automática; conserva validación de rutas, límites y fallback. La aceptación del router puede realizarse por separado del RAG y de las fuentes externas. |
+
+## TODO literales en Python
+
+| Archivo | TODO existente | Cómo cerrarlo |
+| --- | --- | --- |
+| [`agentes/contracts.py`](../agentes/contracts.py), `SupervisorDecision` | Acordar si `specialist` se renombra a `next_node` y se retira `needs_approval`. | Decisión del equipo y revisión de todos los consumidores antes de cambiar nombres. No bloquea las conexiones actuales: `needs_approval` no controla la pausa ni equivale a aprobación humana. |
+| [`agentes/state.py`](../agentes/state.py), `initial_state()` | Conservar el historial de conversación fuera del estado mínimo o acordar un campo para incorporarlo. | Los clientes mantienen el historial de presentación separado de los datos del pedido. Streamlit ya guarda `messages`; verificar su continuidad y reinicio. Acordar cualquier ampliación de CLI o contrato antes de introducir memoria conversacional en el estado común. |
+
+Buscar solo `TODO` no identifica todas las integraciones pendientes: la tabla anterior incluye ausencias expresadas como docstrings, componentes no disponibles o montaje demo.
+
+## Otros pendientes que requieren acuerdo de alcance
+
+- [`agentes/nodes/documental.py`](../agentes/nodes/documental.py): `imagen` tiene una tool registrada y el servicio transporta `image_id` validado por pedido hasta su contrato público; el transporte se verificó con dobles. La integración de #21, visión real y aceptación conjunta siguen pendientes. `preparar_reporte` permanece en `None`.
+- [`agentes/graph.py`](../agentes/graph.py) y [`agentes/nodes/supervisor.py`](../agentes/nodes/supervisor.py): el proveedor LLM configurado ya se inyecta desde runtime. El grafo conserva la misma topología; visión no es una ruta independiente. La memoria conversacional adicional y la persistencia duradera no forman parte de esta conexión.
+- [`agentes/contracts.py`](../agentes/contracts.py), `PendingAction`, y [`agentes/nodes/aplicar.py`](../agentes/nodes/aplicar.py): el cierre actual es informativo. Antes de reservas, pagos o envíos hay que acordar acción/payload, autorización y persistencia/idempotencia de la operación externa. Las guardias no revierten efectos externos ejecutados por un callable.
+
+## Comprobaciones al integrar
+
+1. Mantener las interfaces de `AgentService`, la pausa antes de aplicar y el requisito de `plan_id` vigente. Consultar el estado tras un fallo antes de volver a decidir; no reintentar automáticamente una operación incierta.
+2. Añadir regresiones específicas de cada conexión y ejecutar las existentes en [`tests/test_runtime.py`](../tests/test_runtime.py), [`tests/test_agent_service.py`](../tests/test_agent_service.py), [`tests/test_node_guards.py`](../tests/test_node_guards.py), [`tests/test_documental_adapter.py`](../tests/test_documental_adapter.py) y [`tests/test_golden_graph.py`](../tests/test_golden_graph.py), según el bloque afectado. Algunos tests del montaje requieren sustituir la tool RAG antes de importar; no ejecutar toda la suite contra un índice real por accidente.
+3. Separar las evidencias con dobles de las consultas reales. La revisión posterior a #23 verificó 536 pruebas offline; la selección y la repetición de las pruebas afectadas por permisos temporales figuran en [integración real](specs/integracion_real.md). Esa ejecución no certifica modelo, RAG ni instalaciones reales. Las evidencias excluyen claves, `.env`, índices y volcados completos de estado.
+4. Actualizar el README y retirar de este handoff cada pendiente cuando su criterio de cierre esté comprobado. No mantener informes duplicados para una conexión ya estable.
