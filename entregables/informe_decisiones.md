@@ -70,6 +70,8 @@ Los dos casos anteriores son de la primera prueba, con el índice sin cargar. Re
 
 **Lo que nos llamó la atención.** Preguntamos algo ajeno al corpus: *"¿quién ganó el último mundial de fútbol?"*. El documental se abstuvo, sin inventar nada ni citar fuentes, pero la respuesta final incluyó igualmente el catálogo de instalaciones. Se debe a que el supervisor por reglas pasa siempre por los dos especialistas, tenga o no sentido para la pregunta. El router con modelo debería decidir mejor a quién consultar ([abstención](../docs/evidencias/A4-streamlit-1-abstencion.png)).
 
+**Misma pregunta en CLI y Streamlit.** Repetimos la consulta del CEA en la CLI y el contrato coincidió: el documental respondió `ok` con las mismas cuatro fuentes (el reglamento de instalaciones, los CSV de polideportivos y piscinas y el decreto de anulación de reservas), instalaciones aportó el catálogo y la síntesis contó 2 de 2 resultados útiles. El recorrido de HITL también fue el mismo: plan pendiente, aprobación con `done=True`, segundo pedido en el mismo hilo con un plan nuevo y rechazo en una conversación nueva. Lo único que cambia es la presentación: el texto de la respuesta varía de una ejecución a otra, pero el estado, las fuentes y la fase de la revisión humana no. Cada cliente mantiene su propio estado, porque la memoria vive en el proceso de cada uno.
+
 ---
 
 ## Cliente Streamlit
