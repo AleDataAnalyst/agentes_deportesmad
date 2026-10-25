@@ -6,12 +6,12 @@ Especialista documental: RAG, evidencias, imagen y borradores.
 Bucle acotado: propuesta → validación → llamada → observación.
 
 Entradas (state):
-    request_id: str               — identificador del pedido vigente (obligatorio)
-    pedido: str                   — texto del pedido actual
+    request_id: str                      — identificador del pedido vigente (obligatorio)
+    pedido: str                          — texto del pedido actual
     contexto_permitido: list[str] | None — fuentes autorizadas (None = todas)
-    image_id: str | None          — imagen asociada al pedido
-    presupuesto_tools: int        — máximo de llamadas a tools (default 4)
-    preparar_borrador: bool       — si se pide un borrador (default False)
+    image_id: str | None                 — ruta o identificador de la imagen adjunta
+    presupuesto_tools: int               — máximo de llamadas a tools (default 4)
+    preparar_borrador: bool              — si se pide un borrador (default False)
 
 Salidas (solo la clave autorizada "documental"):
     documental: dict
@@ -33,13 +33,15 @@ Reglas del especialista:
 
 Tools (registry):
     rag              → implementada (agentes.tools.rag.rag_preguntar)
-    imagen           → prevista (no disponible aún → limitación)
+    imagen           → implementada: describe o responde sobre una imagen JPG/JPEG/PNG
     preparar_reporte → prevista (no disponible aún → limitación)
 """
 
 from __future__ import annotations
 
 import time
+import uuid
+from pathlib import Path
 from typing import Any, Callable
 
 from agentes.tools.rag import rag_preguntar
@@ -47,17 +49,54 @@ from agentes.tools.vision import imagen_preguntar
 
 PRESUPUESTO_DEFECTO = 4
 
+FORMATOS_IMAGEN = {".jpg", ".jpeg", ".png"}
+DIRECTORIO_IMAGENES = Path("output") / "imagenes"
+
+
 # ---------------------------------------------------------------------------
-# Registry de tools.
-# Cada tool registrada devuelve la observación normalizada:
-#   {"ok": bool, "resultado": str, "fuentes": list[str],
-#    "abstained": bool, "error": str | None}
-# None en el registro = "prevista pero no disponible aún".
+# Utilidades de imagen
+# ---------------------------------------------------------------------------
+
+def guardar_imagen_subida(nombre_archivo: str, contenido: bytes) -> str:
+    """Guarda una imagen subida y devuelve el image_id utilizable por la tool.
+
+    Args:
+        nombre_archivo: nombre original del archivo, usado solo para la extensión.
+        contenido: bytes de la imagen.
+
+    Returns:
+        Ruta relativa al archivo guardado, utilizable como `image_id`.
+
+    Raises:
+        ValueError: si el formato no está permitido o el contenido está vacío.
+    """
+    extension = Path(nombre_archivo or "").suffix.lower()
+
+    if extension not in FORMATOS_IMAGEN:
+        raise ValueError(
+            "IMAGE_UNSUPPORTED: solo se aceptan imágenes JPG, JPEG o PNG"
+        )
+
+    if not contenido:
+        raise ValueError("IMAGE_EMPTY: el archivo de imagen está vacío")
+
+    DIRECTORIO_IMAGENES.mkdir(parents=True, exist_ok=True)
+
+    image_id = f"{uuid.uuid4().hex}{extension}"
+    ruta = DIRECTORIO_IMAGENES / image_id
+    ruta.write_bytes(contenido)
+
+    return str(ruta)
+
+
+# ---------------------------------------------------------------------------
+# Registry de tools
 # ---------------------------------------------------------------------------
 
 def _tool_rag(consulta: str) -> dict[str, Any]:
-    """Wrapper: normaliza el dict de rag_preguntar a observación."""
+    """Normaliza la salida de rag_preguntar al contrato de observación."""
     r = rag_preguntar(consulta)
+
     return {
         "ok": r["error"] is None,
         "resultado": r["respuesta"],
@@ -67,16 +106,29 @@ def _tool_rag(consulta: str) -> dict[str, Any]:
     }
 
 
+def _tool_imagen(image_id: str, pregunta: str) -> dict[str, Any]:
+    """Normaliza la salida de imagen_preguntar al contrato de observación."""
+    r = imagen_preguntar(image_id=image_id, pregunta=pregunta)
 
-
+    return {
+        "ok": bool(r.get("ok")),
+        "resultado": str(r.get("resultado", "")),
+        "fuentes": list(r.get("fuentes", [])),
+        "abstained": bool(r.get("abstained")),
+        "error": r.get("error"),
+    }
 
 
 REGISTRY: dict[str, Callable[..., dict[str, Any]] | None] = {
     "rag": _tool_rag,
-    "imagen": imagen_preguntar,            # prevista: tool de visión (bytes + MIME + pregunta)
-    "preparar_reporte": None,  # prevista: borrador de informe
+    "imagen": _tool_imagen,
+    "preparar_reporte": None,
 }
 
+
+# ---------------------------------------------------------------------------
+# Nodo del especialista documental
+# ---------------------------------------------------------------------------
 
 def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
     """Ejecuta el bucle acotado del especialista documental.
@@ -84,95 +136,4 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
     Devuelve SOLO la clave autorizada "documental" (update de state).
     Nunca lanza excepción: los fallos se reflejan en errores/limitaciones.
     """
-    request_id = str(state.get("request_id") or "")
-    pedido = str(state.get("pedido") or "").strip()
-    contexto_permitido: list[str] | None = state.get("contexto_permitido")
-    image_id = state.get("image_id")
-    presupuesto = state.get("presupuesto_tools")
-    presupuesto = PRESUPUESTO_DEFECTO if presupuesto is None else int(presupuesto)
-    preparar_borrador = bool(state.get("preparar_borrador", False))
-
-    errores: list[str] = []
-    limitaciones: list[str] = []
-    eventos: list[dict[str, Any]] = []
-    fuentes: list[str] = []
-    fragmentos: list[str] = []
-
-    # 1) Propuesta: plan determinista según las entradas del pedido.
-    plan: list[tuple[str, dict[str, Any]]] = []
-    if image_id:
-        plan.append(("imagen", {"image_id": str(image_id), "pregunta": pedido}))
-    plan.append(("rag", {"consulta": pedido}))
-    if preparar_borrador:
-        plan.append(("preparar_reporte", {"titulo": pedido}))
-
-    # 2-4) Validación → llamada → observación, acotado por presupuesto.
-    for nombre, args in plan:
-        if len(eventos) >= presupuesto:
-            limitaciones.append("presupuesto_tools agotado: se omiten las llamadas restantes")
-            break
-
-        fn = REGISTRY.get(nombre)
-        if fn is None:
-            limitaciones.append(f"tool '{nombre}' prevista pero no disponible aún")
-            continue
-
-        t0 = time.perf_counter()
-        try:
-            # imagen es una tool de LangChain: se llama con .invoke
-            obs = fn.invoke(args) if hasattr(fn, "invoke") else fn(**args)
-        except Exception as e:  # noqa: BLE001 — el especialista no rompe al agente
-            obs = {
-                "ok": False, "resultado": "", "fuentes": [],
-                "abstained": False, "error": f"Error en tool '{nombre}': {e}",
-            }
-        ms = int((time.perf_counter() - t0) * 1000)
-
-        if obs.get("error"):
-            errores.append(str(obs["error"]))
-
-        eventos.append({
-            "tool": nombre,
-            "args": args,
-            "ok": bool(obs.get("ok")),
-            "abstained": bool(obs.get("abstained")),
-            "fuentes": list(obs.get("fuentes", [])),
-            "error": obs.get("error"),
-            "ms": ms,
-        })
-
-        # Observación útil: suma evidencia y fuentes (sin duplicar).
-        if obs.get("ok") and not obs.get("abstained") and str(obs.get("resultado", "")).strip():
-            fragmentos.append(str(obs["resultado"]).strip())
-            for f in obs.get("fuentes", []):
-                if f not in fuentes:
-                    fuentes.append(f)
-
-    # Contexto permitido: solo se citan fuentes autorizadas.
-    if contexto_permitido is not None:
-        permitidos = set(contexto_permitido)
-        filtradas = [f for f in fuentes if f in permitidos]
-        if fuentes and not filtradas:
-            limitaciones.append("ninguna fuente del resultado está en el contexto permitido")
-            fragmentos = []  # evidencia no autorizada → se abstuve
-        fuentes = filtradas
-
-    abstained = not fragmentos
-    if fragmentos:
-        resultado = " ".join(fragmentos)
-    elif errores:
-        resultado = ""  # el fallo viaja en "errores"; no se inventa texto
-    else:
-        resultado = "No dispongo de esa información en los documentos proporcionados."
-
-    return {
-        "documental": {
-            "request_id": request_id,
-            "resultado": resultado,
-            "fuentes": fuentes,
-            "abstained": abstained,
-            "errores": errores,
-            "limitaciones": limitaciones,
-            "eventos": eventos,
-        }
-    }
+    request_id = str(state.get("request_id") or
