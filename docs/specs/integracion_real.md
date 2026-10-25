@@ -3,6 +3,33 @@
 Alcance confirmado: montaje e integración del grafo supervisor. Los nodos de
 Héctor y Miguel y los clientes de David permanecen bajo su responsabilidad.
 
+Actualización del montaje (25/10/2026): Miguel ya entregó `nodo_instalaciones`
+y runtime lo inyecta directamente, sin modificar su implementación ni sus tools.
+`tests/test_runtime.py` usa el nodo de instalaciones y el grafo documental reales,
+con la dependencia externa de instalaciones y la entrada RAG de `REGISTRY`
+sustituidas por dobles. Verifica construcción sin consultas, conservación
+de resultados/fuentes/metadatos, fallback histórico, error/abstención y ciclo HITL.
+La aceptación con catálogo/avisos reales y RAG operativo es una comprobación
+distinta y sigue pendiente. Los resultados y el estado Git registrados más abajo
+corresponden a la entrega histórica original y no se reinterpretan como validación
+de esta conexión. No se presenta el MVP como terminado.
+
+La fixture de runtime evita llamadas reales durante los tests, pero no garantiza
+que RAG/Chroma no se hayan importado previamente durante la colección global.
+`tests/test_import_boundaries.py` verifica en procesos nuevos la construcción real
+con tool RAG doble y esos imports bloqueados. También comprueba que runtime en modo
+demo no carga ni el documental ni instalaciones; su import queda dentro de
+`crear_servicio_real`. Esto no certifica construcción real sin dependencias RAG
+cuando se usa la tool original.
+
+Comando exacto de la selección inicial de **444 pruebas** (antes de añadir la
+prueba de frontera de esta revisión):
+
+```powershell
+$env:PYTHONDONTWRITEBYTECODE='1'
+.\.venv\Scripts\python.exe -B -m pytest -q -p no:cacheprovider --basetemp="$env:TEMP/agentes-backend-conexion" tests/test_runtime.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py
+```
+
 ## Qué se conecta
 
 `agentes/runtime.py::crear_servicio_real()` obtiene la puerta pública
@@ -20,11 +47,10 @@ su topología existente: supervisor → documental → supervisor → instalacio
 La aprobación sigue en `resolver_plan`, con `update_state` e `invoke(None)`.
 Las guardias y eventos HITL se aplican una sola vez en el grafo principal.
 
-Miguel todavía no publica un nodo ni una operación pública consumible en las
-referencias inspeccionadas. El montaje devuelve una abstención con
-`available=False` y una limitación explícita. Esa función queda en runtime,
-como declaración de ausencia; no implementa el especialista ni llama a su
-consulta privada CKAN. No hay datos simulados ni integración HTTP certificada.
+`agentes.nodes.instalaciones.nodo_instalaciones` recibe el estado compartido,
+devuelve solo resultados por rol y eventos nuevos, y conserva el documental.
+Sustituye la declaración de ausencia anterior en runtime. No se certifica aquí
+la integración HTTP real ni se implementa la auxiliar determinista de Miguel.
 
 `crear_servicio(modo='real'|'demo')` selecciona explícitamente el montaje.
 Un fallo real no activa la demo. Construir el componente puede importar sus
@@ -32,9 +58,9 @@ dependencias actuales; no se promete carga diferida del pipeline del especialist
 
 ## Archivos que pertenecen a esta integración
 
-- `agentes/runtime.py`: montaje y declaración de instalaciones no disponibles.
+- `agentes/runtime.py`: montaje documental e inyección del nodo público de instalaciones.
 - `agentes/documental_adapter.py`: actualización de su docstring, sin cambios lógicos.
-- `tests/test_runtime.py`: pruebas del montaje con tool RAG doble explícita.
+- `tests/test_runtime.py`: pruebas del montaje con tool RAG y dependencia externa de instalaciones dobles explícitas.
 - `scripts/smoke_real.py`: diagnóstico manual acotado, con preflight de índice.
 - Documentación de integración, handoff, evidencia y borrador de PR.
 
