@@ -4,8 +4,9 @@ MAX_ITER limita la coordinación del supervisor y se lee del entorno al crear
 el servicio. Es distinto de max_steps, que limitará las tools de cada
 especialista. Si MAX_ITER falta o está vacío, se usa MAX_ITER_DEFAULT.
 
-La configuración de proveedor, RAG, HTTP, herramientas y fuentes externas
-queda pendiente de sus contratos. Este módulo no carga .env ni necesita claves.
+La selección LLM/reglas y los límites del proveedor pertenecen a
+supervisor_llm_real; runtime carga .env antes de construirlos. Este módulo
+solo lee MAX_ITER del entorno y no carga .env ni necesita claves.
 """
 
 from dataclasses import dataclass

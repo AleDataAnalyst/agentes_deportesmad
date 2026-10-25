@@ -236,6 +236,7 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 
 | Comprobación | Resultado documentado | Alcance |
 | --- | --- | --- |
+| Revisión previa de #22 | 724 pruebas offline superadas el 25/10/2026 | Supervisor LLM/reglas, montaje, HITL, backend, CLI, presentación con dobles y exportación; sin aceptación con modelo o servicios reales. Selección exacta en [integración real](docs/specs/integracion_real.md) |
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |

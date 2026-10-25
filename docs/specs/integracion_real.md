@@ -121,6 +121,25 @@ tras crear el directorio padre `tmp`:
 python -B -m pytest -q -p no:cacheprovider --basetemp=tmp/pytest-pr23-20261025-eb0c16a tests/test_clientes_imagenes.py
 ```
 
+Revisión previa de #22, 25/10/2026: **724 pruebas offline superadas**, una
+advertencia de deprecación del SDK Google y `git diff --check` correcto.
+La carga de `.env` se deshabilitó para esta ejecución; la prueba específica de
+orden de configuración mantiene su cargador doble. Selección ejecutada:
+
+```powershell
+$env:PYTHON_DOTENV_DISABLED='1'
+python -B -m pytest -q -p no:cacheprovider --basetemp=tmp/pytest-prepr-20261025-audit-safe tests/test_llm_supervisor_real.py tests/test_runtime.py tests/test_supervisor_llm.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py tests/test_clientes_estados.py tests/test_clientes_imagenes.py tests/test_validation.py tests/test_secret_filter.py tests/test_state.py tests/test_contracts.py tests/test_golden_graph.py tests/test_export_evidence.py tests/test_async.py tests/test_clients.py
+```
+
+Una selección inicial incluyó `tests/test_router.py`, que pertenece al
+preprocesamiento RAG y falló durante colección por ausencia de `pdf2image`.
+Se excluyó de esta revisión de backend sin instalar dependencias ni modificar
+RAG. `test_graph_hitl.py`, `test_async.py` y `test_clients.py` son archivos de
+planificación sin casos ejecutables; no aportan pruebas al total. HITL,
+serialización del mismo hilo y clientes tienen cobertura en los otros módulos
+de la selección. Las cifras de ejecuciones anteriores se conservan como historial
+y no se suman a esta regresión.
+
 Pendientes: aceptación de rutas con un modelo real disponible y aceptación
 conjunta con índice RAG compatible e instalaciones reales. No se declara
 terminado el MVP ni el RAG. No se ejecutó la suite completa ni se consultaron
