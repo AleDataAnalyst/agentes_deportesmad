@@ -1,20 +1,18 @@
 """
 rag/config.py
+
 Todas las constantes del proyecto. Se leen de variables de entorno (.env)
 con valores por defecto: se cambia de proveedor sin tocar el código.
 
-Hay 3 interruptores INDEPENDIENTES (cada uno con su proveedor y su modelo):
-  - EMBED: embeddings (fase offline + consulta)
-  - GEN:   generación (fase online, futuro generate.py)
-  - TAG:   etiquetado (fase offline; por defecto sigue a GEN)
-Cada proveedor (ollama / huggingface / google) tiene su variable de modelo
-(OLLAMA_* / HF_* / GOOGLE_*); EMBED_MODEL, GEN_MODEL y TAG_MODEL se
-resuelven automáticamente según el proveedor de cada interruptor.
+Interruptores independientes:
+- EMBED: embeddings (offline + consulta)
+- GEN: generación (online)
+- TAG: etiquetado (offline; por defecto hereda GEN)
 """
+
 import os
 from pathlib import Path
 
-# Carga .env si existe (python-dotenv es opcional: si no está instalado, se ignora)
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -32,54 +30,92 @@ ASSETS_DIR = Path(os.getenv("ASSETS_DIR", BASE_DIR / "assets"))
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
-# Interruptor 1: EMBEDDINGS (offline + consulta)
-EMBED_PROVIDER: str = os.getenv("EMBED_PROVIDER", "ollama")   # "ollama" | "huggingface" | "google"
+# --- Interruptor 1: embeddings ---
+EMBED_PROVIDER: str = os.getenv("EMBED_PROVIDER", "ollama")
 
-OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-HF_EMBED_MODEL: str = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-GOOGLE_EMBED_MODEL: str = os.getenv("GOOGLE_EMBED_MODEL", "gemini-embedding-2")
+OLLAMA_EMBED_MODEL: str = os.getenv(
+    "OLLAMA_EMBED_MODEL",
+    "sentence-transformers/all-MiniLM-L6-v2",
+)
+HF_EMBED_MODEL: str = os.getenv(
+    "HF_EMBED_MODEL",
+    "sentence-transformers/all-MiniLM-L6-v2",
+)
+GOOGLE_EMBED_MODEL: str = os.getenv(
+    "GOOGLE_EMBED_MODEL",
+    "gemini-embedding-2",
+)
 
-# Interruptor 2: GENERACIÓN (fase online)
-GEN_PROVIDER: str = os.getenv("GEN_PROVIDER", "ollama")      # "ollama" | "huggingface" | "google"
-OLLAMA_GEN_MODEL: str = os.getenv("OLLAMA_GEN_MODEL", "llama3.2")  # llama3.2, llama4:scout (ollama) / gemini-2.0-flash (google)
+# --- Interruptor 2: generación ---
+GEN_PROVIDER: str = os.getenv("GEN_PROVIDER", "ollama")
+
+OLLAMA_GEN_MODEL: str = os.getenv("OLLAMA_GEN_MODEL", "llama3.2")
 HF_GEN_MODEL: str = os.getenv("HF_GEN_MODEL", "mistralai/Mistral-7B-v0.1")
 GOOGLE_GEN_MODEL: str = os.getenv("GOOGLE_GEN_MODEL", "gemini-2.0-flash")
 
-
-# Interruptor 3: TAGGING (offline; por defecto sigue a GEN)
-# Si en .env se deja vacío, hereda el proveedor de GEN.
+# --- Interruptor 3: tagging ---
 TAG_PROVIDER: str = os.getenv("TAG_PROVIDER") or GEN_PROVIDER
-# Modelos de tagging por proveedor: si en .env se dejan vacíos, heredan los de GEN.
-# El patrón `os.getenv(...) or <parámetro>` hace que un valor vacío también herede.
+
 OLLAMA_TAG_MODEL: str = os.getenv("OLLAMA_TAG_MODEL") or OLLAMA_GEN_MODEL
 HF_TAG_MODEL: str = os.getenv("HF_TAG_MODEL") or HF_GEN_MODEL
 GOOGLE_TAG_MODEL: str = os.getenv("GOOGLE_TAG_MODEL") or GOOGLE_GEN_MODEL
 
 
-def _resolver(provider: str, ollama_model: str, hf_model: str, google_model: str, switch: str) -> str:
-    """Devuelve el modelo que usa cada interruptor según su proveedor."""
-    modelo = {"ollama": ollama_model, "huggingface": hf_model, "google": google_model}.get(provider)
+def _resolver(
+    provider: str,
+    ollama_model: str,
+    hf_model: str,
+    google_model: str,
+    switch: str,
+) -> str:
+    """Devuelve el modelo efectivo de un interruptor según su proveedor."""
+    modelo = {
+        "ollama": ollama_model,
+        "huggingface": hf_model,
+        "google": google_model,
+    }.get(provider)
+
     if modelo is None:
         raise ValueError(f"{switch} no soportado: {provider!r}")
+
     return modelo
 
 
-# Modelo efectivo de cada interruptor (el que usan embed.py, tag.py, futuro generate.py)
-EMBED_MODEL: str = _resolver(EMBED_PROVIDER, OLLAMA_EMBED_MODEL, HF_EMBED_MODEL, GOOGLE_EMBED_MODEL, "EMBED_PROVIDER")
-GEN_MODEL: str = _resolver(GEN_PROVIDER, OLLAMA_GEN_MODEL, HF_GEN_MODEL, GOOGLE_GEN_MODEL, "GEN_PROVIDER")
-TAG_MODEL: str = _resolver(TAG_PROVIDER, OLLAMA_TAG_MODEL, HF_TAG_MODEL, GOOGLE_TAG_MODEL, "TAG_PROVIDER")
+EMBED_MODEL: str = _resolver(
+    EMBED_PROVIDER,
+    OLLAMA_EMBED_MODEL,
+    HF_EMBED_MODEL,
+    GOOGLE_EMBED_MODEL,
+    "EMBED_PROVIDER",
+)
 
-# --- Modo de recuperación con BM25 (especie de reranking encontrado)
-RETRIEVAL_MODE: str = os.getenv("RAG_RETRIEVAL_MODE", "hibrido") # "vectorial" | "híbrido"
+GEN_MODEL: str = _resolver(
+    GEN_PROVIDER,
+    OLLAMA_GEN_MODEL,
+    HF_GEN_MODEL,
+    GOOGLE_GEN_MODEL,
+    "GEN_PROVIDER",
+)
 
-# --- Ollama (offline, compartido por los 3 interruptores) ---
+TAG_MODEL: str = _resolver(
+    TAG_PROVIDER,
+    OLLAMA_TAG_MODEL,
+    HF_TAG_MODEL,
+    GOOGLE_TAG_MODEL,
+    "TAG_PROVIDER",
+)
+
+# --- Recuperación ---
+RETRIEVAL_MODE: str = os.getenv("RAG_RETRIEVAL_MODE", "hibrido")
+
+# --- Ollama ---
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 
-# --- HuggingFace (online, compartido) ---
-HF_DEVICE: str = os.getenv("HF_DEVICE", "cpu")   # "cpu" | "cuda"
-HF_TOKEN: str | None = os.getenv("HF_TOKEN") or None  # solo modelos gated (aquellos que requieren aceptar la licencia y un token de acceso)
+# --- HuggingFace ---
+HF_DEVICE: str = os.getenv("HF_DEVICE", "cpu")
+HF_TOKEN: str | None = os.getenv("HF_TOKEN") or None
 
-# --- Google (online, compartido) ---
+# --- Google ---
 GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY") or None
 
 # --- Chunking ---
@@ -97,18 +133,14 @@ EMBED_CHECKPOINT_ENABLED: bool = os.getenv(
 ).lower() == "true"
 
 EMBED_MAX_ATTEMPTS: int = int(os.getenv("EMBED_MAX_ATTEMPTS", "8"))
+EMBED_RETRY_BASE_DELAY: float = float(os.getenv("EMBED_RETRY_BASE_DELAY", "5"))
 
-EMBED_RETRY_BASE_DELAY: float = float(
-    os.getenv("EMBED_RETRY_BASE_DELAY", "5")
-)
-
-# --- Retrieval (online) ---
+# --- Retrieval ---
 TOP_K: int = int(os.getenv("TOP_K", "5"))
 MAX_CHUNKS: int = int(os.getenv("MAX_CHUNKS", "5"))
 
-# --- Generación (online) ---
+# --- Generación ---
 GEN_TEMPERATURE: float = float(os.getenv("GEN_TEMPERATURE", "0.1"))
-# Tope de tokens de salida del LLM generador (RAG online).
 GEN_MAX_TOKENS: int = int(os.getenv("GEN_MAX_TOKENS", "1024"))
 
 ABSTENTION_MESSAGE: str = os.getenv(
@@ -116,20 +148,23 @@ ABSTENTION_MESSAGE: str = os.getenv(
     "No dispongo de esa información en los documentos proporcionados.",
 )
 
-
 # --- Embeddings ---
-EMBED_DIM: int = int(os.getenv("EMBED_DIM", "384"))  # 384 (all-MiniLM) / 3072 (gemini)
+EMBED_DIM: int = int(os.getenv("EMBED_DIM", "384"))
 EMBED_BATCH_SIZE: int = int(os.getenv("EMBED_BATCH_SIZE", "30"))
-# Lectura de cada POST a Ollama (/api/embed): en carga fría con el modelo TAG
-# residente, el primer batch puede tardar mucho; default 600 s cubre el offload.
 EMBED_TIMEOUT: int = int(os.getenv("EMBED_TIMEOUT", "600"))
-EXPORT_EMBEDDINGS: bool = os.getenv("EXPORT_EMBEDDINGS", "true").lower() == "true"
-# Caché offline del preflight de disponibilidad (src/embed.py): máxima
-# dimensión que maneja el modelo cuando la comprobación online no se puede
-# hacer (red cortada / sin API key). Vacío = no declarado (dim modelo = None).
-#   EMBED_DIM_MAX_OLLAMA / EMBED_DIM_MAX_HF / EMBED_DIM_MAX_GOOGLE
+EXPORT_EMBEDDINGS: bool = os.getenv(
+    "EXPORT_EMBEDDINGS", "true"
+).lower() == "true"
+
+
 def _dim_max(proveedor: str) -> int | None:
-    abrev = {"ollama": "OLLAMA", "huggingface": "HF", "google": "GOOGLE"}[proveedor]
+    """Lee EMBED_DIM_MAX_<PROVEEDOR> desde el entorno."""
+    abrev = {
+        "ollama": "OLLAMA",
+        "huggingface": "HF",
+        "google": "GOOGLE",
+    }[proveedor]
+
     raw = (os.getenv(f"EMBED_DIM_MAX_{abrev}") or "").strip()
     return int(raw) if raw else None
 
@@ -138,29 +173,25 @@ EMBED_DIM_MAX_OLLAMA: int | None = _dim_max("ollama")
 EMBED_DIM_MAX_HF: int | None = _dim_max("huggingface")
 EMBED_DIM_MAX_GOOGLE: int | None = _dim_max("google")
 
-# --- TSD: tagging + scoring + dedup ---
-TAG_SCORING_DEDUP: bool = os.getenv("TAG_SCORING_DEDUP", "true").lower() == "true"
-# Tope de tokens de salida del LLM de etiquetado. Debe cubrir el razonamiento
-# interno del modelo (p. ej. Gemini destina crédito de token al razonamiento)
-# más el JSON final; MAX_256 provocaba el JSON truncado (finishReason MAX_TOKENS).
+# --- Tagging, scoring y dedup ---
+TAG_SCORING_DEDUP: bool = os.getenv(
+    "TAG_SCORING_DEDUP", "true"
+).lower() == "true"
+
 TAG_MAX_TOKENS: int = int(os.getenv("TAG_MAX_TOKENS", "1024"))
 
-
-DEDUP_UMBRAL: float = float(os.getenv("DEDUP_UMBRAL", "0.93"))  # punto de partida para all-minilm-l6-v2
-# Auditoría de pares descartados: una línea JSON por descarte (coseno/clave,
-# similitud del par, chunk afectado y vencedor) para inspeccionar por qué y
-# contra qué se descartó cada chunk. Vacío = sin auditoría.
+DEDUP_UMBRAL: float = float(os.getenv("DEDUP_UMBRAL", "0.93"))
 DEDUP_AUDIT: bool = os.getenv("DEDUP_AUDIT", "true").lower() == "true"
-DEDUP_AUDIT_RUTA: str = os.getenv("DEDUP_AUDIT_RUTA", "output/dedup_audit.jsonl")
+DEDUP_AUDIT_RUTA: str = os.getenv(
+    "DEDUP_AUDIT_RUTA", "output/dedup_audit.jsonl"
+)
 
-# --- Set de preguntas (offline, a partir de output/embeddings.json) ---
-# El script solo se dispara si .env declara QUESTION_SET=true.
+# --- Set de preguntas ---
 QUESTION_SET: str = os.getenv("QUESTION_SET", "")
-# Máximo de preguntas por texto (el LLM genera entre 1 y MAX_QUESTIONS).
 MAX_QUESTIONS: int = int(os.getenv("MAX_QUESTIONS", "1"))
-# Ruta del JSONL de salida (una línea por texto con sus preguntas).
-QUESTION_SET_RUTA: str = os.getenv("QUESTION_SET_RUTA", "output/question_set.json")
-# Timeout por llamada al chat del LLM generador.
+QUESTION_SET_RUTA: str = os.getenv(
+    "QUESTION_SET_RUTA", "output/question_set.json"
+)
 GEN_TIMEOUT: int = int(os.getenv("GEN_TIMEOUT", "140"))
 
 # --- ChromaDB ---
@@ -168,15 +199,12 @@ CHROMA_DIR: str = os.getenv("CHROMA_DIR", "./output/chroma_db")
 COLLECTION_NAME: str = os.getenv("COLLECTION_NAME", "deporte_municipal")
 COSINE_SPACE: str = "cosine"
 
-
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
-ASSETS_DIR = ROOT / "assets"
-
-# ← LA LÍNEA CLAVE para la visión
-IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.jpg"
 
 # --- Imágenes / OCR / multimodal ---
+IMAGEN_DEFAULT_PATH = ASSETS_DIR / "imagen_demo.png"
+
 IMAGE_OCR_ENABLED: bool = os.getenv(
     "IMAGE_OCR_ENABLED", "true"
 ).lower() == "true"
@@ -186,7 +214,10 @@ IMAGE_VISION_ENABLED: bool = os.getenv(
 ).lower() == "true"
 
 IMAGE_OCR_LANG: str = os.getenv("IMAGE_OCR_LANG", "spa+eng")
-IMAGE_VISION_MODEL: str = os.getenv("GEN_MODEL", "gemini-2.5-flash")
+
+# Modelo de visión independiente. Si no se declara, hereda GEN_MODEL.
+IMAGE_VISION_MODEL: str = os.getenv("IMAGE_VISION_MODEL") or GEN_MODEL
+
 IMAGE_MAX_DESCRIPTION_CHARS: int = int(
     os.getenv("IMAGE_MAX_DESCRIPTION_CHARS", "1200")
 )

@@ -1,16 +1,17 @@
 """
 rag/vision.py
+
 Carga imágenes como Documents de LangChain.
 
 Genera como máximo dos documentos por imagen:
-  - OCR con Tesseract: texto literal extraído.
-  - Descripción multimodal con Gemini: descripción generada, opcional.
+- OCR con Tesseract: texto literal extraído.
+- Descripción multimodal: opcional.
 
-No fusiona OCR y descripción: cada representación conserva su método
-de extracción y puede auditarse por separado.
+Si no se obtiene contenido verificable, no se indexa ningún Document.
 """
 
 import base64
+import mimetypes
 from pathlib import Path
 
 import requests
@@ -25,8 +26,35 @@ from .config import (
     IMAGE_VISION_MODEL,
 )
 
+_EXTENSIONES_ACEPTADAS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+def _mime_type(ruta: Path) -> str:
+    """Obtiene el MIME real a partir de la extensión del archivo."""
+    mime, _ = mimetypes.guess_type(ruta.name)
+
+    if not mime:
+        raise ValueError(
+            f"No se pudo determinar el MIME type de {ruta.name!r}."
+        )
+
+    return mime
+
+
+def _validar_imagen(ruta: Path) -> None:
+    """Valida existencia y extensión soportada."""
+    if not ruta.is_file():
+        raise FileNotFoundError(f"La imagen no existe: {ruta}")
+
+    if ruta.suffix.lower() not in _EXTENSIONES_ACEPTADAS:
+        raise ValueError(
+            f"Formato de imagen no soportado: {ruta.suffix}. "
+            f"Formatos aceptados: {sorted(_EXTENSIONES_ACEPTADAS)}"
+        )
+
 
 def _ocr_imagen(ruta: Path) -> str:
+    """Extrae texto literal de la imagen mediante Tesseract."""
     import pytesseract
     from PIL import Image
 
@@ -40,12 +68,14 @@ def _ocr_imagen(ruta: Path) -> str:
 
 
 def _descripcion_gemini(ruta: Path) -> str:
+    """Genera una descripción objetiva de la imagen con Gemini."""
     if not GOOGLE_API_KEY:
         raise RuntimeError(
             "IMAGE_VISION_ENABLED=true pero GOOGLE_API_KEY no está definida."
         )
 
     imagen_base64 = base64.b64encode(ruta.read_bytes()).decode("utf-8")
+    mime_type = _mime_type(ruta)
 
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -69,7 +99,7 @@ def _descripcion_gemini(ruta: Path) -> str:
                         },
                         {
                             "inline_data": {
-                                "mime_type": "image/jpeg",
+                                "mime_type": mime_type,
                                 "data": imagen_base64,
                             }
                         },
@@ -100,14 +130,18 @@ def cargar_imagen(ruta: str) -> list[Document]:
 
     Returns:
         Lista con OCR y, si está activado, descripción visual.
+        Devuelve una lista vacía si no hay contenido verificable.
     """
     path = Path(ruta)
+    _validar_imagen(path)
+
     documentos: list[Document] = []
 
     metadatos_base = {
         "source": path.name,
         "image_path": str(path),
         "format": "image",
+        "mime_type": _mime_type(path),
         "element_type": "ocr",
     }
 
@@ -143,7 +177,9 @@ def cargar_imagen(ruta: str) -> list[Document]:
                         metadata={
                             **metadatos_base,
                             "element_type": "image_description",
-                            "extraction_method": f"gemini:{IMAGE_VISION_MODEL}",
+                            "extraction_method": (
+                                f"gemini:{IMAGE_VISION_MODEL}"
+                            ),
                         },
                     )
                 )
@@ -152,19 +188,12 @@ def cargar_imagen(ruta: str) -> list[Document]:
             print(f"[VISION] Error de descripción en {path.name}: {exc}")
 
     if not documentos:
-        # No se inventa contenido: se registra la limitación.
-        documentos.append(
-            Document(
-                page_content=(
-                    "No se pudo extraer información verificable de esta imagen."
-                ),
-                metadata={
-                    **metadatos_base,
-                    "element_type": "image_unreadable",
-                    "extraction_method": "none",
-                    "abstention": True,
-                },
-            )
+        print(
+            "[VISION][AUDIT] "
+            f'{{"source": "{path.name}", "status": "unreadable", '
+            f'"ocr_enabled": {IMAGE_OCR_ENABLED}, '
+            f'"vision_enabled": {IMAGE_VISION_ENABLED}}}'
         )
+        return []
 
     return documentos

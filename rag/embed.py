@@ -169,28 +169,55 @@ def _log_progreso_lote(lote: int, total: int, textos: int, t_lote: float) -> Non
           f"[Restante: {m}m {s}s]")
 
 
-def _embedding_length_ollama(modelo: str, session: requests.Session) -> int | None:
-    """`embedding_length` real del modelo en Ollama (endpoint `/api/show`).
+_EMBEDDING_LENGTH_CACHE: dict[str, int | None] = {}
 
-    Ollama rechaza `/api/embed` cuando `n_dims` supera el `embedding_length`
-    del modelo (error 400 "dimensions N exceeds embedding length M"), por lo
-    que el máximo de dim *solicitado* a Ollama es ese valor, no `EMBED_DIM`.
-    Vuelve `None` si el servidor no lo expone (el llamador decide qué hacer).
+
+def _embedding_length_ollama(
+    modelo: str,
+    session: requests.Session,
+) -> int | None:
     """
+    Obtiene la dimensión nativa del modelo desde /api/show.
+
+    La clave depende de la arquitectura: qwen3 usa
+    `qwen3.embedding_length`; por eso se busca cualquier clave que termine
+    en `.embedding_length`. El resultado se cachea por modelo.
+    """
+    if modelo in _EMBEDDING_LENGTH_CACHE:
+        return _EMBEDDING_LENGTH_CACHE[modelo]
+
+    dim: int | None = None
+
     try:
-        # La dim real del modelo no la expone `/api/show` (solo el modelfile);
-        # está en `details.embedding_length` de `/api/tags`. Se busca la
-        # entrada del modelo (o de su nombre sin tag) y se lee ese campo.
-        r = session.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10)
-        r.raise_for_status()
-        modelos = r.json().get("models", [])
-        nombre = modelo.partition(":")[0]
-        for m in modelos:
-            if m.get("name") == modelo or m.get("name") == nombre or not nombre:
-                return int(m.get("details", {}).get("embedding_length", 0)) or None
-        return None
+        respuesta = session.post(
+            f"{OLLAMA_BASE_URL}/api/show",
+            json={"model": modelo},
+            timeout=10,
+        )
+        respuesta.raise_for_status()
+
+        model_info = respuesta.json().get("model_info", {})
+
+        valor = model_info.get("general.embedding_length")
+
+        if valor is None:
+            valor = next(
+                (
+                    v
+                    for clave, v in model_info.items()
+                    if clave.endswith(".embedding_length")
+                ),
+                None,
+            )
+
+        if valor is not None:
+            dim = int(valor)
+
     except (requests.RequestException, ValueError, TypeError):
-        return None
+        dim = None
+
+    _EMBEDDING_LENGTH_CACHE[modelo] = dim
+    return dim
 
 
 def _embed_ollama(textos: list[str], model: str | None = None,
@@ -200,16 +227,21 @@ def _embed_ollama(textos: list[str], model: str | None = None,
     url = f"{OLLAMA_BASE_URL}/api/embed"
     vectores: list[list[float]] = []
     n_lotes = (len(textos) + EMBED_BATCH_SIZE - 1) // EMBED_BATCH_SIZE
+
+    modelo_efectivo = model or EMBED_MODEL
+    dim_modelo = _embedding_length_ollama(modelo_efectivo, session)
+
+    if dim is not None and dim_modelo is not None and dim > dim_modelo:
+        dim = dim_modelo
     for i, inicio in enumerate(range(0, len(textos), EMBED_BATCH_SIZE), start=1):
         batch = textos[inicio:inicio + EMBED_BATCH_SIZE]
         payload: dict[str, Any] = {"model": model or EMBED_MODEL, "input": batch}
+        payload: dict[str, Any] = {
+            "model": modelo_efectivo,
+            "input": batch,
+        }
+
         if dim is not None:
-            # Ollama rechaza dimensiones mayores que el embedding_length del
-            # modelo (error 400). Lo máximo que se puede *solicitar* es esa
-            # dim real; por eso se acota aquí a min(dim, embedding_length).
-            dim_modelo = _embedding_length_ollama(model or EMBED_MODEL, session)
-            if dim_modelo is not None and dim > dim_modelo:
-                dim = dim_modelo
             payload["dimensions"] = dim
         t_lote = time.time()
         resp = session.post(url, json=payload, timeout=EMBED_TIMEOUT)
@@ -231,33 +263,46 @@ def _embed_ollama(textos: list[str], model: str | None = None,
     return vectores
 
 
-def _embed_huggingface(textos: list[str], model: str | None = None,
-                       dim: int | None = None) -> list[list[float]]:
-    """HuggingFace vía sentence-transformers (modelo descargado del HF Hub)."""
+def _embed_huggingface(
+    textos: list[str],
+    model: str | None = None,
+    dim: int | None = None,
+) -> list[list[float]]:
+    """HuggingFace vía sentence-transformers."""
     nombre = model or HF_EMBED_MODEL
-    if nombre not in _HF_CACHE:  # solo si el proveedor es huggingface
+
+    if nombre not in _HF_CACHE:
         kwargs: dict[str, str] = {"device": HF_DEVICE}
-        if HF_TOKEN:  # solo para modelos gated
+
+        if HF_TOKEN:
             kwargs["token"] = HF_TOKEN
-        _HF_CACHE[nombre] = SentenceTransformer(
-                                modules=list(modules),          # convert str → list
-                                prompts=dict(prompts),          # convert str → dict
-                                trust_remote_code=bool(trust_remote_code),  # convert str → bool
-                            )
-    # normalize_embeddings=True: vectores unitarios, coherente con la métrica de coseno de Chroma
-    # truncate_dim: slice del prefijo (MRL-first para modelos Matryoshka); None si dim >= dim nativa
-    # encode() hace una única llamada (batch internal del backend): se avisa de
-    # la única llamada y se mide el tiempo total real al terminar.
+
+        _HF_CACHE[nombre] = SentenceTransformer(nombre, **kwargs)
+
     t0 = time.time()
-    print(time.strftime("%Y-%m-%d %H:%M:%S") +
-          f" [EMBED]   huggingface: {len(textos)} embeddings en una única llamada "
-          f"(batch_size={EMBED_BATCH_SIZE})")
-    vecs = _HF_CACHE[nombre].encode(textos, batch_size=EMBED_BATCH_SIZE,
-                                    normalize_embeddings=True, truncate_dim=dim)
-    out = vecs.tolist()
-    print(time.strftime("%Y-%m-%d %H:%M:%S") +
-          f" [EMBED]   huggingface: {len(out)} vectores en {time.time() - t0:.1f} s")
-    return out
+
+    print(
+        time.strftime("%Y-%m-%d %H:%M:%S")
+        + f" [EMBED]   huggingface: {len(textos)} embeddings "
+        f"(batch_size={EMBED_BATCH_SIZE})"
+    )
+
+    vectores = _HF_CACHE[nombre].encode(
+        textos,
+        batch_size=EMBED_BATCH_SIZE,
+        normalize_embeddings=True,
+        truncate_dim=dim,
+    )
+
+    resultado = vectores.tolist()
+
+    print(
+        time.strftime("%Y-%m-%d %H:%M:%S")
+        + f" [EMBED]   huggingface: {len(resultado)} vectores "
+        f"en {time.time() - t0:.1f} s"
+    )
+
+    return resultado
 
 
 def _reintentar_cuota(url: str, headers: dict, body: dict) -> requests.Response:

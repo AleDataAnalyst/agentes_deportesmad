@@ -22,157 +22,121 @@ Reglas:
 from __future__ import annotations
 
 import base64
-import os
 from pathlib import Path
-from typing import Any
 
+import requests
 from langchain_core.tools import tool
 
-try:
-    import config
-except ImportError:
-    config = None
+from ...rag.config import (
+    GOOGLE_API_KEY,
+    IMAGE_VISION_MODEL,
+)
+
+FORMATOS_PERMITIDOS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
-MIME_TYPES = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-}
-
-DEFAULT_IMAGE = "assets/imagen_demo.jpg"
-
-
-def _resolve_image_path(image_id: str) -> Path:
-    """Resuelve una ruta absoluta a partir del image_id recibido."""
-    raw = (image_id or "").strip()
-
-    if not raw or raw == "imagen_demo":
-        raw = DEFAULT_IMAGE
-
-    path = Path(raw)
-
-    if not path.is_absolute():
-        root = getattr(config, "ROOT", Path.cwd())
-        path = root / path
-
-    return path
-
-
-def _build_response(
-    ok: bool,
-    resultado: str = "",
-    fuentes: list[str] | None = None,
-    error: str | None = None,
-) -> dict[str, Any]:
-    """Devuelve el contrato uniforme de la tool."""
+def _abstencion(error: str) -> dict:
     return {
-        "ok": ok,
-        "resultado": resultado,
-        "fuentes": fuentes or [],
+        "ok": False,
+        "resultado": "",
+        "fuentes": [],
+        "abstained": True,
+        "error": error,
+    }
+
+
+def _error(error: str) -> dict:
+    return {
+        "ok": False,
+        "resultado": "",
+        "fuentes": [],
         "abstained": False,
         "error": error,
     }
 
 
-def _llamar_google_vision(
-    ruta: Path,
-    mime_type: str,
-    pregunta: str,
-) -> str:
-    """Llama al modelo multimodal de Google y devuelve el texto generado."""
-    from google import genai
-    from google.genai import types
+@tool
+def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la imagen.") -> dict:
+    """Responde una pregunta sobre una imagen usando visión multimodal.
 
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY no está configurada")
+    Args:
+        image_id: Ruta o identificador de la imagen.
+        pregunta: Pregunta que debe responderse usando solo información visible.
+    """
+    if not GOOGLE_API_KEY:
+        return _abstencion(
+            "Visión no disponible: GOOGLE_API_KEY no está definida."
+        )
 
-    client = genai.Client(api_key=api_key)
+    ruta = Path(image_id)
 
-    with ruta.open("rb") as f:
-        image_bytes = f.read()
+    if not ruta.exists():
+        return _error(f"No hay imagen en la ruta indicada: {image_id}")
 
-    modelo = os.getenv("VISION_MODEL", "gemini-2.0-flash")
+    if ruta.suffix.lower() not in FORMATOS_PERMITIDOS:
+        return _error(
+            f"Formato no soportado: {ruta.suffix}. "
+            f"Formatos permitidos: {', '.join(sorted(FORMATOS_PERMITIDOS))}."
+        )
 
-    respuesta = client.models.generate_content(
-        model=modelo,
-        contents=[
-            types.Part.from_bytes(
-                data=image_bytes,
-                mime_type=mime_type,
-            ),
-            pregunta,
-        ],
+    try:
+        imagen_base64 = base64.b64encode(ruta.read_bytes()).decode("utf-8")
+    except OSError as exc:
+        return _error(f"No se pudo leer la imagen: {exc}")
+
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{IMAGE_VISION_MODEL}:generateContent"
     )
 
-    texto = (respuesta.text or "").strip()
+    try:
+        respuesta = requests.post(
+            url,
+            headers={"x-goog-api-key": GOOGLE_API_KEY},
+            json={
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": pregunta},
+                            {
+                                "inline_data": {
+                                    "mime_type": "image/jpeg",
+                                    "data": imagen_base64,
+                                }
+                            },
+                        ]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.0,
+                    "maxOutputTokens": 512,
+                },
+            },
+            timeout=120,
+        )
+        respuesta.raise_for_status()
+
+        partes = respuesta.json()["candidates"][0]["content"]["parts"]
+        texto = "".join(parte.get("text", "") for parte in partes).strip()
+
+    except (requests.RequestException, KeyError, IndexError, TypeError) as exc:
+        return _abstencion(f"Error al consultar el modelo de visión: {exc}")
 
     if not texto:
-        raise ValueError("El modelo de visión no devolvió texto")
-
-    return texto
-
-
-@tool
-def imagen_preguntar(image_id: str = "", pregunta: str = "") -> dict[str, Any]:
-    """Describe una imagen en español y responde a la pregunta del usuario.
-
-    Si no se indica image_id, usa assets/imagen_demo.jpg.
-    Devuelve siempre un dict con ok, resultado, fuentes, abstained y error.
-    """
-    try:
-        pregunta = (pregunta or "").strip()
-
-        if not pregunta:
-            pregunta = "Describe esta imagen con detalle."
-
-        ruta = _resolve_image_path(image_id)
-
-        if not ruta.is_file():
-            return _build_response(
-                ok=False,
-                error=f"IMAGE_NOT_FOUND: no existe la imagen '{ruta}'",
-            )
-
-        extension = ruta.suffix.lower()
-
-        if extension not in MIME_TYPES:
-            return _build_response(
-                ok=False,
-                error=(
-                    "IMAGE_UNSUPPORTED_FORMAT: formato no soportado. "
-                    "Usa JPG, JPEG o PNG."
-                ),
-            )
-
-        mime_type = MIME_TYPES[extension]
-
-        if not os.getenv("GOOGLE_API_KEY"):
-            return _build_response(
-                ok=True,
-                resultado=(
-                    "[SIMULACIÓN] Imagen analizada: "
-                    f"{ruta.name}. No hay GOOGLE_API_KEY configurada, "
-                    "por lo que no se ha realizado una descripción real."
-                ),
-                fuentes=[str(ruta)],
-            )
-
-        descripcion = _llamar_google_vision(
-            ruta=ruta,
-            mime_type=mime_type,
-            pregunta=pregunta,
+        return _abstencion(
+            "El modelo de visión no devolvió información verificable."
         )
 
-        return _build_response(
-            ok=True,
-            resultado=descripcion,
-            fuentes=[str(ruta)],
-        )
-
-    except Exception as exc:  # noqa: BLE001 — la tool nunca rompe el grafo
-        return _build_response(
-            ok=False,
-            error=f"VISION_ERROR: {exc}",
-        )
+    return {
+        "ok": True,
+        "resultado": texto,
+        "fuentes": [
+            {
+                "tipo": "imagen",
+                "ruta": str(ruta),
+                "modelo": IMAGE_VISION_MODEL,
+            }
+        ],
+        "abstained": False,
+        "error": None,
+    }

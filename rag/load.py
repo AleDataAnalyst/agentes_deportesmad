@@ -2,22 +2,15 @@
 rag/load.py
 
 Abstrae el formato: PDF, TXT, MD, CSV -> lista de LangChain Documents.
------------------------------------------------------------------------
-Los CSV se delegan a ``csv_transform.py`` / ``csv_advisor.py`` (entidad,
-grupo o fila por documento según el perfil).
-
-Los TXT y MD se comprueban si son tabulares (CSV/TSV disfrazados de texto
-plano): si lo son, una fila = un documento (``row_as_doc`` forzado, sin
-pasar por el advisor).
 
 Los PDF declarados como ``TAB`` en ``especiales.txt`` se convierten a
 Markdown tabular mediante ``pdf_tabular.py``. El Markdown generado se
 carga como un documento más del corpus.
 """
 
-
 import hashlib
 import os
+import re
 import urllib.parse
 from collections.abc import Callable
 from pathlib import Path
@@ -38,14 +31,12 @@ from .pdf_tabular import (
 
 _LOTES_HASH = 1 << 20  # 1 MiB por lectura en el hash
 
+# Cache por directorio: evita reprocesar TAB/OCR por cada PDF del corpus.
+_RESULTADOS_ESPECIALES: dict[Path, dict[str, list[dict]]] = {}
+
 
 def _hash_file(ruta: str) -> str:
-    """
-    SHA-256 hex del contenido binario crudo del archivo, en streaming.
-
-    Identifica unívocamente al archivo de origen: estable entre indexaciones
-    y detecta contenido nuevo en una descarga repetida con el mismo nombre.
-    """
+    """SHA-256 hex del contenido binario crudo del archivo, en streaming."""
     digest = hashlib.sha256()
 
     with open(ruta, "rb") as f:
@@ -62,12 +53,7 @@ def _normalizar_source(
     documentos: list[Document],
     ruta: str,
 ) -> list[Document]:
-    """
-    Normaliza metadata.source al basename del archivo y añade file_hash.
-
-    TextLoader/PyPDFLoader pueden fijar la ruta completa; aquí se fuerza
-    siempre el basename para mantener coherencia en dedup, ids y evaluación.
-    """
+    """Fuerza source al basename y añade file_hash a todos los Documents."""
     file_hash = _hash_file(ruta)
 
     for documento in documentos:
@@ -77,34 +63,11 @@ def _normalizar_source(
     return documentos
 
 
-def _leer_pdfs_tabulares(directorio: Path) -> set[str]:
-    """
-    Lee ``especiales.txt`` y devuelve los basenames de PDF marcados como TAB.
-    """
-    return _leer_pdfs_por_etiqueta(
-        directorio,
-        ETIQUETA_TABULAR,
-    )
-
-
-def _leer_pdfs_ocr_tab(directorio: Path) -> set[str]:
-    """
-    Lee ``especiales.txt`` y devuelve los basenames de PDF marcados como OCR.
-    """
-    return _leer_pdfs_por_etiqueta(
-        directorio,
-        ETIQUETA_OCR,
-    )
-
-
 def _leer_pdfs_por_etiqueta(
     directorio: Path,
     etiqueta_esperada: str,
 ) -> set[str]:
-    """
-    Lee el manifiesto ``especiales.txt`` y devuelve los basenames de PDF
-    asociados a una etiqueta concreta.
-    """
+    """Lee ``especiales.txt`` y devuelve los basenames de una etiqueta."""
     ruta_manifiesto = directorio / MANIFIESTO
 
     if not ruta_manifiesto.exists():
@@ -128,26 +91,48 @@ def _leer_pdfs_por_etiqueta(
     return pdfs
 
 
+def _leer_pdfs_tabulares(directorio: Path) -> set[str]:
+    """Devuelve los PDF marcados como TAB."""
+    return _leer_pdfs_por_etiqueta(directorio, ETIQUETA_TABULAR)
+
+
+def _leer_pdfs_ocr_tab(directorio: Path) -> set[str]:
+    """Devuelve los PDF marcados como OCR."""
+    return _leer_pdfs_por_etiqueta(directorio, ETIQUETA_OCR)
+
+
+def _resultados_especiales(directorio: Path) -> dict[str, list[dict]]:
+    """
+    Procesa ``especiales.txt`` una única vez por directorio.
+
+    Evita repetir OCR y extracción tabular por cada PDF encontrado.
+    """
+    clave = directorio.resolve()
+
+    if clave not in _RESULTADOS_ESPECIALES:
+        _RESULTADOS_ESPECIALES[clave] = cargar_pdfs_especiales(clave)
+
+    return _RESULTADOS_ESPECIALES[clave]
+
+
 def _load_pdf(
     path: str,
-    directorio: Path,
+    directorio_raiz: Path,
     pdfs_tabulares: set[str],
     pdfs_ocr: set[str],
 ) -> list[Document]:
     """
     Carga un PDF.
 
-    - Si está marcado como TAB en ``especiales.txt``, carga todos los bloques
-      tabulares/páginas extraídos por ``cargar_pdfs_especiales``.
-    - Si está marcado como OCR, carga todos los bloques OCR disponibles.
-    - Si no hay resultados para el PDF TAB, intenta una extracción directa.
-    - En caso contrario, usa extracción nativa con PyPDFLoader.
+    - TAB: usa los bloques generados por el manifiesto; si no hay, fallback directo.
+    - OCR: usa los bloques OCR generados por el manifiesto.
+    - Resto: extracción nativa con PyPDFLoader.
     """
     base = os.path.basename(path)
 
     if base in pdfs_tabulares:
         try:
-            resultados = cargar_pdfs_especiales(directorio)
+            resultados = _resultados_especiales(directorio_raiz)
 
             bloques = [
                 resultado
@@ -167,6 +152,7 @@ def _load_pdf(
                 path=path,
                 base=base,
             )
+
         except Exception as exc:
             print(
                 f"[PDF] AVISO: error procesando {base} como TAB: {exc}. "
@@ -175,7 +161,7 @@ def _load_pdf(
 
     if base in pdfs_ocr:
         try:
-            resultados = cargar_pdfs_especiales(directorio)
+            resultados = _resultados_especiales(directorio_raiz)
 
             bloques = [
                 resultado
@@ -190,6 +176,12 @@ def _load_pdf(
                     derived_from="ocr_key-value",
                     file_type="pdf_ocr_key_value",
                 )
+
+            print(
+                f"[PDF] AVISO: {base} está marcado como OCR, pero no generó "
+                "bloques. Se usará extracción nativa."
+            )
+
         except Exception as exc:
             print(f"[PDF] AVISO: error OCR en {base}: {exc}")
 
@@ -203,13 +195,7 @@ def _documentos_desde_bloques(
     derived_from: str,
     file_type: str,
 ) -> list[Document]:
-    """
-    Convierte todos los bloques extraídos de un PDF en Documents con
-    metadata de trazabilidad.
-
-    Cada bloque puede representar una página, una tabla o una sección
-    detectada por ``pdf_tabular.cargar_pdfs_especiales``.
-    """
+    """Convierte los bloques TAB/OCR en Documents trazables."""
     documentos: list[Document] = []
 
     for numero_bloque, bloque in enumerate(bloques):
@@ -237,6 +223,11 @@ def _documentos_desde_bloques(
     return documentos
 
 
+_RE_TITULO = re.compile(r"^# Página (\d+)(?:\s*-\s*Tabla (\d+))?\s*$")
+_RE_FILA = re.compile(r"^\|\s*(.+?)\s*\|$")
+_RE_SEPARADOR = re.compile(r"^\|?(?:\s*:?-+:?\s*\|)+\s*$")
+
+
 def _documentos_desde_texto(
     texto: str,
     base: str,
@@ -245,30 +236,67 @@ def _documentos_desde_texto(
     numero_bloque: int,
 ) -> list[Document]:
     """
-    Convierte el texto de un bloque TAB/OCR en Documents.
+    Convierte Markdown tabular en Documents.
 
-    Se conserva una línea por Document para mantener granularidad en la
-    ingesta, pero cada Document conserva el número de bloque de origen.
+    Una fila de tabla = un Document. La cabecera se incluye en el contenido
+    y en metadata; el título de página/tabla se conserva como metadato.
     """
-    lineas = [
-        linea.strip()
-        for linea in texto.splitlines()
-        if linea.strip()
-    ]
-
     documentos: list[Document] = []
+    pagina: int | None = None
+    tabla: int | None = None
+    cabeceras: list[str] = []
 
-    for indice_linea, linea in enumerate(lineas):
+    for linea in texto.splitlines():
+        linea = linea.strip()
+
+        if not linea:
+            continue
+
+        titulo = _RE_TITULO.match(linea)
+        if titulo:
+            pagina = int(titulo.group(1))
+            tabla = int(titulo.group(2)) if titulo.group(2) else None
+            cabeceras = []
+            continue
+
+        if _RE_SEPARADOR.match(linea):
+            continue
+
+        fila = _RE_FILA.match(linea)
+        if not fila:
+            continue
+
+        celdas = [
+            celda.strip().replace("\\|", "|")
+            for celda in fila.group(1).split("|")
+        ]
+
+        if not cabeceras:
+            cabeceras = celdas
+            continue
+
+        pares = list(zip(cabeceras, celdas))
+        contenido = "\n".join(
+            f"{clave}: {valor}"
+            for clave, valor in pares
+            if clave or valor
+        )
+
+        if not contenido:
+            continue
+
         documentos.append(
             Document(
-                page_content=linea,
+                page_content=contenido,
                 metadata={
                     "source": base,
                     "pdf_source": base,
                     "derived_from": derived_from,
                     "file_type": file_type,
                     "block_index": numero_bloque,
-                    "line_index": indice_linea,
+                    "page": pagina,
+                    "table": tabla,
+                    "headers": cabeceras,
                 },
             )
         )
@@ -280,12 +308,7 @@ def _fallback_tab_directo(
     path: str,
     base: str,
 ) -> list[Document]:
-    """
-    Fallback para un PDF TAB sin resultados en el procesamiento por lotes.
-
-    Extrae directamente tablas y texto mediante ``pdfplumber`` y añade, cuando
-    es posible, pares clave-valor detectados en el texto.
-    """
+    """Fallback para un PDF TAB sin resultados en el procesamiento por lotes."""
     textos = _extraer_texto_tabla_a_textos(Path(path))
 
     if not textos:
@@ -297,13 +320,15 @@ def _fallback_tab_directo(
 
     for numero_bloque, texto in enumerate(textos):
         texto_final = texto
-
         kv = _parsear_a_key_value_simple(texto)
 
         if kv:
-            complemento = "\n---\nKey-value extraído:\n" + "\n".join(
-                f"{clave}: {valor}"
-                for clave, valor in list(kv.items())[:10]
+            complemento = (
+                "\n---\nKey-value extraído:\n"
+                + "\n".join(
+                    f"{clave}: {valor}"
+                    for clave, valor in list(kv.items())[:10]
+                )
             )
             texto_final += complemento
 
@@ -324,36 +349,6 @@ def _fallback_tab_directo(
     )
 
 
-def _load_text_from_kv(texto_kv: str) -> list[Document]:
-    """
-    Carga texto key-value como documento LangChain.
-
-    El formato esperado es "clave: valor" por línea, que se convierte en
-    page_content estructurado para mejor ingesta por el LLM.
-    """
-    lineas = [
-        linea.strip()
-        for linea in texto_kv.splitlines()
-        if linea.strip()
-    ]
-
-    return [
-        Document(
-            page_content=linea,
-            metadata={
-                "source": "pdf_key_value",
-                "chunk_id": indice,
-                "file_type": "pdf_key_value",
-            },
-        )
-        for indice, linea in enumerate(lineas)
-    ]
-
-
-# En orden de preferencia:
-# - utf-8-sig maneja BOM.
-# - cp1252 mapea mejor que latin-1 guiones y comillas típicas de Windows.
-# - latin-1 decodifica cualquier secuencia de bytes.
 _CODIFICACIONES: tuple[str, ...] = (
     "utf-8-sig",
     "cp1252",
@@ -372,23 +367,15 @@ def _detectar_encoding(ruta: str) -> str:
         except UnicodeDecodeError:
             continue
 
-    # latin-1 decodifica cualquier byte, pero se mantiene como fallback.
     return "latin-1"
 
 
-# Heurística de tabulares: mínimos de filas y columnas para considerar
-# tabular un .txt/.md. Exige número de columnas estable y suficientes filas.
 _TAB_MIN_FILAS = 50
 _TAB_MIN_COLS = 2
 
 
 def _es_tabular(ruta: str) -> bool:
-    """
-    ¿Es un .txt/.md realmente tabular (CSV/TSV disfrazado de texto plano)?
-
-    Reutiliza ``leer_filas_csv`` y muestrea las primeras filas para decidir
-    sin leer necesariamente todo el fichero.
-    """
+    """Determina si un TXT/MD es realmente tabular."""
     try:
         columnas, filas = leer_filas_csv(
             ruta,
@@ -405,17 +392,11 @@ def _es_tabular(ruta: str) -> bool:
 
 
 def _load_txt(ruta: str) -> list[Document]:
-    """
-    TXT/MD:
-
-    - Si es tabular, una fila = un documento.
-    - Si no, texto plano: un documento por archivo.
-    """
+    """Carga TXT/MD: fila por Document si es tabular; texto plano si no."""
     if _es_tabular(ruta):
         columnas, filas = leer_filas_csv(ruta)
 
         source = urllib.parse.unquote(Path(ruta).name)
-        print(f"source: {source}")
 
         advice = CsvAdvice(
             source=source,
@@ -448,14 +429,12 @@ def _load_text(ruta: str) -> list[Document]:
 
 
 def _load_csv(ruta: str) -> list[Document]:
-    """
-    CSV: csv_advisor.py decide el tratamiento y csv_transform.py lo aplica.
-    """
+    """Carga CSV mediante csv_advisor y csv_transform."""
     return _normalizar_source(transform_csv(ruta), ruta)
 
 
 def _formato_documento(source: str) -> str:
-    """Devuelve el formato lógico de un documento a partir de su nombre."""
+    """Devuelve el formato lógico a partir de la extensión."""
     extension = Path(source).suffix.lower().lstrip(".")
 
     return {
@@ -467,8 +446,6 @@ def _formato_documento(source: str) -> str:
     }.get(extension, "otro")
 
 
-# Registro extensión -> loader.
-# .txt/.md comparten el loader tabular-aware.
 Loader = Callable[..., list[Document]]
 
 _LOADERS: dict[str, Loader] = {
@@ -483,11 +460,8 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
     """
     Punto de entrada público.
 
-    Params:
-        rutas: una ruta o lista de rutas a archivos/carpetas.
-
-    Returns:
-        Lista de Document con page_content y metadata normalizada.
+    Acepta una ruta o lista de rutas a archivos/carpetas y devuelve Documents
+    normalizados para indexación.
     """
     if isinstance(rutas, str):
         rutas = [rutas]
@@ -496,7 +470,6 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
     archivos: list[str] = []
     directorios: list[Path] = []
 
-    # 1. Descubrir archivos y carpetas
     for ruta in rutas:
         ruta_path = Path(ruta)
 
@@ -506,7 +479,6 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
         elif ruta_path.is_file():
             todos.append(ruta_path)
 
-    # 2. Leer manifiestos de PDFs tabulares y OCR por directorio raíz recibido
     pdfs_tabulares: set[str] = set()
     pdfs_ocr: set[str] = set()
 
@@ -520,7 +492,6 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
     if pdfs_ocr:
         print(f"[LOAD] PDFs OCR declarados: {sorted(pdfs_ocr)}")
 
-    # 3. Filtrar archivos indexables; especiales.txt nunca se indexa
     for archivo in todos:
         if not archivo.is_file():
             continue
@@ -535,7 +506,6 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
                 f"[LOAD] ignorado (extensión no soportada): {archivo.name}"
             )
 
-    # 4. Cargar documentos
     documentos: list[Document] = []
 
     for archivo in archivos:
@@ -543,9 +513,13 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
         loader_fn = _LOADERS[extension]
 
         if extension == ".pdf":
+            # La raíz del manifiesto es el primer directorio recibido,
+            # no la carpeta inmediata del PDF.
+            directorio_raiz = directorios[0] if directorios else Path(archivo).parent
+
             docs = loader_fn(
                 archivo,
-                Path(archivo).parent,
+                directorio_raiz,
                 pdfs_tabulares,
                 pdfs_ocr,
             )
@@ -569,15 +543,3 @@ def cargar_archivos(rutas: list[str] | str) -> list[Document]:
         documentos.extend(docs)
 
     return documentos
-
-    """Cambios clave
-    _load_pdf() ya no retorna en el primer bloque coincidente: filtra todos los bloques cuyo fuente sea el PDF actual.
-    
-    El fallback TAB usa _extraer_texto_tabla_a_textos() y _parsear_a_key_value_simple(), que sí existen en pdf_tabular.py; desaparece la referencia a pdf, que estaba indefinida.
-    
-    Cada documento TAB/OCR conserva source, pdf_source, derived_from, file_type, block_index y line_index, lo que permite auditar cobertura y procedencia.
-    
-    Si un PDF TAB declarado no genera ningún documento, se lanza un error explícito en el fallback en lugar de caer silenciosamente a extracción nativa; si el fallback mismo falla, entonces sí se registra el aviso y se usa PyPDFLoader.
-    
-    _leer_pdfs_tabulares() y _leer_pdfs_ocr_tab() se unifican en _leer_pdfs_por_etiqueta() para eliminar duplicación.
-    """

@@ -1,42 +1,115 @@
 """tests/test_load_ocr.py
 
-El forzado por OCR.txt debe ser OCR real (Tesseract), no extracción nativa.
-Y si el motor OCR no está instalado, el documento no puede desaparecer.
+Valida la ruta OCR actual:
+- especiales.txt declara PDFs como OCR.
+- _load_pdf() usa los bloques OCR generados por cargar_pdfs_especiales().
+- Si no hay bloques OCR, el PDF no desaparece: cae a PyPDFLoader.
 """
+
 from pathlib import Path
 
 import rag.load as load
+from langchain_core.documents import Document
 
 
-def test_ocr_txt_fuerza_ambos_pdfs():
-    ruta = Path(load.__file__).parent.parent / "data" / "corpus" / "OCR.txt"
-    config = load.leer_config_ocr(str(ruta))
-
-    assert config["PreciosPublicos2026.pdf"] == "OCR"
-    assert config["PiscinasAireLibre2026.pdf"] == "OCR"
-
-
-def test_ocr_forzado_usa_tesseract(monkeypatch):
-    monkeypatch.setattr(load, "convert_from_path", lambda *a, **k: ["pagina"])
-    monkeypatch.setattr(load.pytesseract, "image_to_string", lambda imagen, **k: "texto ocr")
-    monkeypatch.setattr(
-        load, "_extraer_pdf_nativo", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no debe extraer nativo"))
+def test_especiales_txt_marca_pdfs_ocr(tmp_path: Path):
+    (tmp_path / "especiales.txt").write_text(
+        "\n".join(
+            [
+                "# Manifiesto de PDFs especiales",
+                "PreciosPublicos2026.pdf: OCR",
+                "PiscinasAireLibre2026.pdf: OCR",
+                "Otro.pdf: TAB",
+            ]
+        ),
+        encoding="utf-8",
     )
 
-    docs = load._ocr_pdf("x.pdf", "PreciosPublicos2026.pdf")
+    pdfs_ocr = load._leer_pdfs_ocr_tab(tmp_path)
 
-    assert [d.page_content for d in docs] == ["texto ocr"]
-    assert docs[0].metadata["file_type"] == "pdf_ocr"
-    assert docs[0].metadata["ocr_reason"] == "ocr.txt"
+    assert pdfs_ocr == {
+        "PreciosPublicos2026.pdf",
+        "PiscinasAireLibre2026.pdf",
+    }
 
 
-def test_ocr_no_disponible_cae_a_nativo(monkeypatch, capsys):
-    def _falla(*a, **k):
-        raise RuntimeError("poppler missing")
+def test_pdf_ocr_usa_bloques_ocr(monkeypatch, tmp_path: Path):
+    pdf = tmp_path / "PreciosPublicos2026.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
 
-    monkeypatch.setattr(load, "convert_from_path", _falla)
+    bloques = [
+        {
+            "fuente": "PreciosPublicos2026.pdf",
+            "texto": "texto ocr pagina 1",
+        },
+        {
+            "fuente": "PreciosPublicos2026.pdf",
+            "texto": "texto ocr pagina 2",
+        },
+    ]
 
-    docs = load._ocr_pdf("no_existe.pdf", "PiscinasAireLibre2026.pdf")
+    monkeypatch.setattr(
+        load,
+        "cargar_pdfs_especiales",
+        lambda directorio: {"tabular": [], "ocr": bloques},
+    )
 
-    assert docs == []
-    assert "AVISO OCR no disponible" in capsys.readouterr().out
+    docs = load._load_pdf(
+        path=str(pdf),
+        directorio=tmp_path,
+        pdfs_tabulares=set(),
+        pdfs_ocr={"PreciosPublicos2026.pdf"},
+    )
+
+    assert [d.page_content for d in docs] == [
+        "texto ocr pagina 1",
+        "texto ocr pagina 2",
+    ]
+    assert all(
+        d.metadata["file_type"] == "pdf_ocr_key_value"
+        for d in docs
+    )
+    assert all(
+        d.metadata["derived_from"] == "ocr_key-value"
+        for d in docs
+    )
+    assert all(
+        d.metadata["source"] == "PreciosPublicos2026.pdf"
+        for d in docs
+    )
+
+
+def test_pdf_ocr_sin_bloques_cae_a_nativo(monkeypatch, tmp_path: Path):
+    pdf = tmp_path / "PiscinasAireLibre2026.pdf"
+    pdf.write_bytes(b"%PDF-1.4 fake")
+
+    monkeypatch.setattr(
+        load,
+        "cargar_pdfs_especiales",
+        lambda directorio: {"tabular": [], "ocr": []},
+    )
+
+    documento_nativo = Document(
+        page_content="texto nativo",
+        metadata={"source": "PiscinasAireLibre2026.pdf"},
+    )
+
+    class FakePyPDFLoader:
+        def __init__(self, ruta: str):
+            assert ruta == str(pdf)
+
+        def load(self):
+            return [documento_nativo]
+
+    monkeypatch.setattr(load, "PyPDFLoader", FakePyPDFLoader)
+
+    docs = load._load_pdf(
+        path=str(pdf),
+        directorio=tmp_path,
+        pdfs_tabulares=set(),
+        pdfs_ocr={"PiscinasAireLibre2026.pdf"},
+    )
+
+    assert len(docs) == 1
+    assert docs[0].page_content == "texto nativo"
+    assert docs[0].metadata["source"] == "PiscinasAireLibre2026.pdf"
