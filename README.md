@@ -61,22 +61,26 @@ histórico se conservan en la síntesis. Aprobar cierra un plan informativo, sin
 reservas, pagos ni envíos.
 
 Al integrar #21 se conserva esta topología y se incorporan las mejoras del
-especialista documental detrás de su puerta pública. El objetivo de la entrada
-multimodal, una vez acordado y conectado el transporte de `image_id`, es:
+especialista documental detrás de su puerta pública. El backend ya transporta
+`image_id` por pedido hasta el contrato público
+multimodal documental; David debe conectar el cliente:
 
 ```mermaid
 flowchart LR
-    IMG["Streamlit: JPG/PNG guardado<br/>Implementado en #23"] -.->|"Pendiente: transportar image_id"| API["Servicio y adaptador documental"]
-    API -.->|"Pendiente de integración y aceptación"| DOC["Especialista documental #21<br/>RAG y tool de imagen con presupuesto"]
-    DOC -.-> RES["Resultado y evidencias<br/>Retorno al supervisor"]
+    IMG["Streamlit: JPG/PNG guardado"] -.->|"David: enviar image_id"| API["AgentService: validar referencia por pedido"]
+    API --> AD["Adaptador documental: image_id del estado"]
+    AD --> DOC["Puerta pública documental"]
+    DOC -.->|"Aceptación real pendiente"| RES["RAG / visión y evidencias"]
 ```
 
-Las flechas discontinuas describen integración pendiente. Actualmente la imagen
-se guarda en Streamlit y no llega al agente. En #21, la tool de imagen se consulta
-si hay respuesta documental válida y queda presupuesto; no supone una ruta
-independiente de visión en el supervisor. `preparar_reporte` sigue sin estar
-disponible. La integración prevista no acredita funcionamiento real: faltan
-aceptación con modelo, índice RAG compatible y fuentes externas.
+`procesar_turno(mensaje, thread_id, *, image_id=None)` conserva las llamadas de
+dos argumentos. Admite JPG/JPEG/PNG existentes dentro de `output/imagenes/` y
+el asset `assets/imagen_demo.jpg` (o `imagen_demo`). Valida ruta resuelta,
+autorización, existencia y extensión sin abrir ni codificar la imagen; no
+acredita su contenido. El siguiente pedido sin imagen reinicia el campo a
+`None`. Las guardias impiden que un nodo lo sustituya. Transporte, aislamiento
+y HITL verificados con dobles; visión real y aceptación conjunta siguen
+pendientes. Ver [contrato para David](docs/handoff_imagen_por_pedido.md).
 
 `crear_servicio(modo="real")` carga el `.env` del repositorio sin sobrescribir el
 entorno y construye e inyecta el proveedor configurado. CLI y Streamlit mantienen
@@ -296,6 +300,12 @@ python -m scripts.export_evidence --output output/evidencia_backend_simulado.jso
 ```
 
 Los contratos y el golden están versionados. Las evidencias temporales permanecen locales. La demo, los dobles y las pruebas de contratos no validan recuperación, generación, catálogo, imágenes ni calidad sobre el corpus municipal.
+
+El transporte de imagen por pedido tiene **186 casos offline distintos
+superados**, con dobles y sin visión/RAG reales. El supervisor real no se probó:
+la configuración efectiva es `SUPERVISOR_MODE=reglas`, sin
+`SUPERVISOR_PROVIDER` ni `SUPERVISOR_MODEL`; se hicieron cero inferencias.
+Comandos, incidencias y pendientes en el [handoff de imagen](docs/handoff_imagen_por_pedido.md).
 
 ## Configuración efectiva y RAG
 

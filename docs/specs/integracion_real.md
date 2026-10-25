@@ -3,6 +3,16 @@
 Alcance confirmado: montaje e integración del grafo supervisor. Los nodos de
 Héctor y Miguel y los clientes de David permanecen bajo su responsabilidad.
 
+Actualización de imagen por pedido (25/10/2026, base `60b076d`, #22 integrada):
+`AgentService.procesar_turno(mensaje, thread_id, *, image_id=None)` valida y
+transporta la referencia hasta el contrato documental público, con reset por
+pedido. David conecta el cliente; `crear_servicio(modo="real")` no cambia.
+El transporte se verificó con dobles. La prueba real del supervisor está
+bloqueada: modo efectivo `reglas`, sin `SUPERVISOR_PROVIDER` ni
+`SUPERVISOR_MODEL`; cero inferencias. Visión real y aceptación conjunta con RAG
+siguen pendientes. Detalle y evidencia en el [handoff de imagen](../handoff_imagen_por_pedido.md).
+Los registros históricos siguientes conservan su alcance original.
+
 Actualización del montaje (25/10/2026): Miguel ya entregó `nodo_instalaciones`
 y runtime lo inyecta directamente, sin modificar su implementación ni sus tools.
 `tests/test_runtime.py` usa el nodo de instalaciones y el grafo documental reales,
