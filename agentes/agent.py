@@ -3,7 +3,7 @@
 Crear un AgentService con nodos inyectados y conservarlo entre turnos. El grafo
 y los identificadores de plan pertenecen a esa instancia. MemorySaver y los
 registros del servicio son locales al proceso; no prometen recuperación tras
-reinicios. La integración de imágenes queda pendiente de su contrato.
+reinicios. image_id identifica únicamente la imagen del pedido actual.
 """
 
 from threading import RLock
@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from agentes.graph import Node, build_graph
+from agentes.image_input import validar_image_id
 from agentes.nodes.supervisor import RouteProvider
 from agentes.settings import AgentSettings, load_settings
 from agentes.state import initial_state, state_from_graph
@@ -89,7 +90,9 @@ class AgentService:
         with self._lock(thread_id):
             return self._state(thread_id)
 
-    def procesar_turno(self, mensaje: str, thread_id: str) -> dict[str, Any]:
+    def procesar_turno(
+        self, mensaje: str, thread_id: str, *, image_id: str | None = None,
+    ) -> dict[str, Any]:
         """Reinicia el pedido, ejecuta y devuelve el plan pendiente de decisión.
 
         Un mensaje vacío falla antes de tocar el checkpoint. Si un nodo falló
@@ -103,6 +106,7 @@ class AgentService:
             raise TypeError("mensaje debe ser un texto")
         if not mensaje.strip():
             raise ValueError("mensaje no puede estar vacío")
+        imagen = validar_image_id(image_id)
         with self._lock(thread_id):
             snapshot = self._graph.get_state(self._config(thread_id))
             if "aplicar" in (snapshot.next or ()):
@@ -111,7 +115,9 @@ class AgentService:
                 raise ValueError("REQUEST_INCOMPLETE: hay una ejecución pendiente en este hilo")
             self._plan_ids.pop(thread_id, None)
             self._resolved.pop(thread_id, None)
-            self._graph.invoke(initial_state(mensaje.strip(), thread_id), self._config(thread_id))
+            self._graph.invoke(
+                initial_state(mensaje.strip(), thread_id, image_id=imagen), self._config(thread_id)
+            )
             snapshot = self._graph.get_state(self._config(thread_id))
             if "aplicar" in (snapshot.next or ()):
                 self._plan_ids[thread_id] = uuid4().hex
