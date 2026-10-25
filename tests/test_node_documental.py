@@ -36,6 +36,7 @@ def test_salida_solo_campo_autorizado(monkeypatch):
 
 def test_imagen_prevista_no_disponible(monkeypatch):
     monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: _obs_ok())
+    monkeypatch.setitem(nod.REGISTRY, "imagen", None)
     out = nodo_documental({"request_id": "r2", "pedido": "¿Qué dice el cartel?", "image_id": "img_1"})
     d = out["documental"]
     assert any("imagen" in l for l in d["limitaciones"])

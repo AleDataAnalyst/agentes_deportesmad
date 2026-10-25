@@ -13,7 +13,6 @@ from agentes.nodes.aplicar import aplicar_node as _aplicar_checked
 from agentes.nodes.sintetizar import sintetizar_node as _sintetizar_checked
 from agentes.state import AgentState, plan_is_ready
 from agentes.nodes.supervisor import ROLES, RouteProvider, fallback_decision, supervisor_node
-from agentes.nodes.vision import vision_node
 
 Node = Callable[[AgentState], dict]
 
@@ -35,7 +34,8 @@ def router_supervisor(state: AgentState) -> str:
 
 def build_graph(
     *, documental_node: Node, instalaciones_node: Node, sintetizar_node: Node,
-    aplicar_node: Node, route_provider: RouteProvider | None = None,
+    aplicar_node: Node, vision_node: Node | None = None,
+    route_provider: RouteProvider | None = None,
     max_iter: int = 8, checkpointer=None,
 ):
     """Compila una vez por servicio y reutiliza la instancia entre turnos.
@@ -46,6 +46,7 @@ def build_graph(
     y añade su marca de inicio a la traza del hilo mediante el acumulador.
     MemorySaver conserva checkpoints solo durante la vida del proceso.
     """
+    # vision_node todavía no se enruta: el supervisor no lo conoce.
     if type(max_iter) is not int or max_iter < 1:
         raise ValueError("max_iter debe ser un entero positivo")
     from langgraph.graph import StateGraph, START, END

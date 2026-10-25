@@ -38,13 +38,13 @@ Las claves (`GOOGLE_API_KEY`, `HF_TOKEN`) son secretos y no deben compartirse ni
 | EMBED_PROVIDER | Cadena | ollama, huggingface, google | Proveedor utilizado para generar embeddings. ollama es la opción offline y sin coste; huggingface y google requieren conectividad y, en algunos casos, credenciales. agentes_deportesmad/.env.example |
 | TAG_PROVIDER   | Cadena | ollama, huggingface, google | Proveedor empleado para la generación de etiquetas o metadatos semánticos. agentes_deportesmad/.env.example                                                                                           |
 | GEN_PROVIDER   | Cadena | ollama, huggingface, google | Proveedor utilizado para generación de texto, incluida la creación del conjunto de evaluación. agentes_deportesmad/.env.example                                                                       |
-| VISON_MODEL    | Cadena | Nombre de modelo Gemini     | Modelo multimodal de Google usado para tareas de visión. El ejemplo usa gemini-2.5-flash y depende de GOOGLE_API_KEY. agentes_deportesmad/.env.example                                                |
+| VISION_MODEL    | Cadena | Nombre de modelo Gemini     | Modelo multimodal de Google usado para tareas de visión. El ejemplo usa gemini-3.8-flash y depende de GOOGLE_API_KEY. agentes_deportesmad/.env.example                                                |
 
 ## Credenciales
 
 | Variable       | Tipo   | Obligatoria                                   | Descripción                                                                                                                                                                                     |
 | -------------- | ------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GOOGLE_API_KEY | Cadena | Sí para proveedores google y para VISON_MODEL | Clave de API de Google utilizada por los modelos Gemini de embeddings, etiquetado, generación y visión. Debe mantenerse secreta. agentes_deportesmad/.env.example                               |
+| GOOGLE_API_KEY | Cadena | Sí para proveedores google y para VISION_MODEL | Clave de API de Google utilizada por los modelos Gemini de embeddings, etiquetado, generación y visión. Debe mantenerse secreta. agentes_deportesmad/.env.example                               |
 | HF_TOKEN       | Cadena | Condicional                                   | Token de Hugging Face. Es necesario principalmente para acceder a modelos restringidos o gated; puede dejarse vacío si los modelos seleccionados son públicos. agentes_deportesmad/.env.example |
 
 ## Google
@@ -160,7 +160,7 @@ GOOGLE_EMBED_MODEL="gemini-embedding-2"
 GOOGLE_TAG_MODEL="gemini-3.6-flash"
 GOOGLE_GEN_MODEL="gemini-3.6-flash"
 
-VISON_MODEL="gemini-2.5-flash"
+VISION_MODEL="gemini-3.8-flash"
 ```
 
 > Se pueden combinar providers sergún conveniencia, aunque se recomiendan Ollama y HuggingFace (en inferencia local) para desarrollo offline y pruebas.

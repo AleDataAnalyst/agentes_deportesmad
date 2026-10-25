@@ -4,9 +4,9 @@ Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
 El proyecto integra el RAG existente mediante un especialista documental y un supervisor síncrono. El flujo conserva fuentes, errores y abstenciones, prepara un plan informativo y exige una decisión humana antes del cierre.
 
-## Estado de esta entrega — 22/10/2026
+## Estado de esta entrega — 25/10/2026
 
-> Esta versión actualiza la documentación tras la revisión de validación del 21/10/2026. No cambia el alcance funcional: el modo real sigue pendiente de aceptación con índice RAG compatible y el especialista de instalaciones sigue sin operativa pública probada y ejecutable.
+> El modo real sigue pendiente de aceptación con RAG operativo y fuentes externas reales. Miguel ya entregó el nodo público de instalaciones y runtime lo conecta; las pruebas de montaje usan dependencias externas dobles y no acreditan esa aceptación conjunta.
 
 Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backend compartido. Distingue implementación, pruebas con dobles y validación con servicios reales.
 
@@ -20,7 +20,7 @@ Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backen
 | Instalaciones | Ruta y declaración explícita de ausencia en runtime | Falta una operación pública ejecutable del especialista; `available=False` |
 | CLI | Consultas, fuentes, plan, aprobación/rechazo manual, nueva conversación y debug acotado | Modo real pendiente de aceptación con un índice compatible; memoria limitada al proceso |
 | Seguridad del backend | Validación de campos por nodo, aislamiento de entradas/salidas y registro explícito de tipos del checkpoint predeterminado | No añade autenticación, persistencia duradera ni aislamiento de efectos externos de código Python |
-| Streamlit | Cliente demo sobre `AgentService`, chat y controles HITL | Pendiente de conectar a runtime real; después de decidir necesita un refresco adicional para recuperar el chat |
+| Streamlit | Cliente sobre `crear_servicio(modo="real")`: chat, controles HITL en la barra lateral, refresco tras decidir, validación de entradas y estado con `agentes.validation`, y errores y debug filtrados con `agentes.secret_filter` | Fuentes visibles solo en el panel de debug; sin aceptación con índice RAG compatible; los mensajes de varias líneas se bloquean con la misma regla que la CLI |
 | Perfiles y benchmark TAG | Tres plantillas y sonda independiente; validación con dobles | Sin comparación completa real de estos perfiles ni validación del pipeline |
 | Visualización | Exportación ASCII/Mermaid y esquema SVG | Describe topología y montaje; no acredita una consulta RAG real |
 
@@ -38,7 +38,7 @@ pedido → supervisor → documental → supervisor → instalaciones → superv
        → decisión humana sobre el plan vigente → aplicar → END
 ```
 
-El supervisor puede usar rutas alternativas, fallback y límites. La ausencia actual de instalaciones se comunica como abstención y limitación explícitas.
+El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
 
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 
@@ -57,7 +57,8 @@ Referencias: [cierre del montaje](docs/specs/cierre_montaje_documental_2026-10-2
 | `agentes/runtime.py` | Construcción explícita de servicio real o demo |
 | `rag/` | Pipeline RAG: carga, limpieza, chunking, embeddings, índice, recuperación y generación |
 | `main.py` | Punto de entrada de la CLI |
-| `app.py` | Cliente Streamlit |
+| `app.py` | Arranque de Streamlit |
+| `clientes/` | Clientes: CLI (`cli.py`), interfaz Streamlit (`streamlit_app.py`), botones de aprobar y rechazar (`hitl.py`) y panel de debug (`debug.py`) |
 | `.env.example` | Plantilla de configuración; no contiene secretos |
 
 
@@ -101,7 +102,7 @@ python -B main.py --menu
 python -B main.py --modo real
 ```
 
-La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o genera índices. El montaje real mantiene instalaciones como no disponibles.
+La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o genera índices. El montaje real conecta el nodo público de instalaciones para catálogo y avisos; construir el servicio no ejecuta consultas.
 
 | Entrada interactiva | Operación |
 | --- | --- |
@@ -122,7 +123,18 @@ Streamlit se inicia con:
 python -m streamlit run app.py
 ```
 
-Actualmente utiliza el servicio demo. La integración con `crear_servicio(modo="real")`, el refresco tras aprobar o rechazar y la presentación segura de fuentes, errores y debug siguen pendientes.
+`app.py` solo arranca la página. El código está en `clientes/streamlit_app.py` (chat y botones) y en `clientes/debug.py` (panel de diagnóstico).
+
+Qué hace el cliente:
+
+- **Usa el agente real** (`crear_servicio(modo="real")`). Si el servicio no arranca, muestra un mensaje de error claro y no se pasa a la demo por su cuenta.
+- **Comprueba lo que escribe el usuario** antes de enviarlo, con las mismas reglas que la CLI: máximo 8.000 caracteres y sin caracteres invisibles. Por eso no acepta mensajes de varias líneas.
+- **Comprueba las decisiones.** Antes de aprobar o rechazar verifica la conversación y el plan, y después revisa que la respuesta del servicio corresponde a esa misma conversación.
+- **No enseña secretos.** Errores, mensajes y debug pasan por `sin_secretos`.
+- **No repite la respuesta al aprobar.** Solo añade el mensaje de cierre.
+- **Panel de debug** desplegable con la fase de la revisión humana, si la consulta ha terminado, las iteraciones y la traza. Para cada especialista muestra si ha respondido, si el dato es real, simulado o no disponible, la respuesta, las fuentes y las herramientas usadas. Los datos técnicos completos solo aparecen si los pides, y también van filtrados.
+
+Pendiente: mostrar las fuentes debajo de cada respuesta del chat y probarlo con el índice real.
 
 ## Protecciones del backend compartido
 
@@ -164,7 +176,7 @@ Ver [explicación de la vista](docs/specs/grafo_visual.md) y [flujo de superviso
 | Selección ampliada de validación compartida | 577 pruebas superadas el 21/10/2026 | Utilidades compartidas, CLI, seguridad, servicio, backend, HITL, supervisor, estado, contratos, golden, demo, exportación e integración síncrona; con especialistas dobles y sin servicios reales |
 | Selección conjunta previa de CLI y backend | 433 pruebas superadas el 20/10/2026 | Evidencia previa a la ampliación de validación; con red y RAG/Chroma bloqueados por el ejecutor local |
 | Terminal desde `main.py` | Cuatro recorridos con código de salida 0 | Help, demo con aprobación/rechazo y nueva conversación, menú demo y salida del menú |
-| Compatibilidad de Streamlit en demo | Aprobación, rechazo y nueva conversación correctos | Conserva servicio, hilo y plan; persiste el refresco adicional de UI después de decidir |
+| Streamlit en modo real, sin índice | Probado a mano: aprobar, rechazar, nueva conversación y bloqueo de un mensaje no válido funcionan | Sin índice el documental no encuentra nada, así que no se han podido ver fuentes reales; todavía no hay tests automáticos de `clientes/` |
 | Selección histórica de backend y montaje | 276 pruebas superadas | Evidencia anterior a esta ampliación, con dobles donde corresponde; no se suma a las 433 |
 | Golden del grafo | 12 escenarios y 24 pruebas | Incluido en la selección conjunta; datos y fuentes sintéticos, sin evaluación semántica de un LLM |
 | Sonda adicional en la frontera RAG | 10 recorridos superados | Respuesta, abstención, vacío, error y timeout, con aprobación/rechazo; solo se sustituye `responder` |
@@ -298,8 +310,8 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | --- | --- | --- |
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
-| Miguel | Especialista de instalaciones y avisos, a partir de su handoff | Operación pública ejecutable y contrato de fuentes, errores, abstención y fallback fechado para integrarla |
-| David | Cliente Streamlit demo conectado a `AgentService`, con chat y controles HITL | Integración con `crear_servicio(modo=...)`, refresco tras decisión, tratamiento de errores, adopción de `agentes.validation` y `agentes.secret_filter`, y presentación segura de fuentes/debug |
+| Miguel | Nodo público de instalaciones y avisos entregado y conectado en runtime | Cerrar la auxiliar determinista reutilizando la función de fecha existente; participar en la aceptación con catálogo/avisos reales |
+| David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Mostrar las fuentes en el chat, probarlo con el índice real, añadir tests de `clientes/` y preparar la demo de la presentación |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
 
