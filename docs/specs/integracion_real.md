@@ -33,6 +33,11 @@ La #20 está integrada en `origin/develop` (`b3ea868`). La rama de #22 incorpora
 ese destino mediante merge normal, incluidas las mejoras de clientes de #19.
 No incorpora la rama de #21 (`a84e899` al revisar).
 
+Revisión posterior a #23: `origin/develop=5fdb04a` incorpora los avisos por
+estado y la subida de imágenes de Streamlit. Integrado sin conflictos mediante
+merge normal `eb0c16a`. Streamlit conserva `crear_servicio(modo="real")`; las
+imágenes siguen sin enviarse al servicio, tal como documenta #23.
+
 `agentes/supervisor_llm.py::crear_proveedor_rutas` recibe un adaptador con la
 interfaz `generate` existente y una `message_factory` compatible con `LlmMessage`.
 Los tipos de `agentes.llm` solo se importan bajo `TYPE_CHECKING`, sin duplicar su
@@ -103,6 +108,17 @@ de deprecación del SDK Google, y `git diff --check`. Selección ejecutada:
 
 ```powershell
 python -B -m pytest -q -p no:cacheprovider tests/test_llm_supervisor_real.py tests/test_runtime.py tests/test_supervisor_llm.py tests/test_supervisor.py tests/test_agent_service.py tests/test_sync_integration.py tests/test_documental_adapter.py tests/test_node_guards.py tests/test_sintetizar_aplicar.py tests/test_infra_sintetizar_aplicar.py tests/test_backend_cierre.py tests/test_graph_hitl.py tests/test_import_boundaries.py tests/test_demo.py tests/test_cli.py tests/test_cli_security.py tests/test_clientes_seguridad.py tests/test_nodo_instalaciones.py
+```
+
+Tras integrar #23 se ejecutó esa selección más `tests/test_clientes_estados.py`
+y `tests/test_clientes_imagenes.py`: 523 pruebas superadas y 13 errores de
+preparación por permisos del directorio temporal de pytest, sin fallos de
+aserción. Las 13 afectadas se repitieron con un directorio temporal nuevo dentro
+del worktree y pasaron: **536 pruebas verificadas en total**. Comando de repetición,
+tras crear el directorio padre `tmp`:
+
+```powershell
+python -B -m pytest -q -p no:cacheprovider --basetemp=tmp/pytest-pr23-20261025-eb0c16a tests/test_clientes_imagenes.py
 ```
 
 Pendientes: aceptación de rutas con un modelo real disponible y aceptación
