@@ -50,8 +50,6 @@ El supervisor enrutó al especialista documental, que en modo demo devolvió abs
 
 Aprobamos el plan. El agente confirmó con "Plan informativo aprobado. No se ha ejecutado ninguna acción externa." y el chat quedó desbloqueado. El comportamiento fue el esperado: la aprobación no inventa datos, simplemente cierra el ciclo de manera limpia reconociendo las limitaciones actuales.
 
-> **@Héctor** — cuando el RAG real esté conectado, actualiza este apartado con un caso real de aprobación con respuesta fundada en el corpus.
-
 ### Caso rechazado
 
 Pregunta: *"¿Puedo reservar sin estar empadronado?"*
@@ -59,6 +57,20 @@ Pregunta: *"¿Puedo reservar sin estar empadronado?"*
 Misma situación de abstención en ambos especialistas. El plan reflejaba las limitaciones. Rechazamos. El agente respondió "Plan rechazado. Puedes enviar un nuevo mensaje." y el input volvió a estar disponible sin necesidad de abrir una nueva conversación.
 
 Esto es exactamente el comportamiento que queríamos: el rechazo no mata la sesión, solo libera el estado para que el usuario pueda reformular o preguntar otra cosa con el mismo thread_id. El checkpointer mantiene la memoria de la conversación anterior.
+
+Los dos casos anteriores son de la primera prueba, con el índice sin cargar. Repetimos el recorrido el 25/10/2026 con el RAG real y el catálogo de datos.madrid.es.
+
+### Con el RAG real
+
+**Una respuesta fundada.** Pregunta: *"servicios de centro deportivo CEA bermudez"*. El documental respondió esta vez con contenido del corpus (estado `ok`, origen real) y citó sus fuentes: los CSV de polideportivos y piscinas, el reglamento de instalaciones y el decreto de anulación de reservas. Instalaciones aportó el catálogo (82 centros) y la síntesis contó 2 de 2 resultados útiles. El plan quedó pendiente en la barra lateral y el chat se bloqueó hasta decidir ([respuesta](../docs/evidencias/A1-streamlit-1-respuesta-documental.png), [chat bloqueado](../docs/evidencias/A2-streamlit-2-chat-bloqueado-y-fuentes.png)).
+
+**Aprobación y segundo pedido.** En otra conversación, con una consulta de catálogo en la que el documental se abstuvo, aprobamos el plan: el debug pasó a `aprobado` con `done=True` y el agente cerró con "Plan informativo aprobado. No se ha ejecutado ninguna acción externa." Escribimos un segundo pedido en el mismo hilo y se procesó sin abrir otra conversación: volvió a quedar un plan pendiente. Es el comportamiento que buscábamos, porque el `thread_id` conserva la sesión y cada pedido tiene su propio plan ([aprobado](../docs/evidencias/A2-streamlit-3-aprobado.png), [segundo pedido](../docs/evidencias/A2-streamlit-4-segundo-pedido.png)).
+
+**Rechazo.** Al rechazar, el debug mostró `rechazado` con `done=False` y el chat quedó libre. Empezamos otra conversación con "Nueva conversación" y repetimos el rechazo con el mismo resultado ([rechazo](../docs/evidencias/A3-streamlit-4-debug-rechazado.png)).
+
+**Lo que nos llamó la atención.** Preguntamos algo ajeno al corpus: *"¿quién ganó el último mundial de fútbol?"*. El documental se abstuvo, sin inventar nada ni citar fuentes, pero la respuesta final incluyó igualmente el catálogo de instalaciones. Se debe a que el supervisor por reglas pasa siempre por los dos especialistas, tenga o no sentido para la pregunta. El router con modelo debería decidir mejor a quién consultar ([abstención](../docs/evidencias/A4-streamlit-1-abstencion.png)).
+
+**Misma pregunta en CLI y Streamlit.** Repetimos la consulta del CEA en la CLI y el contrato coincidió: el documental respondió `ok` con las mismas cuatro fuentes (el reglamento de instalaciones, los CSV de polideportivos y piscinas y el decreto de anulación de reservas), instalaciones aportó el catálogo y la síntesis contó 2 de 2 resultados útiles. El recorrido de HITL también fue el mismo: plan pendiente, aprobación con `done=True`, segundo pedido en el mismo hilo con un plan nuevo y rechazo en una conversación nueva. Lo único que cambia es la presentación: el texto de la respuesta varía de una ejecución a otra, pero el estado, las fuentes y la fase de la revisión humana no. Cada cliente mantiene su propio estado, porque la memoria vive en el proceso de cada uno.
 
 ---
 

@@ -10,6 +10,8 @@ agentes.secret_filter, igual que en la CLI.
 
 from __future__ import annotations
 
+import inspect
+
 import streamlit as st
 
 from agentes.runtime import crear_servicio
@@ -24,7 +26,7 @@ from agentes.validation import (
 from clientes.hitl import mensaje_recuperacion, render_hitl
 from clientes.debug import fuentes_de_estado, render_debug
 from clientes.estados import avisos_de_estado, ayuda_arranque
-from clientes.imagenes import guardar_imagen_subida
+from clientes.imagenes import guardar_imagen_subida, ruta_imagen
 
 
 def _error(prefijo: str, exc: BaseException) -> None:
@@ -66,6 +68,14 @@ def _recuperar_estado(service, thread_id: str) -> None:
     getattr(st, nivel)(texto)
 
 
+def _servicio_acepta_imagen(service) -> bool:
+    """El backend admite image_id por pedido (procesar_turno(..., image_id=...))."""
+    try:
+        return "image_id" in inspect.signature(service.procesar_turno).parameters
+    except (TypeError, ValueError):
+        return False
+
+
 def _reiniciar_imagen() -> None:
     """Olvida la imagen actual y vacía el selector de archivos."""
     st.session_state.image_id = None
@@ -75,10 +85,10 @@ def _reiniciar_imagen() -> None:
 
 
 def _render_subida_imagen() -> None:
-    """Acepta solo JPG y PNG y guarda su image_id.
+    """Acepta solo JPG y PNG y guarda su image_id (ruta relativa a la raíz del proyecto).
 
-    El servicio aún no recibe el image_id: queda en st.session_state.image_id
-    para pasarlo cuando exista esa vía.
+    El image_id se envía con cada mensaje mientras la imagen siga subida; si el
+    backend aún no lo admite, se avisa y no se envía.
     """
     st.subheader("Imagen")
     subida = st.file_uploader(
@@ -100,9 +110,14 @@ def _render_subida_imagen() -> None:
     if st.session_state.imagen_error:
         st.error(st.session_state.imagen_error)
     if st.session_state.image_id:
-        st.image(st.session_state.image_id, use_container_width=True)
+        ruta = ruta_imagen(st.session_state.image_id)
+        if ruta:
+            st.image(str(ruta), use_container_width=True)
         st.caption(f"image_id: `{st.session_state.image_id}`")
-        st.caption("La imagen se guarda, pero todavía no se envía al agente.")
+        if _servicio_acepta_imagen(st.session_state.service):
+            st.caption("La imagen se enviará con tus mensajes mientras siga subida.")
+        else:
+            st.caption("La imagen se guarda, pero este servicio todavía no la recibe.")
         if st.button("Quitar imagen", use_container_width=True):
             _reiniciar_imagen()
             st.rerun()
@@ -255,7 +270,11 @@ def render():
 
                 with st.spinner("Procesando..."):
                     try:
-                        resultado = service.procesar_turno(prompt, thread_id)
+                        if st.session_state.image_id and _servicio_acepta_imagen(service):
+                            resultado = service.procesar_turno(
+                                prompt, thread_id, image_id=st.session_state.image_id)
+                        else:
+                            resultado = service.procesar_turno(prompt, thread_id)
                         validar_estado(resultado, thread_id)
                         st.session_state.estado = resultado
 
