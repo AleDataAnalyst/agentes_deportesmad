@@ -63,11 +63,11 @@ reservas, pagos ni envíos.
 Al integrar #21 se conserva esta topología y se incorporan las mejoras del
 especialista documental detrás de su puerta pública. El backend ya transporta
 `image_id` por pedido hasta el contrato público
-multimodal documental; David debe conectar el cliente:
+multimodal documental, y Streamlit ya lo envía con cada mensaje mientras haya una imagen subida:
 
 ```mermaid
 flowchart LR
-    IMG["Streamlit: JPG/PNG guardado"] -.->|"David: enviar image_id"| API["AgentService: validar referencia por pedido"]
+    IMG["Streamlit: JPG/PNG guardado"] -.->|"Streamlit: envía image_id"| API["AgentService: validar referencia por pedido"]
     API --> AD["Adaptador documental: image_id del estado"]
     AD --> DOC["Puerta pública documental"]
     DOC -.->|"Aceptación real pendiente"| RES["RAG / visión y evidencias"]
