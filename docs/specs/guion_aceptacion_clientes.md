@@ -17,7 +17,7 @@ Desarrolla los criterios de [aceptacion.md](aceptacion.md) en escenarios verific
 |---|---|---|
 | Índice RAG compatible y reproducible | Héctor | A1–A4 |
 | Consulta con fuente esperada y pregunta fuera del corpus | Héctor | A1, A4 |
-| Instalaciones conectado al runtime | Alejandra | A5, A6 |
+| Instalaciones conectado al runtime | Miguel y Alejandra | A5, A6 |
 | Herramienta auxiliar determinista | Miguel | A8 |
 | Vía de entrada de la imagen en el recorrido | Por acordar | A7 |
 

@@ -4,9 +4,9 @@ Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
 El proyecto integra el RAG existente mediante un especialista documental y un supervisor síncrono. El flujo conserva fuentes, errores y abstenciones, prepara un plan informativo y exige una decisión humana antes del cierre.
 
-## Estado de esta entrega — 22/10/2026
+## Estado de esta entrega — 25/10/2026
 
-> Esta versión actualiza la documentación tras la revisión de validación del 21/10/2026. No cambia el alcance funcional: el modo real sigue pendiente de aceptación con índice RAG compatible y el especialista de instalaciones sigue sin operativa pública probada y ejecutable.
+> El modo real sigue pendiente de aceptación con RAG operativo y fuentes externas reales. Miguel ya entregó el nodo público de instalaciones y runtime lo conecta; las pruebas de montaje usan dependencias externas dobles y no acreditan esa aceptación conjunta.
 
 Esta entrega incorpora la CLI sobre `AgentService` y las protecciones del backend compartido. Distingue implementación, pruebas con dobles y validación con servicios reales.
 
@@ -38,7 +38,7 @@ pedido → supervisor → documental → supervisor → instalaciones → superv
        → decisión humana sobre el plan vigente → aplicar → END
 ```
 
-El supervisor puede usar rutas alternativas, fallback y límites. La ausencia actual de instalaciones se comunica como abstención y limitación explícitas.
+El supervisor puede usar rutas alternativas, fallback y límites. Runtime conecta `nodo_instalaciones`; sus errores, abstenciones y fallback histórico se conservan en la síntesis.
 
 El adaptador conserva el sobre documental en `ToolResult.data` y las referencias confirmadas en `Evidence.source`, sin inventar fragmentos, puntuaciones ni fechas. Los errores no se convierten en evidencia útil; sus fuentes permanecen en los eventos correspondientes. La respuesta vacía sin error se trata como abstención. La tool pública expone respuesta, fuentes, abstención y error; no se afirma que propague todos los campos adicionales del RAG.
 
@@ -102,7 +102,7 @@ python -B main.py --menu
 python -B main.py --modo real
 ```
 
-La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o genera índices. El montaje real mantiene instalaciones como no disponibles.
+La selección de modo no cambia proveedores, modelos ni `.env`, ni descarga o genera índices. El montaje real conecta el nodo público de instalaciones para catálogo y avisos; construir el servicio no ejecuta consultas.
 
 | Entrada interactiva | Operación |
 | --- | --- |
@@ -287,7 +287,7 @@ El reparto parte del acuerdo del 13/10/2026. La siguiente tabla actualiza el est
 | --- | --- | --- |
 | Alejandra | Supervisor, grafo, servicio común, adaptación documental, síntesis, cierre HITL, CLI y protecciones del backend con sus pruebas | Coordinar la aceptación documental real y revisar la integración de los especialistas pendientes |
 | Héctor | RAG y especialista documental; su puerta pública está conectada al supervisor | Índice compatible y reproducible, consulta/fuente esperadas y revisión de perfiles; coordinar configuración efectiva de límites TAG/generación |
-| Miguel | Especialista de instalaciones y avisos, a partir de su handoff | Operación pública ejecutable y contrato de fuentes, errores, abstención y fallback fechado para integrarla |
+| Miguel | Nodo público de instalaciones y avisos entregado y conectado en runtime | Cerrar la auxiliar determinista reutilizando la función de fecha existente; participar en la aceptación con catálogo/avisos reales |
 | David | Cliente Streamlit conectado al agente real: chat, aprobar y rechazar, comprobación de entradas, ocultación de secretos y panel de debug | Probar fuentes y recuperación tras errores con el índice real, ampliar los tests de `clientes/` y preparar la demo de la presentación |
 
 El backend de pausa, validación de la decisión y reanudación del grafo pertenece al trabajo de Alejandra y está implementado. Los botones y la presentación de Streamlit corresponden a David. Cada responsable mantiene pruebas y documentos de su bloque. La incorporación de nuevas tareas requiere coordinación explícita.
