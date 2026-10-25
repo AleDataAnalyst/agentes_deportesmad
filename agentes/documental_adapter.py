@@ -10,6 +10,7 @@ from collections.abc import Callable
 from uuid import uuid4
 
 from agentes.contracts import Evidence, ToolResult
+from agentes.image_input import validar_image_id
 from agentes.state import AgentState
 
 
@@ -19,8 +20,9 @@ def crear_adaptador_documental(
 ):
     """Devuelve un Node síncrono para inyectar en build_graph o AgentService.
 
-    Las opciones son explícitas del montaje, no campos nuevos de AgentState.
-    El contrato común aún no transporta imágenes ni contexto por turno. La
+    image_id del estado prevalece, también cuando es None (pedido sin imagen).
+    La opción de construcción solo se usa con estados antiguos sin esa clave.
+    Se valida la referencia al invocar, sin abrir archivos al construir. La
     ejecución inyectada recibe el contrato documental y devuelve su patch; es
     obligatoria para no decidir aquí la puerta pública ni cargar especialistas.
     El identificador se genera por invocación: thread_id identifica conversación,
@@ -56,9 +58,11 @@ def crear_adaptador_documental(
         message = state.get("user_message")
         if not isinstance(message, str) or not message.strip():
             raise ValueError("DOCUMENTAL_INPUT: user_message debe ser texto no vacío")
+        imagen = validar_image_id(state.get("image_id", options["image_id"]))
         request_id = uuid4().hex
         output = ejecutar_documental({
             **deepcopy(options), "request_id": request_id, "pedido": message,
+            "image_id": imagen,
         })
         payload = output.get("documental") if isinstance(output, dict) else None
         if not isinstance(payload, dict) or payload.get("request_id") != request_id:

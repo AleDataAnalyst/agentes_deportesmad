@@ -117,6 +117,24 @@ def test_public_gate_is_used_without_invoking_it(monkeypatch):
     assert requested == [True]
 
 
+def test_image_reaches_public_documental_gate_with_double(monkeypatch, instalaciones):
+    from agentes.image_input import validar_image_id
+    from tests.test_documental_adapter import envelope
+    import agentes.grafo_documental as gd
+
+    calls = []
+    def invoke(request):
+        calls.append(deepcopy(request))
+        return {"documental": envelope(request)}
+    monkeypatch.setattr(gd, "obtener_grafo_documental", lambda: SimpleNamespace(invoke=invoke))
+    service = crear_servicio(modo="real")
+    assert calls == instalaciones[1] == []
+    state = service.procesar_turno("[DOBLE] Cartel", service.nueva_conversacion(),
+                                   image_id="assets/imagen_demo.jpg")
+    assert calls[0]["image_id"] == state["image_id"] == validar_image_id("imagen_demo")
+    assert state["pendiente_hitl"] and state["approved"] is None
+
+
 @pytest.mark.parametrize("approved", [True, False])
 def test_injected_llm_provider_reaches_supervisor_and_preserves_hitl(mixed, instalaciones, approved):
     _, rag_calls = mixed

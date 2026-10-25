@@ -19,7 +19,8 @@ def _acumular(actual: list, nuevo: list) -> list:
 class AgentState(TypedDict, total=False):
     """Campos compartidos. TypedDict documenta tipos, no valida en ejecución.
 
-    Entrada: user_message/thread_id. Supervisor: decisión, iterations y traza.
+    Entrada: user_message/thread_id/image_id (imagen solo del pedido actual).
+    Supervisor: decisión, iterations y traza.
     Especialistas: specialist_results. Síntesis: final_answer/plan/pending_action.
     Humano: approved (None antes de decidir). Aplicar: done y cierre/reset.
     Cada nodo devuelve solo sus eventos nuevos; LangGraph acumula debug_trace.
@@ -27,6 +28,7 @@ class AgentState(TypedDict, total=False):
 
     user_message: str
     thread_id: str
+    image_id: str | None
     supervisor_decision: SupervisorDecision | None
     specialist_results: dict[str, ToolResult]
     final_answer: str
@@ -37,11 +39,13 @@ class AgentState(TypedDict, total=False):
     done: bool
     debug_trace: Annotated[list[str], _acumular]
 
-def initial_state(user_message: str, thread_id: str = "demo") -> AgentState:
+def initial_state(
+    user_message: str, thread_id: str = "demo", *, image_id: str | None = None,
+) -> AgentState:
     """Crea colecciones independientes y reinicia los datos de un pedido.
 
     No necesita deepcopy: cada llamada construye listas y dict nuevos. También
-    reinicia la decisión y la aprobación para no reutilizar las del pedido anterior.
+    reinicia la decisión, aprobación e imagen para no reutilizar las del pedido anterior.
     thread_id aquí es informativo; el checkpoint se identifica en configurable.
     La traza aporta solo la marca de inicio: el acumulador conserva la anterior
     en el mismo hilo; un hilo nuevo comienza con una traza independiente.
@@ -55,6 +59,7 @@ def initial_state(user_message: str, thread_id: str = "demo") -> AgentState:
     return {
         "user_message": user_message,
         "thread_id": thread_id,
+        "image_id": image_id,
         "supervisor_decision": None,
         "specialist_results": {},
         "final_answer": "",

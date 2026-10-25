@@ -61,7 +61,7 @@ No crear el servicio de nuevo por mensaje o por cada rerun de Streamlit.
 
 - `nueva_conversacion() -> str`: devuelve un `thread_id` nuevo; el cliente
   reinicia sus burbujas y conserva ese identificador para las siguientes llamadas.
-- `procesar_turno(mensaje, thread_id) -> dict`: limpia el pedido anterior y
+- `procesar_turno(mensaje, thread_id, *, image_id=None) -> dict`: limpia el pedido anterior y
   ejecuta hasta la pausa. Rechaza mensajes vacíos y pedidos con trabajo pendiente.
 - `consultar_estado(thread_id) -> dict`: lee una copia del checkpoint, sin
   ejecutar nodos. Un hilo nuevo devuelve el estado vacío.
@@ -90,7 +90,38 @@ No se requieren claves ni un proveedor LLM para trabajar con dobles.
 
 Checkpoints, locks e identificadores de plan viven en el proceso del servicio.
 No se promete recuperación de decisiones tras reinicios, incluso si se inyecta
-otro checkpointer. La integración de imágenes y las tools reales sigue pendiente.
+otro checkpointer. El transporte de imagen por pedido está implementado;
+visión real y aceptación conjunta con RAG siguen pendientes.
+
+### Imagen del pedido
+
+Firma tipada: `procesar_turno(self, mensaje: str, thread_id: str, *, image_id: str | None = None) -> dict[str, Any]`.
+Las llamadas de dos argumentos conservan su comportamiento. El mensaje debe
+ser texto no vacío, también cuando se aporta una imagen.
+
+`image_id` es una referencia local de JPG/JPEG/PNG ya guardada, nunca bytes ni
+base64. Se admite una ruta relativa a la raíz del repositorio o absoluta dentro
+de `output/imagenes/`, y únicamente el asset demo `assets/imagen_demo.jpg`
+(también su alias `imagen_demo`). Debe existir y ser un archivo. Se rechazan
+traversal con `..`, rutas externas y enlaces resueltos fuera de esas ubicaciones.
+El backend devuelve y transporta la ruta absoluta canónica. Los errores propios
+de esta validación no incluyen la ruta personal.
+
+La comprobación de extensión no acredita el contenido: este backend solo valida
+referencia, autorización y existencia sin abrir ni codificar el archivo. Se
+conservan los controles de contenido del guardado actual del cliente y de visión.
+Se revalida antes del callable documental; no hay garantía de atomicidad si
+otro proceso cambia archivos o enlaces después de esa comprobación.
+
+`AgentState.image_id` pertenece al pedido actual, se reinicia a `None` al iniciar
+otro sin imagen y no se añade al historial ni a `debug_trace`. Las guardias no
+permiten escribir este campo a los nodos. El adaptador pasa `image_id` por el
+contrato documental público existente, sin cambiar sus firmas ni el grafo.
+Su opción de construcción se conserva solo para estados antiguos que omiten
+la clave: si existe en el estado, prevalece incluso siendo `None`. Toda imagen
+seleccionada se valida al ejecutar; construir el adaptador no inspecciona archivos.
+
+Contrato y ejemplo para David: [imagen por pedido](../handoff_imagen_por_pedido.md).
 
 ## LLM compartido
 
