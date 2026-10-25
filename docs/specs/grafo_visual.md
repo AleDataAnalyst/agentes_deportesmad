@@ -35,6 +35,10 @@ no aprueba planes, no importa el RAG y no consulta servicios externos.
 - Supervisor seleccionado en runtime: `SUPERVISOR_MODE=reglas` o `llm`, con
   Google/Ollama y modelo explícito en modo LLM. Se conserva inyección manual.
   Python valida las rutas, aplica fallback y limita las iteraciones.
+  La tarjeta de runtime muestra la construcción del proveedor y la tarjeta
+  «Supervisor LLM / reglas» muestra su uso. El proveedor es un callable inyectado
+  en el nodo supervisor, no un nodo adicional de LangGraph. Por eso los archivos
+  de topología `grafo_actual.mmd` y `.txt` mantienen el nombre `supervisor`.
 - Documental, instalaciones y síntesis vuelven al supervisor. No hay ejecución
   paralela. FINISH con plan válido alcanza la interrupción antes de aplicar;
   sin plan válido pasa por síntesis.

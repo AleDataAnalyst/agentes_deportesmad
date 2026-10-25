@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1380" viewBox="0 0 1500 1380">
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1600" viewBox="0 0 1500 1600">
 <title>Supervisor y grafo: clientes, montaje y revisión humana</title>
 <desc>Flujo síncrono actual. Los especialistas y síntesis retornan al supervisor.
 FINISH con plan listo conduce a la pausa antes de aplicar. CLI y Streamlit conectados.
@@ -6,7 +6,7 @@ Supervisor LLM o reglas e instalaciones conectados; aceptación real pendiente.
 La imagen de Streamlit todavía no se envía al servicio.</desc>
 <defs><marker id="flecha" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#43627e"/></marker>
 <marker id="retorno" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#157a80"/></marker></defs>
-<rect width="1500" height="1380" fill="#f5f8fc"/>
+<rect width="1500" height="1600" fill="#f5f8fc"/>
 
 <text x="55" y="55" font-family="Arial, sans-serif" font-size="32" fill="#233c55" font-weight="700">Supervisor y grafo: del pedido a la decisión</text>
 <text x="55" y="90" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Montaje #22 + #23 · 25/10/2026 · síncrono · aceptación con servicios reales pendiente</text>
@@ -22,6 +22,15 @@ La imagen de Streamlit todavía no se envía al servicio.</desc>
 <polygon points="650.0,285.0 644.0,273.0 656.0,273.0" fill="#43627e"/>
 <path d="M1130 242 V265 H850 V285" fill="none" stroke="#43627e" stroke-width="2.8"/>
 <polygon points="850.0,285.0 844.0,273.0 856.0,273.0" fill="#43627e"/>
+<rect x="420" y="285" width="660" height="190" rx="14" fill="#e9edff" stroke="#909bd1" stroke-width="2"/>
+<text x="440" y="318" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Runtime · proveedor LLM del supervisor</text>
+<text x="440" y="349" font-family="Arial, sans-serif" font-size="18" fill="#233c55">SUPERVISOR_MODE=llm → Google/Ollama + modelo explícito</text>
+<text x="440" y="376" font-family="Arial, sans-serif" font-size="18" fill="#233c55">crear_proveedor_supervisor_real → crear_proveedor_rutas</text>
+<text x="440" y="403" font-family="Arial, sans-serif" font-size="18" fill="#233c55">reglas → sin LLM; permite inyección manual de proveedor</text>
+<text x="440" y="430" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Propone JSON de ruta; sin tools ni aprobación automática</text>
+<path d="M750 475 V505" fill="none" stroke="#43627e" stroke-width="2.8"/>
+<polygon points="750.0,505.0 744.0,493.0 756.0,493.0" fill="#43627e"/>
+<g transform="translate(0,220)">
 <rect x="420" y="285" width="660" height="115" rx="14" fill="#ffffff" stroke="#9fb5c9" stroke-width="2"/>
 <text x="440" y="318" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">AgentService · API común</text>
 <text x="440" y="349" font-family="Arial, sans-serif" font-size="19" fill="#233c55">Conserva instancia, thread_id y plan vigente</text>
@@ -30,9 +39,9 @@ La imagen de Streamlit todavía no se envía al servicio.</desc>
 <polygon points="750.0,440.0 744.0,428.0 756.0,428.0" fill="#43627e"/>
 <text x="775" y="428" font-family="Arial, sans-serif" font-size="16" fill="#233c55">START</text>
 <rect x="485" y="440" width="530" height="105" rx="14" fill="#e9edff" stroke="#909bd1" stroke-width="2"/>
-<text x="505" y="473" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Supervisor · configuración desde runtime</text>
-<text x="505" y="504" font-family="Arial, sans-serif" font-size="18" fill="#233c55">LLM Google/Ollama o reglas; inyección manual</text>
-<text x="505" y="531" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Fallback y MAX_ITER controlados en Python</text>
+<text x="505" y="473" font-family="Arial, sans-serif" font-size="22" fill="#233c55" font-weight="700">Supervisor LLM / reglas</text>
+<text x="505" y="504" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Recibe el proveedor construido por runtime</text>
+<text x="505" y="531" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Python valida rutas, fallback y MAX_ITER</text>
 <text x="750" y="580" font-family="Arial, sans-serif" font-size="18" fill="#233c55" font-weight="700" text-anchor="middle">Router Python: valida destino y plan</text>
 <path d="M560 545 V605 H270 V650" fill="none" stroke="#43627e" stroke-width="2.8"/>
 <polygon points="270.0,650.0 264.0,638.0 276.0,638.0" fill="#43627e"/>
@@ -96,4 +105,4 @@ La imagen de Streamlit todavía no se envía al servicio.</desc>
 <text x="75" y="1260" font-family="Arial, sans-serif" font-size="20" fill="#233c55" font-weight="700">Lectura de esta vista</text>
 <text x="75" y="1291" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Verde: retorno al supervisor. #21 conserva la topología; image_id y la aceptación multimodal siguen pendientes.</text>
 <text x="75" y="1318" font-family="Arial, sans-serif" font-size="18" fill="#233c55">Topología exportada con nodos demo: no acredita modelo, RAG ni HTTP reales. Visión no tiene ruta propia.</text>
-</svg>
+</g></svg>

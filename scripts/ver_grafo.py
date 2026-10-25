@@ -11,7 +11,7 @@ from agentes.demo import crear_servicio_demo
 
 def _vista_svg():
     """Vista documental; router, pausa y decisión se distinguen de los nodos."""
-    partes = ['''<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1380" viewBox="0 0 1500 1380">
+    partes = ['''<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1600" viewBox="0 0 1500 1600">
 <title>Supervisor y grafo: clientes, montaje y revisión humana</title>
 <desc>Flujo síncrono actual. Los especialistas y síntesis retornan al supervisor.
 FINISH con plan listo conduce a la pausa antes de aplicar. CLI y Streamlit conectados.
@@ -19,7 +19,7 @@ Supervisor LLM o reglas e instalaciones conectados; aceptación real pendiente.
 La imagen de Streamlit todavía no se envía al servicio.</desc>
 <defs><marker id="flecha" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#43627e"/></marker>
 <marker id="retorno" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#157a80"/></marker></defs>
-<rect width="1500" height="1380" fill="#f5f8fc"/>
+<rect width="1500" height="1600" fill="#f5f8fc"/>
 ''']
 
     def texto(x, y, lineas, size=19, fill="#233c55", bold=False, center=False):
@@ -64,10 +64,19 @@ La imagen de Streamlit todavía no se envía al servicio.</desc>
     caja(825, 130, 610, 112, "Streamlit · conectado a runtime", ["Chat, fuentes, avisos por estado y decisión HITL", "JPG/PNG guardado; image_id aún no llega al agente"], "#e5f4ed", "#5e9c7d")
     flecha("M370 242 V265 H650 V285")
     flecha("M1130 242 V265 H850 V285")
+    caja(420, 285, 660, 190, "Runtime · proveedor LLM del supervisor", [
+        "SUPERVISOR_MODE=llm → Google/Ollama + modelo explícito",
+        "crear_proveedor_supervisor_real → crear_proveedor_rutas",
+        "reglas → sin LLM; permite inyección manual de proveedor",
+        "Propone JSON de ruta; sin tools ni aprobación automática",
+    ], "#e9edff", "#909bd1", 18)
+    flecha("M750 475 V505")
+    # El resto del montaje conserva las coordenadas originales.
+    partes.append('<g transform="translate(0,220)">')
     caja(420, 285, 660, 115, "AgentService · API común", ["Conserva instancia, thread_id y plan vigente", "procesar_turno / consultar_estado / resolver_plan"])
     flecha("M750 400 V440")
     texto(775, 428, ["START"], 16)
-    caja(485, 440, 530, 105, "Supervisor · configuración desde runtime", ["LLM Google/Ollama o reglas; inyección manual", "Fallback y MAX_ITER controlados en Python"], "#e9edff", "#909bd1", 18)
+    caja(485, 440, 530, 105, "Supervisor LLM / reglas", ["Recibe el proveedor construido por runtime", "Python valida rutas, fallback y MAX_ITER"], "#e9edff", "#909bd1", 18)
     texto(750, 580, ["Router Python: valida destino y plan"], 18, bold=True, center=True)
     # Destinos alternativos. Los tres retornan al supervisor.
     flecha("M560 545 V605 H270 V650")
@@ -94,7 +103,7 @@ La imagen de Streamlit todavía no se envía al servicio.</desc>
     partes.append('<rect x="55" y="1230" width="1380" height="105" rx="12" fill="#e7eef6"/>')
     texto(75, 1260, ["Lectura de esta vista"], 20, bold=True)
     texto(75, 1291, ["Verde: retorno al supervisor. #21 conserva la topología; image_id y la aceptación multimodal siguen pendientes.", "Topología exportada con nodos demo: no acredita modelo, RAG ni HTTP reales. Visión no tiene ruta propia."], 18)
-    partes.append('</svg>')
+    partes.append('</g></svg>')
     return "\n".join(partes) + "\n"
 
 
