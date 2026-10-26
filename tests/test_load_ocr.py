@@ -56,7 +56,7 @@ def test_pdf_ocr_usa_bloques_ocr(monkeypatch, tmp_path: Path):
 
     docs = load._load_pdf(
         path=str(pdf),
-        directorio=tmp_path,
+        directorio_raiz=tmp_path,
         pdfs_tabulares=set(),
         pdfs_ocr={"PreciosPublicos2026.pdf"},
     )
@@ -105,7 +105,7 @@ def test_pdf_ocr_sin_bloques_cae_a_nativo(monkeypatch, tmp_path: Path):
 
     docs = load._load_pdf(
         path=str(pdf),
-        directorio=tmp_path,
+        directorio_raiz=tmp_path,
         pdfs_tabulares=set(),
         pdfs_ocr={"PiscinasAireLibre2026.pdf"},
     )

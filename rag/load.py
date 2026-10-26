@@ -301,6 +301,17 @@ def _documentos_desde_texto(
             )
         )
 
+    if not documentos and texto.strip():
+        # OCR y PDFs TAB sin tablas Markdown también contienen evidencia.
+        # Conservar el bloque completo evita perder contexto entre líneas.
+        documentos.append(Document(
+            page_content=texto.strip(),
+            metadata={
+                "source": base, "pdf_source": base,
+                "derived_from": derived_from, "file_type": file_type,
+                "block_index": numero_bloque,
+            },
+        ))
     return documentos
 
 

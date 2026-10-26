@@ -93,7 +93,7 @@ def _tool_rag(consulta: str) -> dict[str, Any]:
 
 def _tool_imagen(image_id: str, pregunta: str) -> dict[str, Any]:
     """Normaliza la salida de imagen_preguntar al contrato de observación."""
-    r = imagen_preguntar(image_id=image_id, pregunta=pregunta)
+    r = imagen_preguntar.invoke({"image_id": image_id, "pregunta": pregunta})
 
     return {
         "ok": bool(r.get("ok")),
@@ -180,82 +180,65 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
 
     puede_consultar = bool(request_id and pedido and presupuesto > 0)
 
-    if puede_consultar:
-        observacion, error = _ejecutar_tool(
-            "rag",
-            REGISTRY["rag"],
-            {"consulta": pedido},
-        )
+    consultas = []
+    if image_id:
+        consultas.append(("imagen", {"image_id": str(image_id), "pregunta": pedido}))
+    consultas.append(("rag", {"consulta": pedido}))
 
+    for nombre, argumentos in consultas:
+        if not puede_consultar:
+            break
+        if presupuesto <= 0:
+            limitaciones.append(f"presupuesto agotado: no se consultó {nombre}")
+            break
+        funcion = REGISTRY.get(nombre)
+        if funcion is None:
+            limitaciones.append(f"{nombre} no disponible")
+            continue
+        observacion, error = _ejecutar_tool(nombre, funcion, argumentos)
+        presupuesto -= 1
+        if error is None:
+            try:
+                if not isinstance(observacion, dict):
+                    raise TypeError("la observación debe ser un diccionario")
+                fuentes_raw = observacion.get("fuentes", [])
+                if not isinstance(fuentes_raw, list):
+                    raise TypeError("fuentes debe ser una lista")
+                texto = observacion.get("resultado", "")
+                if not isinstance(texto, str):
+                    raise TypeError("resultado debe ser texto")
+            except (TypeError, ValueError) as exc:
+                error = f"{nombre}: observación inválida: {exc}"
         if error is not None:
             errores.append(error)
-        elif observacion is not None:
-            eventos.append(
-                {
-                    "tool": "rag",
-                    "ok": bool(observacion.get("ok")),
-                    "error": observacion.get("error"),
-                }
-            )
+            eventos.append({"tool": nombre, "ok": False, "error": error,
+                            "abstained": False})
+            continue
 
-            fuentes_raw = list(observacion.get("fuentes", []))
-
-            if contexto_permitido is not None:
-                permitidas = set(contexto_permitido)
-                fuentes = [f for f in fuentes_raw if f in permitidas]
-
-                if not fuentes:
-                    limitaciones.append(
-                        "ninguna fuente obtenida está dentro del contexto permitido"
-                    )
-            else:
-                fuentes = fuentes_raw
-
-            if observacion.get("error"):
-                errores.append(str(observacion["error"]))
-
-            if fuentes and not observacion.get("abstained"):
-                resultado = str(observacion.get("resultado", ""))
-                abstained = False
-            else:
-                limitaciones.append("sin evidencia útil en las fuentes disponibles")
-
-        presupuesto -= 1
-
-    # La imagen solo se consulta si ya hay una respuesta documental válida
-    # y queda presupuesto.
-    if image_id and not abstained and presupuesto > 0:
-        observacion, error = _ejecutar_tool(
-            "imagen",
-            REGISTRY["imagen"],
-            {"image_id": str(image_id), "pregunta": pedido},
-        )
-
-        if error is not None:
-            errores.append(error)
-        elif observacion is not None:
-            eventos.append(
-                {
-                    "tool": "imagen",
-                    "ok": bool(observacion.get("ok")),
-                    "error": observacion.get("error"),
-                }
-            )
-
-            if observacion.get("error"):
-                errores.append(str(observacion["error"]))
-
-            texto_imagen = str(observacion.get("resultado", "")).strip()
-            if texto_imagen:
-                resultado = f"{resultado}\n\nEvidencia visual:\n{texto_imagen}".strip()
-                fuentes.extend(
-                    f for f in observacion.get("fuentes", []) if f not in fuentes
-                )
-
-        presupuesto -= 1
-
-    if contexto_permitido is not None and not fuentes:
-        abstained = True
+        error = observacion.get("error")
+        ok = observacion.get("ok") is True and not error
+        eventos.append({"tool": nombre, "ok": ok, "error": error,
+                        "abstained": bool(observacion.get("abstained"))})
+        if error:
+            errores.append(str(error))
+        fuentes_validas = fuentes_raw
+        if contexto_permitido is not None:
+            fuentes_validas = [f for f in fuentes_raw if f in contexto_permitido]
+            # No se puede separar qué parte del texto proviene de cada fuente:
+            # si alguna no está autorizada, se omite toda la observación.
+            if len(fuentes_validas) != len(fuentes_raw):
+                limitaciones.append("fuentes fuera del contexto permitido; respuesta omitida")
+                continue
+        if not ok or observacion.get("abstained") or not texto.strip() or not fuentes_validas:
+            limitaciones.append(f"{nombre}: sin evidencia útil en las fuentes disponibles")
+            continue
+        if nombre == "imagen":
+            texto = f"Evidencia visual (no acredita normativa vigente):\n{texto.strip()}"
+        resultado = "\n\n".join(filter(None, [resultado, texto.strip()]))
+        for fuente in fuentes_validas:
+            if fuente not in fuentes:
+                fuentes.append(fuente)
+        abstained = False
 
     return {
         "documental": {

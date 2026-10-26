@@ -26,7 +26,8 @@ def test_load_pdf_tabular_carga_todos_los_bloques(tmp_path):
             set(),
         )
 
-    assert len(docs) == 6  # 2 líneas no vacías por bloque
+    assert len(docs) == 3  # Cada bloque conserva juntas sus líneas y contexto.
+    assert [doc.page_content for doc in docs] == [b["texto"] for b in bloques]
     assert {doc.metadata["pdf_source"] for doc in docs} == {"informe.pdf"}
     assert {doc.metadata["block_index"] for doc in docs} == {0, 1, 2}
     assert all(

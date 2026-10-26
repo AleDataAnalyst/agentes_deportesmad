@@ -15,12 +15,11 @@ import pathlib
 import pytest
 
 from agentes.tools.rag import rag_preguntar
-from rag.logic import UMBRAL_ABSTENCION
 
 import os
 
 
-diag = os.getenv("RAG_CON_DIAGNOSTICO")
+diag = os.getenv("RAG_CON_DIAGNOSTICO", "").lower() in {"1", "true", "yes"}
 
 if diag:
     CLAVES_CONTRATO = {"respuesta", "fuentes", "abstained", "error", "distancia_mejor", "respuesta_llm", "motivo"}
@@ -38,18 +37,14 @@ if _RUTA_EVAL.exists():
         for q in _qs
     ]
 
-def _indice_disponible() -> bool:
-    from rag.retrieve import obtener_coleccion
-    return obtener_coleccion().count() > 0
-
-
-INDICE_OK = _indice_disponible()
-
-
-
 # Forma del dict (no requiere índice) 
 
-def test_claves_de_contrato():
+def test_claves_de_contrato(monkeypatch):
+    import agentes.tools.rag as mod
+    monkeypatch.setattr(mod, "responder", lambda consulta: {
+        "respuesta": "Respuesta simulada", "fuentes": ["doble.csv"],
+        "abstained": False, "error": None,
+    })
     r = rag_preguntar("¿Cuánto cuesta el abono anual?", diag)
     assert set(r) == CLAVES_CONTRATO  # las claves del contrato 
     # Claves "fijas": siempre del tipo esperado
@@ -66,7 +61,12 @@ def test_claves_de_contrato():
         
 # Validación pre-LLM (no requiere índice) 
 
-def test_consulta_vacia_devuelve_error():
+def test_consulta_vacia_devuelve_error(monkeypatch):
+    import agentes.tools.rag as mod
+    monkeypatch.setattr(mod, "responder", lambda consulta: {
+        "respuesta": "", "fuentes": [], "abstained": False,
+        "error": "La pregunta no puede estar vacía.",
+    })
     r = rag_preguntar("")
     assert r["error"]
     assert r["respuesta"] == ""
@@ -94,11 +94,14 @@ def test_error_interno_no_lanza(monkeypatch):
 # Integración contra el índice (22 preguntas de evaluación) 
 
 @pytest.mark.skipif(not EVALS, reason="falta evaluation_questions.json")
-@pytest.mark.skipif(not INDICE_OK, reason="falta indexación (ejecutar_pipeline)")
+@pytest.mark.integration
 @pytest.mark.parametrize("pregunta, out_of_corpus, fuente_esperada", EVALS)
 # mejora en el test, pretende obtener por qué hay abstención y por que´ se podría negar
 # a responder habiendo cercanos en cuanto a semántica
 def test_eval_set(pregunta, out_of_corpus, fuente_esperada):
+    from rag.logic import UMBRAL_ABSTENCION
+    from rag.retrieve import obtener_coleccion
+    assert obtener_coleccion().count() > 0, "Falta un índice poblado compatible"
     r = rag_preguntar(pregunta)
     assert r["error"] is None
 
