@@ -41,6 +41,27 @@ def test_backend_imports_without_loading_documental_or_rag():
     ''')
 
 
+def test_rag_utilities_and_tool_import_without_models_or_index():
+    run_python('''
+        import sys
+        from importlib.abc import MetaPathFinder
+        class BlockModels(MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname.split('.')[0] == "sentence_transformers":
+                    raise ModuleNotFoundError("Dependencia opcional ausente")
+                if fullname in {"rag.logic", "rag.pipeline", "rag.retrieve", "rag.embed"} or fullname.split('.')[0] == "chromadb":
+                    raise AssertionError(f"Carga inesperada: {fullname}")
+        sys.meta_path.insert(0, BlockModels())
+        import rag
+        from rag.clean import normalizar_por_formato
+        from agentes.tools.rag import rag_preguntar
+        result = rag_preguntar("consulta")
+        assert result["error"]
+        assert result["respuesta"] == ""
+        assert "sentence_transformers" not in sys.modules
+    ''')
+
+
 def test_real_runtime_construction_with_tool_double_does_not_import_rag_or_chroma():
     run_python('''
         import sys

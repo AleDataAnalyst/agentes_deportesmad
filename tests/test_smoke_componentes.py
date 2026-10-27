@@ -31,6 +31,7 @@ PNG_1X1 = bytes.fromhex(
 )
 
 
+@pytest.mark.integration
 @REQUIERE_GOOGLE_API_KEY
 def test_llm_responde_texto():
     from google import genai
@@ -70,6 +71,7 @@ def test_llm_responde_texto():
     assert "OK" in texto.upper()
 
 
+@pytest.mark.integration
 def test_rag_devuelve_contrato():
     resultado = rag_preguntar("¿Cuál es el horario del polideportivo?")
 
@@ -88,18 +90,12 @@ def test_rag_devuelve_contrato():
     assert resultado["abstained"] or resultado["respuesta"].strip()
 
 
-def test_vision_no_incordia_y_mantiene_contrato(monkeypatch):
+def test_vision_no_incordia_y_mantiene_contrato(monkeypatch, tmp_path):
     """
-    Vision se prueba sin API y con una imagen temporal real creada
-    dentro de tests/, evitando tmp_path por problemas de permisos en Windows.
+    Sin API, visión informa de su indisponibilidad sin simular éxito.
     """
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-
-    carpeta_test = Path(__file__).resolve().parent
-    carpeta_imagenes = carpeta_test / "_testdata"
-    carpeta_imagenes.mkdir(exist_ok=True)
-
-    imagen = carpeta_imagenes / "test_imagen.png"
+    imagen = tmp_path / "test_imagen.png"
     imagen.write_bytes(PNG_1X1)
 
     resultado = imagen_preguntar.invoke(
@@ -121,7 +117,7 @@ def test_vision_no_incordia_y_mantiene_contrato(monkeypatch):
     assert isinstance(resultado["fuentes"], list)
     assert isinstance(resultado["abstained"], bool)
 
-    assert resultado["error"] is None, (
-        f"Vision devolvió error sin API: {resultado['error']}"
-    )
-    assert resultado["ok"] is True
+    assert "GOOGLE_API_KEY" in resultado["error"]
+    assert resultado["ok"] is False
+    assert resultado["abstained"] is True
+    assert resultado["resultado"] == ""

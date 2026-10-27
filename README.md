@@ -4,6 +4,33 @@ Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
 El proyecto integra el RAG existente mediante un especialista documental y un supervisor síncrono. El flujo conserva fuentes, errores y abstenciones, prepara un plan informativo y exige una decisión humana antes del cierre.
 
+## Desarrollo posterior a la entrega — 26/10/2026
+
+La rama `fix/post-entrega-correcciones-tests-mejoras` parte de la entrega
+integrada en `main` (`18ca29d`). Sus correcciones, pruebas y mejoras son trabajo
+posterior; no forman parte de la evidencia de la entrega del 25/10/2026.
+El [registro de mantenimiento](docs/post_entrega.md) recoge los errores resueltos,
+la validación y los pendientes del proyecto con sus criterios de cierre.
+
+La suite predeterminada no ejecuta las consultas de aceptación con modelos e
+índices reales. Para ejecutar todas las pruebas locales, incluidos backend,
+clientes, instalaciones y utilidades RAG:
+
+```console
+python -m pytest -q -p no:cacheprovider
+```
+
+Las pruebas con recursos reales requieren configuración e índice compatibles
+y activación explícita:
+
+```console
+python -m pytest -q -p no:cacheprovider --run-integration -m integration
+```
+
+En Windows, si el temporal del sistema no es accesible, añadir `--basetemp`
+con una carpeta nueva dedicada a pytest dentro de `tmp/`. Las omisiones de
+integración no acreditan aceptación real.
+
 ## Estado de esta entrega — 25/10/2026
 
 > El modo real sigue pendiente de aceptación con RAG operativo y fuentes externas reales. Miguel ya entregó el nodo público de instalaciones y runtime lo conecta; las pruebas de montaje usan dependencias externas dobles y no acreditan esa aceptación conjunta.
