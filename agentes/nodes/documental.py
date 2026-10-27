@@ -93,12 +93,15 @@ def _tool_rag(consulta: str) -> dict[str, Any]:
 
 def _tool_imagen(image_id: str, pregunta: str) -> dict[str, Any]:
     """Normaliza la salida de imagen_preguntar al contrato de observación."""
-    r = imagen_preguntar(image_id=image_id, pregunta=pregunta)
+    r = imagen_preguntar.invoke({"image_id": image_id, "pregunta": pregunta})
 
     return {
         "ok": bool(r.get("ok")),
         "resultado": str(r.get("resultado", "")),
-        "fuentes": list(r.get("fuentes", [])),
+        "fuentes": [
+            str(f.get("ruta", "")) if isinstance(f, dict) else str(f)
+            for f in r.get("fuentes", [])
+        ],
         "abstained": bool(r.get("abstained")),
         "error": r.get("error"),
     }
@@ -222,9 +225,9 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
 
         presupuesto -= 1
 
-    # La imagen solo se consulta si ya hay una respuesta documental válida
-    # y queda presupuesto.
-    if image_id and not abstained and presupuesto > 0:
+    # La imagen se consulta siempre que haya image_id y presupuesto, también
+    # si el RAG se abstuvo (p. ej. un cartel que no está en el corpus).
+    if image_id and presupuesto > 0:
         observacion, error = _ejecutar_tool(
             "imagen",
             REGISTRY["imagen"],
@@ -248,6 +251,7 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
             texto_imagen = str(observacion.get("resultado", "")).strip()
             if texto_imagen:
                 resultado = f"{resultado}\n\nEvidencia visual:\n{texto_imagen}".strip()
+                abstained = False
                 fuentes.extend(
                     f for f in observacion.get("fuentes", []) if f not in fuentes
                 )
