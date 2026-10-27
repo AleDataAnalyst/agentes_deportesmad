@@ -5,6 +5,8 @@ Nodo especialista de instalaciones y avisos.
 Responsabilidad:
     - Leer `user_message` del AgentState para decidir modo y centro.
     - Llamar a `consultar_instalaciones` (modo catalogo o avisos).
+    - Consultar `hora_actual` en Europe/Madrid ante petición explícita del presente;
+      conservar su contrato en data sin inferir apertura de los centros.
     - Traducir el ToolResultInstalaciones al contrato compartido ToolResult
       (status, answer, evidence, error, data).
     - Añadir el resultado en `specialist_results["instalaciones"]`
@@ -19,9 +21,11 @@ from __future__ import annotations
 
 import logging
 import re
+from copy import deepcopy
 from typing import Any
 
 from agentes.contracts import Evidence, ToolResult
+from agentes.tools.auxiliares import hora_actual
 from agentes.tools.externa import (
     ToolResultInstalaciones,
     _fecha_actual_iso,
@@ -32,6 +36,12 @@ from agentes.tools.externa import (
 logger = logging.getLogger(__name__)
 
 TOOL_NAME = "consultar_instalaciones"
+
+# Solo referencias explícitas al presente; «horarios» o «abierto» no bastan.
+_PETICION_TEMPORAL = re.compile(
+    r"\b(?:hoy|ahora)\b|\b(?:hora|fecha|dia)\s+actual\b|"
+    r"\bque\s+(?:hora|fecha|dia)\s+es\b"
+)
 
 # Un PK de centro es un número de 6 dígitos que NO empieza por 28 (CP Madrid)
 # y NO es un año (19xx / 20xx). Aceptamos también "centro 114782" / "PK 114782"
@@ -397,7 +407,47 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     if tool_result.status == "error":
         evento += " error=consulta_no_completada"
 
+    eventos = [evento]
+    if _PETICION_TEMPORAL.search(_normalizar_texto(user_message)):
+        try:
+            reloj = hora_actual(zona="Europe/Madrid")
+            if (
+                not isinstance(reloj, dict)
+                or type(reloj.get("ok")) is not bool
+                or type(reloj.get("abstained")) is not bool
+                or not isinstance(reloj.get("fuentes"), list)
+                or not all(isinstance(f, str) for f in reloj["fuentes"])
+                or (reloj.get("error") is not None
+                    and not isinstance(reloj["error"], str))
+            ):
+                raise ValueError("Contrato del reloj inválido")
+            if reloj["ok"] and not reloj["error"] and not reloj["abstained"]:
+                if not isinstance(reloj.get("resultado"), dict) or not all(
+                    isinstance(reloj["resultado"].get(campo), str)
+                    and reloj["resultado"][campo]
+                    for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
+                ):
+                    raise ValueError("Resultado del reloj inválido")
+        except Exception:  # El reloj no invalida el resultado municipal.
+            reloj = {
+                "ok": False, "resultado": None, "fuentes": [],
+                "abstained": False, "error": "No se pudo consultar el reloj.",
+            }
+        tool_result.data["hora_actual"] = deepcopy(reloj)
+        reloj_ok = (
+            reloj.get("ok") is True and not reloj.get("error")
+            and not reloj.get("abstained")
+        )
+        if not reloj_ok:
+            tool_result.data["advertencias"].append(
+                "Hora actual no disponible; no se ha podido verificar el reloj."
+            )
+        eventos.append(
+            "instalaciones.tool: hora_actual zona=Europe/Madrid "
+            f"status={'ok' if reloj_ok else 'error'}"
+        )
+
     return {
         "specialist_results": nuevos,
-        "debug_trace": [evento],
+        "debug_trace": eventos,
     }
