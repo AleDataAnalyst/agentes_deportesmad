@@ -1,7 +1,7 @@
 # agentes/tools/__init__.py
 from typing import Any
 
-__all__ = ["rag_preguntar", "imagen_preguntar"]
+__all__ = ["rag_preguntar", "imagen_preguntar", "hora_actual"]
 
 
 def __getattr__(name: str) -> Any:
@@ -14,6 +14,11 @@ def __getattr__(name: str) -> Any:
         from agentes.tools.vision import imagen_preguntar
 
         return imagen_preguntar
+
+    if name == "hora_actual":
+        from agentes.tools.auxiliares import hora_actual
+
+        return hora_actual
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

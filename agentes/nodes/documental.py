@@ -98,7 +98,10 @@ def _tool_imagen(image_id: str, pregunta: str) -> dict[str, Any]:
     return {
         "ok": bool(r.get("ok")),
         "resultado": str(r.get("resultado", "")),
-        "fuentes": list(r.get("fuentes", [])),
+        "fuentes": [
+            str(f.get("ruta", "")) if isinstance(f, dict) else str(f)
+            for f in r.get("fuentes", [])
+        ],
         "abstained": bool(r.get("abstained")),
         "error": r.get("error"),
     }
@@ -180,6 +183,9 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
 
     puede_consultar = bool(request_id and pedido and presupuesto > 0)
 
+    # Priorizar la imagen adjunta evita que el RAG consuma el único turno.
+    # Ambas tools comparten presupuesto y su evidencia es independiente:
+    # la abstención del RAG no invalida una observación visual útil.
     consultas = []
     if image_id:
         consultas.append(("imagen", {"image_id": str(image_id), "pregunta": pedido}))
