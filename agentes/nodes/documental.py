@@ -98,7 +98,10 @@ def _tool_imagen(image_id: str, pregunta: str) -> dict[str, Any]:
     return {
         "ok": bool(r.get("ok")),
         "resultado": str(r.get("resultado", "")),
-        "fuentes": list(r.get("fuentes", [])),
+        "fuentes": [
+            str(f.get("ruta", "")) if isinstance(f, dict) else str(f)
+            for f in r.get("fuentes", [])
+        ],
         "abstained": bool(r.get("abstained")),
         "error": r.get("error"),
     }
