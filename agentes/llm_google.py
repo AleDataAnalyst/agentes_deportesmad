@@ -40,13 +40,15 @@ class GoogleAdapter(LlmAdapter):
             if message.role != "system"
         ]
 
+        # Acepta el esquema plano y el anidado estilo OpenAI ({"function": {...}}).
+        planos = [tool.get("function", tool) for tool in tools]
         declaraciones = [
             types.FunctionDeclaration(
                 name=tool["name"],
                 description=tool["description"],
                 parameters_json_schema=tool["parameters"],
             )
-            for tool in tools
+            for tool in planos
         ]
 
         if timeout <= 0:

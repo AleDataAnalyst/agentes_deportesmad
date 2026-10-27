@@ -33,7 +33,23 @@ from agentes.tools.externa import (
     resolver_centro_por_nombre,
 )
 
+from agentes.especialista_llm import Herramienta, ejecutar_especialista, modo_especialistas
+from agentes.tools.auxiliares import hora_actual
+
 logger = logging.getLogger(__name__)
+
+MAX_STEPS_INSTALACIONES = 3
+
+PROMPT_INSTALACIONES = """Eres el especialista de instalaciones deportivas municipales de Madrid.
+Decide qué herramientas necesitas para responder:
+- consultar_instalaciones con modo "catalogo" para listar o buscar centros.
+- consultar_instalaciones con modo "avisos" y el identificador del centro (centro_id)
+  para incidencias, cierres u obras. Si no sabes el centro, no lo inventes.
+- hora_actual si la pregunta depende de la fecha u hora de hoy.
+Cuando tengas los datos, responde sin llamar a más herramientas."""
+
+# Palabras que indican que la respuesta depende de la fecha u hora actual.
+_PALABRAS_HORA = ("hora", "ahora", "hoy", "abierto", "abierta", "manana")
 
 TOOL_NAME = "consultar_instalaciones"
 
@@ -346,12 +362,143 @@ def _mapear_a_tool_result(
     )
 
 
+def _plan_llm(user_message: str) -> list[dict[str, Any]]:
+    """El LLM propone consultar_instalaciones y hora_actual; Python las ejecuta."""
+    herramientas = [
+        Herramienta(
+            TOOL_NAME, "Catálogo de centros deportivos municipales o avisos de un centro.",
+            {"type": "object", "properties": {
+                "modo": {"type": "string", "enum": ["catalogo", "avisos"]},
+                "centro_id": {"type": "string"},
+            }, "required": ["modo"]},
+            consultar_instalaciones,
+        ),
+        Herramienta(
+            "hora_actual", "Fecha y hora local actual en ISO 8601 con zona horaria.", 
+            {"type": "object", "properties": {}}, hora_actual,
+        ),
+    ]
+    return ejecutar_especialista(
+        prompt_sistema=PROMPT_INSTALACIONES, mensaje=user_message,
+        herramientas=herramientas, max_steps=MAX_STEPS_INSTALACIONES,
+    )
+
+def _hora_no_disponible() -> dict[str, Any]:
+    return {
+        "ok": False,
+        "resultado": None,
+        "fuentes": [],
+        "abstained": False,
+        "error": "Hora actual no disponible",
+    }
+
+def _hora_util(observacion: Any) -> bool:
+    if not _hora_valida(observacion):
+        return False
+
+    return (
+        observacion["ok"] is True
+        and not observacion.get("error")
+        and observacion["abstained"] is False
+        and isinstance(observacion.get("resultado"), dict)
+        and all(
+            isinstance(observacion["resultado"].get(campo), str)
+            and observacion["resultado"][campo]
+            for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
+        )
+    )
+
+def _hora_valida(observacion: Any) -> bool:
+    if not isinstance(observacion, dict):
+        return False
+
+    if (
+        type(observacion.get("ok")) is not bool
+        or type(observacion.get("abstained")) is not bool
+        or not isinstance(observacion.get("fuentes"), list)
+        or not all(isinstance(f, str) for f in observacion["fuentes"])
+    ):
+        return False
+
+    error = observacion.get("error")
+    if error is not None and not isinstance(error, str):
+        return False
+
+    if observacion["ok"] and not error and not observacion["abstained"]:
+        resultado = observacion.get("resultado")
+        if not isinstance(resultado, dict):
+            return False
+
+        return all(
+            isinstance(resultado.get(campo), str) and resultado[campo]
+            for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
+        )
+
+    return True
+
+
 def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     user_message = state.get("user_message") or ""
+    texto_normalizado = _normalizar_texto(user_message)
+
+    llamadas: list[dict[str, Any]] = []
+    evento_hora: str | None = None
+
+    if modo_especialistas() == "llm":
+        try:
+            llamadas = _plan_llm(user_message)
+        except Exception:
+            logger.exception("Planificación LLM no disponible; se usan reglas")
+            llamadas = []
+
+    elif _PETICION_TEMPORAL.search(texto_normalizado):
+        try:
+            observacion = hora_actual(zona="Europe/Madrid")
+        except Exception:
+            observacion = _hora_no_disponible()
+
+        llamadas = [{
+            "paso": 1,
+            "tool": "hora_actual",
+            "args": {"zona": "Europe/Madrid"},
+            "status": "ok" if _hora_util(observacion) else "error",
+            "preview": "",
+            "resultado": observacion,
+        }]
+
+    hora: dict[str, Any] | None = None
+    consulta_llm: dict[str, Any] | None = None
+
+    for llamada in llamadas:
+        if llamada["tool"] == "hora_actual":
+            observacion = llamada.get("resultado")
+            if _hora_util(observacion):
+                hora = observacion
+                evento_hora = (
+                    "instalaciones.tool: hora_actual "
+                    "zona=Europe/Madrid status=ok"
+                )
+            else:
+                hora = _hora_no_disponible()
+                evento_hora = (
+                    "instalaciones.tool: hora_actual "
+                    "zona=Europe/Madrid status=error"
+                )
+
+        elif (
+            llamada["tool"] == TOOL_NAME
+            and llamada["status"] in {"ok", "error"}
+        ):
+            consulta_llm = llamada
+
     modo, centro_id, requiere_aclaracion = _decidir_consulta(user_message)
 
+    if consulta_llm is not None:
+        modo = consulta_llm["args"].get("modo", modo)
+        centro_id = consulta_llm["args"].get("centro_id") or None
+        requiere_aclaracion = False
+
     if requiere_aclaracion:
-        # No llamamos a la tool: pedimos aclaración directamente.
         resultado: ToolResultInstalaciones = {
             "ok": False,
             "modo": "avisos",
@@ -366,15 +513,16 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
             ),
             "requiere_aclaracion": True,
         }
+    elif consulta_llm is not None:
+        resultado = consulta_llm["resultado"]
     else:
         try:
             resultado = consultar_instalaciones(
-                modo=modo, centro_id=centro_id,
+                modo=modo,
+                centro_id=centro_id,
             )
         except Exception:
-            logger.exception(
-                "Fallo inesperado en la herramienta de instalaciones"
-            )
+            logger.exception("Fallo inesperado en la herramienta de instalaciones")
             resultado = {
                 "ok": False,
                 "modo": modo,
@@ -393,6 +541,14 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
 
     tool_result = _mapear_a_tool_result(resultado)
 
+    if hora is not None:
+        tool_result.data["hora_actual"] = deepcopy(hora)
+
+        if hora.get("ok") is False:
+            advertencias = list(tool_result.data.get("advertencias") or [])
+            advertencias.append("Hora actual no disponible")
+            tool_result.data["advertencias"] = advertencias
+
     previos = dict(state.get("specialist_results") or {})
     nuevos = dict(previos)
     nuevos["instalaciones"] = tool_result
@@ -407,47 +563,12 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     if tool_result.status == "error":
         evento += " error=consulta_no_completada"
 
-    eventos = [evento]
-    if _PETICION_TEMPORAL.search(_normalizar_texto(user_message)):
-        try:
-            reloj = hora_actual(zona="Europe/Madrid")
-            if (
-                not isinstance(reloj, dict)
-                or type(reloj.get("ok")) is not bool
-                or type(reloj.get("abstained")) is not bool
-                or not isinstance(reloj.get("fuentes"), list)
-                or not all(isinstance(f, str) for f in reloj["fuentes"])
-                or (reloj.get("error") is not None
-                    and not isinstance(reloj["error"], str))
-            ):
-                raise ValueError("Contrato del reloj inválido")
-            if reloj["ok"] and not reloj["error"] and not reloj["abstained"]:
-                if not isinstance(reloj.get("resultado"), dict) or not all(
-                    isinstance(reloj["resultado"].get(campo), str)
-                    and reloj["resultado"][campo]
-                    for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
-                ):
-                    raise ValueError("Resultado del reloj inválido")
-        except Exception:  # El reloj no invalida el resultado municipal.
-            reloj = {
-                "ok": False, "resultado": None, "fuentes": [],
-                "abstained": False, "error": "No se pudo consultar el reloj.",
-            }
-        tool_result.data["hora_actual"] = deepcopy(reloj)
-        reloj_ok = (
-            reloj.get("ok") is True and not reloj.get("error")
-            and not reloj.get("abstained")
-        )
-        if not reloj_ok:
-            tool_result.data["advertencias"].append(
-                "Hora actual no disponible; no se ha podido verificar el reloj."
-            )
-        eventos.append(
-            "instalaciones.tool: hora_actual zona=Europe/Madrid "
-            f"status={'ok' if reloj_ok else 'error'}"
-        )
+    traza: list[str] = [evento]
+
+    if evento_hora:
+        traza.append(evento_hora)
 
     return {
         "specialist_results": nuevos,
-        "debug_trace": eventos,
+        "debug_trace": traza,
     }

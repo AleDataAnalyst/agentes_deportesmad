@@ -92,10 +92,18 @@ def test_rag_devuelve_contrato():
 
 def test_vision_no_incordia_y_mantiene_contrato(monkeypatch, tmp_path):
     """
-    Sin API, visión informa de su indisponibilidad sin simular éxito.
+    Vision se prueba sin API y con una imagen temporal real creada
+    dentro de tests/, evitando tmp_path por problemas de permisos en Windows.
+    Sin clave la tool se abstiene con un error que lo explica.
     """
-    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    imagen = tmp_path / "test_imagen.png"
+    # GOOGLE_API_KEY se lee al importar: hay que parchear el módulo, no el entorno.
+    monkeypatch.setattr("agentes.tools.vision.GOOGLE_API_KEY", "")
+
+    carpeta_test = Path(__file__).resolve().parent
+    carpeta_imagenes = carpeta_test / "_testdata"
+    carpeta_imagenes.mkdir(exist_ok=True)
+
+    imagen = carpeta_imagenes / "test_imagen.png"
     imagen.write_bytes(PNG_1X1)
 
     resultado = imagen_preguntar.invoke(

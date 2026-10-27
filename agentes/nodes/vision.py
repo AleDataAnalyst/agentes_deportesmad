@@ -1,9 +1,11 @@
 from agentes.contracts import Evidence, ToolResult
 from agentes.state import AgentState
-from agentes.tools import imagen_preguntar
 
 
 def vision_node(state: AgentState) -> dict:
+    # Import diferido: construir el servicio no debe cargar rag.config.
+    from agentes.tools.vision import imagen_preguntar
+
     pregunta = state.get("user_message", "")
     image_id = state.get("image_id") or "assets/imagen_demo.jpg"
 

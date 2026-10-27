@@ -309,6 +309,7 @@ La cobertura del especialista documental se organiza por capas para evitar dupli
 | Frontera de errores RAG | `tests/test_rag_error_boundary.py` | Normalización de `TimeoutError` y `ConnectionError` como error controlado, sin respuesta ni abstención |
 | Nodo documental | `tests/test_node_documental.py` | Contrato del nodo, fuentes, abstención, presupuesto de tools, contexto permitido y error de tool |
 | Adaptador documental | `tests/test_documental_adapter.py` | Conversión del sobre documental a `ToolResult`, aislamiento del estado, validación de `request_id` y opciones |
+| Imagen por pedido | `tests/test_image_por_pedido.py` | Validación de image_id, transporte al documental, reinicio entre pedidos, aislamiento y ciclo HITL con dobles |
 | Integración simulada | `tests/test_golden_graph.py` y `tests/test_export_evidence.py` | Recorridos completos con especialistas dobles; no validan RAG ni visión reales |
 
 
@@ -319,7 +320,8 @@ python -B -m pytest -q -p no:cacheprovider \
   tests/test_tool_rag.py \
   tests/test_rag_error_boundary.py \
   tests/test_node_documental.py \
-  tests/test_documental_adapter.py
+  tests/test_documental_adapter.py \
+  tests/test_image_por_pedido.py
 ```
 
 La visión multimodal aún no dispone de una suite dedicada. El caso actual de imagen no disponible está cubierto en `tests/test_node_documental.py`; la herramienta de visión real requerirá `tests/test_tool_vision.py` con casos de imagen válida, inexistente, formato no soportado y contenido ilegible.

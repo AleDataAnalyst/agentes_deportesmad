@@ -134,7 +134,7 @@ def _reintentar_red(fn, *args, **kwargs):
         except (
             requests.ConnectionError,
             requests.Timeout,
-            requests.ChunkedEncodingError,
+            requests.exceptions.ChunkedEncodingError,
         ) as e:
             ultimo_error = e
         except requests.HTTPError as e:
@@ -315,7 +315,7 @@ def _reintentar_cuota(url: str, headers: dict, body: dict) -> requests.Response:
         except (
             requests.ConnectionError,
             requests.Timeout,
-            requests.ChunkedEncodingError,
+            requests.exceptions.ChunkedEncodingError,
         ) as e:
             ultimo_error = e
             delay = min(5.0 * (2 ** intento), 120.0)

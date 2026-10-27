@@ -15,7 +15,7 @@ Contrato:
 
 Reglas:
 - Nunca lanza excepciones: los errores viajan en "error".
-- Acepta JPG/JPEG y PNG.
+- Acepta JPG/JPEG, WEBP y PNG.
 - Si no hay GOOGLE_API_KEY, informa de visión no disponible y se abstiene.
 """
 
@@ -31,7 +31,18 @@ from langchain_core.tools import tool
 from rag.config import IMAGE_VISION_MODEL
 
 FORMATOS_PERMITIDOS = {".jpg", ".jpeg", ".png", ".webp"}
+MIME_POR_EXTENSION = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",}
+RAIZ_PROYECTO = Path(__file__).resolve().parents[2]
+IMAGEN_DEMO = RAIZ_PROYECTO / "assets" / "imagen_demo.jpg"
+_API_KEY_AL_IMPORTAR = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = _API_KEY_AL_IMPORTAR
 
+def _api_key() -> str:
+    """Resuelve la clave: el parche del módulo tiene prioridad; si no, el entorno."""
+    if GOOGLE_API_KEY != _API_KEY_AL_IMPORTAR:
+        return GOOGLE_API_KEY or ""
+
+    return os.getenv("GOOGLE_API_KEY") or ""
 
 def _abstencion(error: str) -> dict:
     return {
@@ -61,8 +72,9 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
         image_id: Ruta o identificador de la imagen.
         pregunta: Pregunta que debe responderse usando solo información visible.
     """
-    ruta = (Path(__file__).resolve().parents[2] / "assets" / "imagen_demo.jpg"
-            if image_id == "imagen_demo" else Path(image_id))
+    # Primero se valida la imagen y después la clave: así el error es útil
+    # aunque no haya GOOGLE_API_KEY.
+    ruta = IMAGEN_DEMO if image_id == "imagen_demo" else Path(image_id)
 
     if not ruta.exists():
         return _error(f"No hay imagen en la ruta indicada: {image_id}")
@@ -72,21 +84,19 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
             f"Formato no soportado: {ruta.suffix}. "
             f"Formatos permitidos: {', '.join(sorted(FORMATOS_PERMITIDOS))}."
         )
-
-    api_key = os.getenv("GOOGLE_API_KEY", "")
+    api_key = _api_key()
     if not api_key:
         return _abstencion(
             "Visión no disponible: GOOGLE_API_KEY no está definida."
         )
 
-    mime_type = {".png": "image/png", ".webp": "image/webp",
-                 ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}[ruta.suffix.lower()]
-
     try:
         imagen_base64 = base64.b64encode(ruta.read_bytes()).decode("utf-8")
     except OSError as exc:
         return _error(f"No se pudo leer la imagen: {exc}")
-
+    
+    mime_type = MIME_POR_EXTENSION[ruta.suffix.lower()]
+  
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{IMAGE_VISION_MODEL}:generateContent"

@@ -40,11 +40,11 @@ def test_pdf_ocr_usa_bloques_ocr(monkeypatch, tmp_path: Path):
     bloques = [
         {
             "fuente": "PreciosPublicos2026.pdf",
-            "texto": "texto ocr pagina 1",
+            "texto": "# Página 1\n| concepto | precio |\n| --- | --- |\n| abono | 45 |",
         },
         {
             "fuente": "PreciosPublicos2026.pdf",
-            "texto": "texto ocr pagina 2",
+            "texto": "# Página 2\n| concepto | precio |\n| --- | --- |\n| entrada | 3 |",
         },
     ]
 
@@ -61,10 +61,12 @@ def test_pdf_ocr_usa_bloques_ocr(monkeypatch, tmp_path: Path):
         pdfs_ocr={"PreciosPublicos2026.pdf"},
     )
 
+    # Una fila de tabla Markdown = un Document, con la cabecera en el contenido.
     assert [d.page_content for d in docs] == [
-        "texto ocr pagina 1",
-        "texto ocr pagina 2",
+        "concepto: abono\nprecio: 45",
+        "concepto: entrada\nprecio: 3",
     ]
+    assert [d.metadata["page"] for d in docs] == [1, 2]
     assert all(
         d.metadata["file_type"] == "pdf_ocr_key_value"
         for d in docs

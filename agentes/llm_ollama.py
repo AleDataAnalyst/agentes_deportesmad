@@ -39,7 +39,11 @@ class OllamaAdapter(LlmAdapter):
         payload = {
             "model": self.model,
             "messages": [self._to_ollama(m) for m in messages],
-            "tools": tools,
+            # Ollama espera el formato anidado {"type": "function", "function": {...}}.
+            "tools": [
+                tool if "function" in tool else {"type": "function", "function": tool}
+                for tool in tools
+            ],
             "stream": False,
             "options": {
                 "temperature": temperature,
