@@ -10,9 +10,9 @@ def test_load_pdf_tabular_carga_todos_los_bloques(tmp_path):
     pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
 
     bloques = [
-        {"fuente": "informe.pdf", "texto": "# Página 1\n| clave |\n| --- |\n| valor1 |"},
-        {"fuente": "informe.pdf", "texto": "# Página 2\n| clave |\n| --- |\n| valor2 |"},
-        {"fuente": "informe.pdf", "texto": "# Página 3\n| clave |\n| --- |\n| valor3 |"},
+        {"fuente": "informe.pdf", "texto": "Pagina 1\nclave: valor1"},
+        {"fuente": "informe.pdf", "texto": "Pagina 2\nclave: valor2"},
+        {"fuente": "informe.pdf", "texto": "Pagina 3\nclave: valor3"},
     ]
 
     with patch(
@@ -27,11 +27,7 @@ def test_load_pdf_tabular_carga_todos_los_bloques(tmp_path):
         )
 
     assert len(docs) == 3  # Cada bloque conserva juntas sus líneas y contexto.
-    assert [doc.page_content for doc in docs] == [
-        "clave: valor1",
-        "clave: valor2",
-        "clave: valor3",
-    ]
+    assert [doc.page_content for doc in docs] == [b["texto"] for b in bloques]
     assert {doc.metadata["pdf_source"] for doc in docs} == {"informe.pdf"}
     assert {doc.metadata["block_index"] for doc in docs} == {0, 1, 2}
     assert all(

@@ -40,6 +40,7 @@ jobs:
           python -m pytest -q -p no:cacheprovider \
             -m "not integration" \
             tests/test_especialistas_llm.py \
+            tests/test_regresion_planificacion_llm.py \
             tests/test_node_documental.py \
             tests/test_instalaciones_hora.py \
             tests/test_nodo_instalaciones.py

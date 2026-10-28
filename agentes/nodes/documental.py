@@ -35,10 +35,12 @@ Tools (registry):
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from pathlib import Path
 from typing import Any, Callable
+
 from agentes.especialista_llm import FalloPlanificacion, Herramienta, ejecutar_especialista, modo_especialistas
 from agentes.tools.rag import rag_preguntar
 from agentes.tools.vision import imagen_preguntar
@@ -47,8 +49,6 @@ PRESUPUESTO_DEFECTO = 4
 
 FORMATOS_IMAGEN = {".jpg", ".jpeg", ".png"}
 DIRECTORIO_IMAGENES = Path("output") / "imagenes"
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -124,26 +124,6 @@ Tu trabajo es decidir qué herramientas consultar para responder con evidencia.
 - Cuando tengas la evidencia necesaria, responde sin llamar a más herramientas."""
 
 
-def _llamada(paso: int, tool: str, args: dict[str, Any], funcion) -> dict[str, Any]:
-    """Ejecuta una tool del registro con el mismo formato que el bucle LLM."""
-    observacion, error = _ejecutar_tool(tool, funcion, args)
-    if error is not None:
-        observacion = {"ok": False, "resultado": "", "fuentes": [], "abstained": False, "error": error}
-    status = "error" if observacion.get("error") else "ok"
-    return {"paso": paso, "tool": tool, "args": args, "status": status,
-            "preview": str(observacion.get("resultado", ""))[:200], "resultado": observacion}
-
-
-def _plan_reglas(pedido: str, image_id: str | None, presupuesto: int) -> list[dict[str, Any]]:
-    """Plan fijo: primero el RAG y, si hay imagen y presupuesto, la visión."""
-    llamadas = [_llamada(1, "rag", {"consulta": pedido}, REGISTRY["rag"])]
-    if image_id and presupuesto > 1:
-        llamadas.append(_llamada(
-            2, "imagen", {"image_id": str(image_id), "pregunta": pedido}, REGISTRY["imagen"],
-        ))
-    return llamadas
-
-
 def _plan_llm(pedido: str, image_id: str | None, presupuesto: int) -> list[dict[str, Any]]:
     """El LLM propone las llamadas; la ruta de la imagen la fija Python, no el modelo."""
     herramientas = [Herramienta(
@@ -186,19 +166,6 @@ def _ejecutar_tool(
         return funcion(**argumentos), None
     except Exception as exc:  # noqa: BLE001 - el nodo no debe lanzar
         return None, f"{nombre}: {type(exc).__name__}: {exc}"
-
-
-def _normalizar_fuentes(fuentes: list[Any]) -> list[str]:
-    """Normaliza fuentes tipo str o {'ruta': str} a una lista de rutas."""
-    normalizadas: list[str] = []
-
-    for fuente in fuentes or []:
-        if isinstance(fuente, str):
-            normalizadas.append(fuente)
-        elif isinstance(fuente, dict) and fuente.get("ruta"):
-            normalizadas.append(str(fuente["ruta"]))
-
-    return normalizadas
 
 
 def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:

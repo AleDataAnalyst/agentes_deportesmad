@@ -34,7 +34,6 @@ from agentes.tools.externa import (
 )
 
 from agentes.especialista_llm import FalloPlanificacion, Herramienta, ejecutar_especialista, modo_especialistas
-from agentes.tools.auxiliares import hora_actual
 
 logger = logging.getLogger(__name__)
 
@@ -443,24 +442,28 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
 
     llamadas: list[dict[str, Any]] = []
     evento_hora: str | None = None
+    aviso_llm: str | None = None
+    usar_llm = modo_especialistas() == "llm"
 
-    if modo_especialistas() == "llm":
+    if usar_llm:
         try:
             llamadas = _plan_llm(user_message)
-    
+
         except FalloPlanificacion as exc:
             # Conservar consultas y resultados anteriores al fallo.
             llamadas = exc.llamadas
-            logger.warning(
-                "Planificación LLM interrumpida; "
+            aviso_llm = (
+                "planificación LLM interrumpida; "
                 "se conservan las llamadas realizadas"
+                if llamadas
+                else "planificación LLM no disponible; se usan reglas"
             )
-    
+            logger.warning("Instalaciones: %s", aviso_llm)
+
         except Exception:
-            logger.exception(
-                "Planificación LLM no disponible; se usan reglas"
-            )
-            llamadas = []    
+            aviso_llm = "planificación LLM no disponible; se usan reglas"
+            logger.exception("Instalaciones: %s", aviso_llm)
+            llamadas = []
 
     elif _PETICION_TEMPORAL.search(texto_normalizado):
         try:
@@ -526,6 +529,21 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
         }
     elif consulta_llm is not None:
         resultado = consulta_llm["resultado"]
+    elif usar_llm and len(llamadas) >= MAX_STEPS_INSTALACIONES:
+        # El límite de herramientas ya se gastó sin consulta municipal:
+        # el fallback por reglas no puede añadir una llamada más.
+        resultado = {
+            "ok": False,
+            "modo": modo,
+            "datos": [],
+            "fuente": "",
+            "origen": "api",
+            "fecha_consulta": _fecha_actual_iso(),
+            "fecha_captura_fallback": None,
+            "advertencias": [],
+            "error": "Límite de herramientas alcanzado sin consultar instalaciones.",
+            "requiere_aclaracion": False,
+        }
     else:
         try:
             resultado = consultar_instalaciones(
@@ -560,6 +578,11 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
             advertencias.append("Hora actual no disponible")
             tool_result.data["advertencias"] = advertencias
 
+    if aviso_llm:
+        advertencias = list(tool_result.data.get("advertencias") or [])
+        advertencias.append(aviso_llm)
+        tool_result.data["advertencias"] = advertencias
+
     previos = dict(state.get("specialist_results") or {})
     nuevos = dict(previos)
     nuevos["instalaciones"] = tool_result
@@ -575,6 +598,9 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
         evento += " error=consulta_no_completada"
 
     traza: list[str] = [evento]
+
+    if aviso_llm:
+        traza.append(f"instalaciones: {aviso_llm}")
 
     if evento_hora:
         traza.append(evento_hora)
