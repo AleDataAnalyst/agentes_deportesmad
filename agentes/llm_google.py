@@ -98,10 +98,8 @@ class GoogleAdapter(LlmAdapter):
                 role="model",
                 parts=[
                     types.Part.from_function_call(
-                        types.FunctionCall(
-                            name=call["name"],
-                            args=call.get("arguments", {}),
-                        )
+                        name=call["name"],
+                        args=call.get("arguments", {}),
                     )
                     for call in message.tool_calls
                 ],
