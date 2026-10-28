@@ -86,7 +86,8 @@ def ejecutar_especialista(
         except Exception as exc:
             # Entregar al nodo las llamadas ya realizadas.
             raise FalloPlanificacion(llamadas) from exc
-                if not respuesta.tool_calls:
+            
+        if not respuesta.tool_calls:
                     break
 
         mensajes.append(LlmMessage(role="assistant", tool_calls=respuesta.tool_calls))
