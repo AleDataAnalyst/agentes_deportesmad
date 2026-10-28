@@ -43,6 +43,7 @@ def test_imagen_adjunta_se_describe(monkeypatch, tmp_path):
     )
     d = out["documental"]
 
+    # Primero el se describe la imagen, luego se consulta RAG
     assert [e["tool"] for e in d["eventos"]] == ["imagen", "rag"]
     assert d["abstained"] is False
     assert "cartel anuncia" in d["resultado"]

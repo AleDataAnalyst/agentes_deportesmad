@@ -10,7 +10,7 @@ GEN_MODEL = os.getenv(
 MAX_STEPS = int(os.getenv("MAX_STEPS", "4"))
 GEN_TEMPERATURE = float(os.getenv("GEN_TEMPERATURE", "0"))
 GEN_TIMEOUT = int(os.getenv("GEN_TIMEOUT", "240"))
-MAX_STEPS = int(os.getenv("MAX_STEPS", "4"))
+GEN_MAX_TOKENS = int(os.getenv("GEN_MAX_TOKENS", "1024"))
 MAX_ITER_DEFAULT = 10
 
 @dataclass(frozen=True)

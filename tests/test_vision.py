@@ -1,11 +1,12 @@
 """Tests de la tool de visión (agentes/tools/vision.py)."""
 import agentes.nodes.documental as nod
 import pytest
+import os
 from agentes.nodes.documental import nodo_documental
 from agentes.tools.vision import imagen_preguntar
 
 CLAVES = {"ok", "resultado", "fuentes", "abstained", "error"}
-
+api_key = os.getenv("GOOGLE_API_KEY")
 
 def test_imagen_inexistente_devuelve_error(tmp_path):
     out = imagen_preguntar.invoke({"image_id": str(tmp_path / "no_existe.jpg")})

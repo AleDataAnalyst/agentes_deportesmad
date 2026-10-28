@@ -16,3 +16,11 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if item.get_closest_marker("integration"):
             item.add_marker(skip)
+
+
+"""Configuración común de pytest."""
+
+@pytest.fixture(autouse=True)
+def _especialistas_por_reglas(monkeypatch):
+    """Los tests no llaman a modelos reales salvo que activen el modo llm ellos mismos."""
+    monkeypatch.setenv("ESPECIALISTAS_MODO", "reglas")
