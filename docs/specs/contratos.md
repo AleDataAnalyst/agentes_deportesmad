@@ -1,34 +1,27 @@
 # Coordinación de integración: supervisor, grafo y RAG
 
-## Trabajo actual
-Alejandra está preparando `contracts.py`, `state.py` y el supervisor para avanzar en la construcción del grafo.
+## Estado revisado — 28/10/2026
 
-Las estructuras relacionadas con el RAG son provisionales y se revisarán cuando Héctor aporte el contrato del conector.
+El montaje síncrono está implementado: `agentes.runtime` conecta la puerta
+`obtener_grafo_documental().invoke` mediante `crear_adaptador_documental`.
+Las pruebas verifican traducción y aislamiento con dobles; la aceptación con
+RAG, índice, visión y fuentes municipales reales permanece pendiente.
+Véanse [el montaje documental](integracion_grafo_documental.md) y
+[la configuración real](integracion_real.md).
 
-## Contrato RAG pendiente
+## Contrato documental y traducción al grafo
 
-Para recibir, mapear y verificar los contratos de ambos especialistas, seguir
-la [especificación de integración](integracion_especialistas.md). Incluye la
-ficha de entrega, los acuerdos previos al adaptador y los escenarios de aceptación.
+El componente documental recibe `request_id`, `pedido`, `contexto_permitido`,
+`image_id`, `presupuesto_tools` y `preparar_borrador`. Devuelve el sobre
+`documental` con `request_id`, `resultado`, `fuentes`, `abstained`, `errores`,
+`limitaciones` y `eventos`. No recibe directamente `AgentState`.
 
-Héctor aportará la interfaz del RAG a partir de su implementación real:
-
-- Cómo se realiza una consulta.
-- Qué devuelve y cómo incluye las fuentes.
-- Cómo comunica la falta de evidencia.
-- Cómo comunica los errores.
-- Si la llamada es síncrona o asíncrona.
-
-## Necesidades del supervisor y del grafo
-
-Para integrar el especialista documental necesitamos poder:
-
-- Enviarle una consulta.
-- Incorporar su resultado al estado compartido.
-- Conservar las fuentes disponibles.
-- Distinguir una respuesta válida, falta de evidencia y fallo técnico.
-
-Estas necesidades no fijan todavía la estructura de entrada y salida del conector.
+El adaptador crea el identificador por pedido, valida el sobre y su correlación,
+y lo convierte en `specialist_results['documental']: ToolResult`. Conserva el
+sobre en `data` y cada fuente como `Evidence(source=..., content='')`, sin
+inventar fragmentos ni puntuaciones. Los errores tienen prioridad sobre la
+abstención; una respuesta vacía sin error se trata como abstención. No muta
+la entrada ni comparte el checkpoint/HITL con el componente documental.
 
 ## Contrato interno del grafo síncrono
 
@@ -37,15 +30,14 @@ las decisiones `sintetizar` y `FINISH`. El supervisor y el grafo comparten los
 nombres de roles derivados de esos tipos. `FINISH` conduce a síntesis si falta
 un plan válido y, cuando está listo, a la pausa antes de `aplicar`.
 
-`ToolResult`, `Evidence` y `PendingAction` siguen siendo propuestas internas,
-no contratos confirmados de los especialistas. Se conservan los nombres y
-campos para probar el montaje con dobles. Un adaptador incorporará las salidas
-reales cuando se acuerden consulta, fuentes, abstención, errores y sincronía.
+`ToolResult`, `Evidence` y `PendingAction` son formatos internos; no sustituyen
+la interfaz pública del especialista. El adaptador documental ya traduce su
+sobre y el nodo público de instalaciones devuelve el formato del grafo.
 No se fija un rango de score ni se exige evidencia en resultados sin respuesta.
 
 La presencia de un resultado en `specialist_results` cuenta como intento
-completado, incluso con `status="abstained"` o `status="error"`. El contrato real
-deberá concretar la actualización parcial que devuelve cada especialista.
+completado, incluso con `status="abstained"` o `status="error"`. Los nodos
+devuelven actualizaciones parciales, sujetas a sus guardias de campos.
 
 `needs_approval` se conserva por compatibilidad y el grafo lo ignora. La decisión
 humana es `approved` en el estado, escrita por el cliente al reanudar el mismo
@@ -125,11 +117,45 @@ Contrato y ejemplo para David: [imagen por pedido](../handoff_imagen_por_pedido.
 
 ## LLM compartido
 
-Queda pendiente acordar con Héctor cómo consumirá el supervisor la interfaz de `llm.py`.
+`agentes.llm` define `LlmMessage`, `LlmResponse` y el protocolo `LlmAdapter`.
+`generate(messages, tools, *, temperature, max_output_tokens, timeout)` devuelve
+texto y llamadas estructuradas (`id`, `name`, `arguments`). El modelo propone;
+Python valida la allowlist, ejecuta herramientas y añade su resultado al historial.
 
-## Siguiente paso
+El supervisor consume esta interfaz mediante `crear_proveedor_supervisor_real`,
+sin herramientas y con configuración `SUPERVISOR_*` independiente de `GEN_*`.
+Los especialistas usan `ejecutar_especialista` al activar `ESPECIALISTAS_MODO=llm`;
+el modo predeterminado sigue siendo `reglas`. El ejecutor conserva llamadas
+parciales en `FalloPlanificacion` para que el nodo no reinicie el presupuesto.
 
-La compatibilidad del contrato RAG con `contracts.py` y `state.py` queda pendiente de revisión conjunta.
+### Historial de herramientas de Google
+
+| Mensaje interno | Representación Google |
+| --- | --- |
+| `system` | `GenerateContentConfig.system_instruction`, fuera de `contents` |
+| `user` | `Content(role='user')` con texto |
+| `assistant` con `tool_calls` | `Content(role='model')`, una `Part.from_function_call(name=..., args=...)` por llamada |
+| `tool` | `Content(role='user')`, `Part.from_function_response(name=..., response=...)` con el resultado JSON decodificado |
+| `assistant` con texto | `Content(role='model')` con texto |
+
+La fábrica `Part.from_function_call` exige argumentos por nombre en el SDK
+instalado durante la validación (`google-genai 2.22.0`). Pasarle un `FunctionCall`
+posicional causaba un `TypeError` antes de enviar la segunda petición al cliente.
+La corrección conserva nombre, argumentos, respuesta y roles. Los identificadores
+internos se generan como `call_<índice>` al parsear la respuesta; esta corrección
+no añade su transporte al SDK ni cambia esa política.
+
+Regresión en `tests/test_llm_google.py`: primera respuesta con tool call,
+ejecución de herramienta y segunda llamada al cliente doble para los bucles RAG
+y de especialistas. Usa tipos reales del SDK, sin API key ni red. Evidencia,
+comandos y commit probado en [el registro del arreglo](../google_adapter_tool_calls.md).
+
+## Aceptación pendiente
+
+El montaje y sus regresiones con dobles están comprobados. Falta ejecutar la
+aceptación con un modelo Google disponible, herramientas y fuentes verificables,
+además del índice compatible y la visión real. Una suite offline o una inferencia
+sin herramientas no cierra la aceptación del recorrido de dos turnos.
 
 ## Retrieval Augmented Generation (RAG)
 
@@ -236,7 +262,7 @@ python -c "from agentes.tools import rag_preguntar; from agentes.nodes import no
 | Función | Firma | Uso |
 |---|---|---|
 | `responder` | `(pregunta: str, top_k: int \| None = None) -> dict` | RAG completo, contrato principal |
-| `rag_preguntar` | `(consulta: str) -> str` | Wrap para agentes: solo devuelve texto |
+| `rag_preguntar` | `(consulta: str, con_diagnostico: bool \| None = None) -> dict[str, Any]` | Tool: `respuesta`, `fuentes`, `abstained`, `error`; diagnóstico opcional |
 | `recuperar` | `(pregunta: str, top_k: int = 5, persist_dir=None, collection_name=None) -> list[dict]` | Retrieval puro (depuración/evaluación) |
 
 ### Esquema de retorno
@@ -247,16 +273,22 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 `chunks: list[dict]` - {text, source, metadata, distance}, limitado a MAX_CHUNKS.
 `fuentes: list[str]` - únicas, en orden de aparición.
 `contexto: str` - texto plano de los chunks (depuración).
-`metrics: dict` - top_k, n_chunks, model, t_retrieval, t_generation.
+`metrics: dict` - `retrieval_mode`, tiempos `retrieval`/`generation`, `top_k`, `n_chunks` y `model`, según la fase alcanzada; vacío ante error.
 `abstained: bool` - ver sección de abstención.
-`error: str | None` - solo si falla antes de llamar al LLM.
+`error: str | None` - error de validación, recuperación o generación; no es evidencia útil.
 
-### COmportamientos de grounding y abstención
+La tool `rag_preguntar` conserva las cuatro claves `respuesta`, `fuentes`,
+`abstained` y `error`. Con `con_diagnostico=True` o `RAG_CON_DIAGNOSTICO=1/true/yes`
+añade `distancia_mejor`, `respuesta_llm` y `motivo`, también ante error.
+El nodo normaliza esta salida a `ok/resultado/fuentes/abstained/error` antes
+de validar la observación. Son capas distintas del resultado completo de `responder`.
+
+### Comportamientos de grounding y abstención
 
 - **Dos capas de abstención independientes:**
   - **Guardrail de distancia:** si la mejor distancia coseno > UMBRAL_ABSTENCION (0.65) → `abstained=True` sin llamar al LLM.
-  - **Abstención del LLM:** si no hay evidencia suficiente devuelve literalmente `ABSTENTION_MESSAGE` y se marca `abstained=True`.
-- `rag_preguntar` nunca lanza: en error devuelve `ABSTENTION_MESSAGE` (no rompe la cadena del agente).
+  - **Abstención del LLM:** se marca `abstained=True` si la respuesta contiene `ABSTENTION_MESSAGE`, sin distinguir mayúsculas. Esto comprueba la señal del generador; no certifica su calidad semántica.
+- `rag_preguntar` captura errores de consulta y normalización: devuelve `respuesta=''`, `fuentes=[]`, `abstained=False` y el error como dato. El envoltorio de texto `rag_ask` es el que usa `ABSTENTION_MESSAGE` ante error.
 - `recuperar` sí lanza `ValueError` (pregunta vacía, `top_k <= 0`) y devuelve `[]` si la colección está vacía.
 - **Sin estado:** cada llamada es independiente (segura para llamarla varias veces en un ciclo de agente).
 
