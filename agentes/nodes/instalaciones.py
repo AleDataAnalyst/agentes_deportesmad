@@ -445,22 +445,22 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     evento_hora: str | None = None
 
     if modo_especialistas() == "llm":
-    try:
-        llamadas = _plan_llm(user_message)
-
-    except FalloPlanificacion as exc:
-        # Conservar consultas y resultados anteriores al fallo.
-        llamadas = exc.llamadas
-        logger.warning(
-            "Planificación LLM interrumpida; "
-            "se conservan las llamadas realizadas"
-        )
-
-    except Exception:
-        logger.exception(
-            "Planificación LLM no disponible; se usan reglas"
-        )
-        llamadas = []    
+        try:
+            llamadas = _plan_llm(user_message)
+    
+        except FalloPlanificacion as exc:
+            # Conservar consultas y resultados anteriores al fallo.
+            llamadas = exc.llamadas
+            logger.warning(
+                "Planificación LLM interrumpida; "
+                "se conservan las llamadas realizadas"
+            )
+    
+        except Exception:
+            logger.exception(
+                "Planificación LLM no disponible; se usan reglas"
+            )
+            llamadas = []    
 
     elif _PETICION_TEMPORAL.search(texto_normalizado):
         try:
