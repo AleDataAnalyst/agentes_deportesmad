@@ -33,7 +33,7 @@ from agentes.tools.externa import (
     resolver_centro_por_nombre,
 )
 
-from agentes.especialista_llm import Herramienta, ejecutar_especialista, modo_especialistas
+from agentes.especialista_llm import FalloPlanificacion, Herramienta, ejecutar_especialista, modo_especialistas
 from agentes.tools.auxiliares import hora_actual
 
 logger = logging.getLogger(__name__)
