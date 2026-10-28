@@ -35,12 +35,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Ejecutar regresiones sin integración real
+      - name: Ejecutar suite offline completa
         run: |
-          python -m pytest -q -p no:cacheprovider \
-            -m "not integration" \
-            tests/test_especialistas_llm.py \
-            tests/test_regresion_planificacion_llm.py \
-            tests/test_node_documental.py \
-            tests/test_instalaciones_hora.py \
-            tests/test_nodo_instalaciones.py
+          python -m pytest -q -p no:cacheprovider tests
