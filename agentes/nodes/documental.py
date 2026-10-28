@@ -245,37 +245,37 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
     llamadas: list[dict[str, Any]] = []
 
     if usar_llm:
-    try:
-        llamadas = _plan_llm(pedido, image_id, presupuesto)
-
-    except FalloPlanificacion as exc:
-        llamadas = exc.llamadas
-
-        if llamadas:
-            # El bucle posterior procesará los resultados existentes.
-            # Mantener True evita reiniciar las reglas.
-            usar_llm = True
-            limitaciones.append(
-                "planificación LLM interrumpida; "
-                "se conservan las llamadas realizadas"
+        try:
+            llamadas = _plan_llm(pedido, image_id, presupuesto)
+    
+        except FalloPlanificacion as exc:
+            llamadas = exc.llamadas
+    
+            if llamadas:
+                # El bucle posterior procesará los resultados existentes.
+                # Mantener True evita reiniciar las reglas.
+                usar_llm = True
+                limitaciones.append(
+                    "planificación LLM interrumpida; "
+                    "se conservan las llamadas realizadas"
+                )
+            else:
+                # No se ejecutó ninguna herramienta: puede usar reglas.
+                usar_llm = False
+                limitaciones.append(
+                    "planificación LLM no disponible; se usan reglas"
+                )
+    
+        except Exception:
+            # Fallo de inicialización anterior a ejecutar herramientas.
+            logger.warning(
+                "Planificación LLM no disponible; se usan reglas",
+                exc_info=True,
             )
-        else:
-            # No se ejecutó ninguna herramienta: puede usar reglas.
             usar_llm = False
             limitaciones.append(
                 "planificación LLM no disponible; se usan reglas"
             )
-
-    except Exception:
-        # Fallo de inicialización anterior a ejecutar herramientas.
-        logger.warning(
-            "Planificación LLM no disponible; se usan reglas",
-            exc_info=True,
-        )
-        usar_llm = False
-        limitaciones.append(
-            "planificación LLM no disponible; se usan reglas"
-        )
 
     if not usar_llm:
         # Priorizar la imagen adjunta evita que el RAG consuma el único turno.
