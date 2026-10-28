@@ -6,6 +6,8 @@ explícita, porque tests/conftest.py fuerza el modo reglas por defecto.
 """
 
 import pytest
+from copy import deepcopy
+from unittest.mock import Mock
 
 import agentes.especialista_llm as esp
 import agentes.nodes.documental as nod
@@ -206,6 +208,9 @@ def test_instalaciones_conserva_la_consulta_ya_hecha_si_falla_el_llm(monkeypatch
     # y el nodo no la repite por reglas.
     assert len(consulta.llamadas) == 1
     assert out["specialist_results"]["instalaciones"].status == "ok"
+    historial = out["specialist_results"]["instalaciones"].data["llamadas_tools"]
+    assert len(historial) == 1 and historial[0]["resultado"] == CONSULTA_OK
+    assert sum("instalaciones.tool:" in e for e in out["debug_trace"]) == 1
 
 
 def test_instalaciones_registra_el_fallo_en_el_diagnostico(monkeypatch):
@@ -238,3 +243,193 @@ def test_instalaciones_sin_llamadas_previas_cae_a_reglas_con_una_consulta(monkey
 
     assert len(consulta.llamadas) == 1
     assert out["specialist_results"]["instalaciones"].status == "ok"
+
+
+@pytest.mark.parametrize("respuestas", [
+    [_call("consultar_instalaciones", modo="avisos", centro_id="114782")],
+    [_call("hora_actual")] * instalaciones.MAX_STEPS_INSTALACIONES,
+    [_call("no_autorizada")] * instalaciones.MAX_STEPS_INSTALACIONES,
+])
+def test_instalaciones_no_resuelve_nombres_tras_consulta_llm_o_limite(monkeypatch, respuestas):
+    consulta = _preparar_instalaciones(monkeypatch, AdapterQueFalla(respuestas, falla_en=99))
+    resolver = Mock(return_value=[{"pk": "114782"}])
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    instalaciones.nodo_instalaciones({"user_message": "¿hay algún cierre en La Elipa?"})
+
+    resolver.assert_not_called()
+    assert len(consulta.llamadas) == (1 if len(respuestas) == 1 else 0)
+
+
+def test_instalaciones_resolucion_de_nombre_consume_el_presupuesto_restante(monkeypatch):
+    adapter = AdapterQueFalla([_call("hora_actual"), _call("hora_actual")], falla_en=3)
+    consulta = _preparar_instalaciones(monkeypatch, adapter)
+    resolver = Mock(return_value=[{"pk": "114782"}])
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "¿hay algún cierre en La Elipa?"})
+
+    resolver.assert_called_once()
+    assert consulta.llamadas == []
+    resultado = out["specialist_results"]["instalaciones"]
+    assert resultado.status == "error"
+    assert "Límite de herramientas" in resultado.error
+    assert any("planificación LLM interrumpida" in e for e in out["debug_trace"])
+
+
+@pytest.mark.parametrize("modo", ["reglas", "llm"])
+def test_instalaciones_reglas_comparten_limite_con_resolver_y_reloj(monkeypatch, modo):
+    # Una resolución requiere una consulta al catálogo: no es una operación local gratis.
+    consulta = _preparar_instalaciones(monkeypatch, AdapterQueFalla([], falla_en=1))
+    monkeypatch.setenv("ESPECIALISTAS_MODO", modo)
+    monkeypatch.setattr(instalaciones, "MAX_STEPS_INSTALACIONES", 1)
+    resolver = Mock(return_value=[{"pk": "114782"}])
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "cierre en La Elipa"})
+
+    resolver.assert_called_once()
+    assert consulta.llamadas == []
+    assert out["specialist_results"]["instalaciones"].status == "error"
+
+
+def test_instalaciones_reloj_por_reglas_consume_un_turno(monkeypatch):
+    consulta = _preparar_instalaciones(monkeypatch, AdapterQueFalla([], falla_en=1))
+    monkeypatch.setenv("ESPECIALISTAS_MODO", "reglas")
+    monkeypatch.setattr(instalaciones, "MAX_STEPS_INSTALACIONES", 1)
+    reloj = Mock(wraps=instalaciones.hora_actual)
+    resolver = Mock(return_value=[])
+    monkeypatch.setattr(instalaciones, "hora_actual", reloj)
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "cierre en La Elipa hoy"})
+
+    reloj.assert_called_once_with(zona="Europe/Madrid")
+    resolver.assert_not_called()
+    assert consulta.llamadas == []
+    assert out["specialist_results"]["instalaciones"].status == "error"
+
+
+@pytest.mark.parametrize("falla", [False, True])
+def test_instalaciones_conserva_varias_consultas_con_procedencia(monkeypatch, falla):
+    respuestas = [
+        _call("consultar_instalaciones", modo="catalogo"),
+        _call("consultar_instalaciones", modo="avisos", centro_id="114782"),
+    ]
+    adapter = AdapterQueFalla(respuestas, falla_en=3 if falla else 99)
+    _preparar_instalaciones(monkeypatch, adapter)
+    catalogo = deepcopy(CONSULTA_OK)
+    catalogo.update(fuente="test://catalogo")
+    avisos = {
+        **deepcopy(CONSULTA_OK), "modo": "avisos", "origen": "fallback",
+        "fuente": "test://captura", "fecha_captura_fallback": "2026-10-26",
+        "datos": [{"centro_id": "114782", "texto_aviso": "Obras",
+                   "aviso_detectado": True, "url_ficha": "test://aviso"}],
+    }
+    consulta = Mock(side_effect=[catalogo, avisos])
+    monkeypatch.setattr(instalaciones, "consultar_instalaciones", consulta)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "lista de centros"})
+    resultado = out["specialist_results"]["instalaciones"]
+
+    assert consulta.call_count == 2
+    assert resultado.data["origen"] == "fallback"
+    assert resultado.evidence[0].source == "test://aviso"
+    historial = resultado.data["llamadas_tools"]
+    assert [ll["resultado"] for ll in historial] == [catalogo, avisos]
+    assert [ll["args"]["modo"] for ll in historial] == ["catalogo", "avisos"]
+    assert [ll["paso"] for ll in historial] == [1, 2]
+    assert any("solo la última consulta" in a for a in resultado.data["advertencias"])
+    eventos = [e for e in out["debug_trace"] if "instalaciones.tool:" in e]
+    assert len(eventos) == 2
+    assert "catalogo" in eventos[0] and "114782" in eventos[1]
+    assert all("status=ok" in e for e in eventos)
+    if falla:
+        assert any("planificación LLM interrumpida" in e for e in out["debug_trace"])
+    catalogo["datos"].clear()
+    assert historial[0]["resultado"]["datos"]  # Sin alias con el proveedor.
+
+
+def test_ejecutor_conserva_resultado_y_evento_al_fallar_modelo():
+    from agentes.especialista_llm import FalloPlanificacion, Herramienta, ejecutar_especialista
+
+    tool = Mock(return_value=_obs())
+    adapter = AdapterQueFalla([_call("eco", consulta="abono")], falla_en=2)
+    with pytest.raises(FalloPlanificacion) as fallo:
+        ejecutar_especialista(
+            prompt_sistema="p", mensaje="m", max_steps=2, adapter=adapter,
+            herramientas=[Herramienta("eco", "doble", {}, tool)],
+        )
+    tool.assert_called_once_with(consulta="abono")
+    assert len(fallo.value.llamadas) == 1
+    assert fallo.value.llamadas[0]["resultado"] == _obs()
+    assert fallo.value.llamadas[0]["status"] == "ok"
+    assert isinstance(fallo.value.__cause__, RuntimeError)
+
+
+@pytest.mark.parametrize("modo", ["reglas", "llm"])
+def test_instalaciones_limite_cero_no_ejecuta_ninguna_tool(monkeypatch, modo):
+    consulta = _preparar_instalaciones(monkeypatch, AdapterQueFalla([], falla_en=1))
+    monkeypatch.setenv("ESPECIALISTAS_MODO", modo)
+    monkeypatch.setattr(instalaciones, "MAX_STEPS_INSTALACIONES", 0)
+    reloj, resolver = Mock(), Mock()
+    monkeypatch.setattr(instalaciones, "hora_actual", reloj)
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "cierre en La Elipa hoy"})
+
+    reloj.assert_not_called()
+    resolver.assert_not_called()
+    assert consulta.llamadas == []
+    assert out["specialist_results"]["instalaciones"].status == "error"
+
+
+def test_instalaciones_resolver_fallido_no_repite_ni_expone_excepcion(monkeypatch):
+    consulta = _preparar_instalaciones(monkeypatch, AdapterQueFalla([], falla_en=1))
+    resolver = Mock(side_effect=RuntimeError("detalle interno"))
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "cierre en La Elipa"})
+
+    resolver.assert_called_once()
+    assert consulta.llamadas == []
+    resultado = out["specialist_results"]["instalaciones"]
+    assert resultado.status == "error"
+    assert resultado.data["llamadas_tools"][0]["status"] == "error"
+    assert "detalle interno" not in str(out)
+
+
+def test_instalaciones_fallback_resuelve_y_consulta_dentro_del_limite(monkeypatch):
+    adapter = AdapterQueFalla([_call("hora_actual")], falla_en=2)
+    consulta = _preparar_instalaciones(monkeypatch, adapter)
+    resolver = Mock(return_value=[{"pk": "114782"}])
+    monkeypatch.setattr(instalaciones, "resolver_centro_por_nombre", resolver)
+
+    out = instalaciones.nodo_instalaciones({"user_message": "cierre en La Elipa"})
+
+    resolver.assert_called_once()
+    assert consulta.llamadas == [((), {"modo": "avisos", "centro_id": "114782"})]
+    historial = out["specialist_results"]["instalaciones"].data["llamadas_tools"]
+    assert [ll["tool"] for ll in historial] == [
+        "hora_actual", "resolver_centro_por_nombre", "consultar_instalaciones",
+    ]
+    assert [ll["paso"] for ll in historial] == [1, 2, 3]
+
+
+def test_ejecutor_congela_resultados_si_una_tool_reutiliza_el_diccionario():
+    from agentes.especialista_llm import Herramienta, ejecutar_especialista
+
+    compartido = _obs()
+
+    def tool(consulta):
+        compartido["resultado"] = consulta
+        return compartido
+
+    llamadas = ejecutar_especialista(
+        prompt_sistema="p", mensaje="m", max_steps=2,
+        herramientas=[Herramienta("eco", "doble", {}, tool)],
+        adapter=AdapterQueFalla([
+            _call("eco", consulta="primero"), _call("eco", consulta="segundo"),
+        ], falla_en=99),
+    )
+    assert [ll["resultado"]["resultado"] for ll in llamadas] == ["primero", "segundo"]

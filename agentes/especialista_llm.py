@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -117,7 +118,7 @@ def ejecutar_especialista(
                 "args": args if isinstance(args, dict) else {},
                 "status": status,
                 "preview": _preview(resultado, 200),
-                "resultado": resultado,
+                "resultado": deepcopy(resultado),
             })
             mensajes.append(LlmMessage(
                 role="tool", name=nombre, tool_call_id=call.get("id"),
