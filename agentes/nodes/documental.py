@@ -350,7 +350,7 @@ def nodo_documental(state: dict[str, Any]) -> dict[str, Any]:
                 limitaciones.append(
                     "fuentes fuera del contexto permitido; respuesta omitida"
                 )
-            continue
+                continue
 
         if (
             not ok
