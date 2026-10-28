@@ -40,6 +40,14 @@ def modo_especialistas() -> str:
     return modo
 
 
+class FalloPlanificacion(RuntimeError):
+    """Conserva las herramientas ejecutadas antes de fallar el modelo."""
+
+    def __init__(self, llamadas):
+        super().__init__("No se pudo completar la planificación LLM")
+        self.llamadas = list(llamadas)
+
+
 def ejecutar_especialista(
     *,
     prompt_sistema: str,
@@ -67,15 +75,19 @@ def ejecutar_especialista(
     llamadas: list[dict[str, Any]] = []
 
     while len(llamadas) < max_steps:
-        respuesta = adapter.generate(
-            messages=mensajes,
-            tools=[h.esquema() for h in herramientas],
-            temperature=config.GEN_TEMPERATURE,
-            max_output_tokens=config.GEN_MAX_TOKENS,
-            timeout=config.GEN_TIMEOUT,
-        )
-        if not respuesta.tool_calls:
-            break
+        try:
+            respuesta = adapter.generate(
+                messages=mensajes,
+                tools=[h.esquema() for h in herramientas],
+                temperature=config.GEN_TEMPERATURE,
+                max_output_tokens=config.GEN_MAX_TOKENS,
+                timeout=config.GEN_TIMEOUT,
+            )
+        except Exception as exc:
+            # Entregar al nodo las llamadas ya realizadas.
+            raise FalloPlanificacion(llamadas) from exc
+                if not respuesta.tool_calls:
+                    break
 
         mensajes.append(LlmMessage(role="assistant", tool_calls=respuesta.tool_calls))
         for call in respuesta.tool_calls:
