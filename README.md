@@ -363,8 +363,8 @@ Para validar el RAG real se necesita un índice compatible con el modelo, dimens
 
 Antes de declarar el modo real como aceptado, documenta y ejecuta:
 
-- [ ] Índice compatible con el modelo, dimensión y configuración de embeddings empleados.
-- [ ] Ruta de Chroma y nombre de colección confirmados.
+- [X] Índice compatible con el modelo, dimensión y configuración de embeddings empleados.
+- [X] Ruta de Chroma y nombre de colección confirmados.
 - [ ] Versión, procedencia y, si aplica, checksum del índice.
 - [ ] Consulta con respuesta y fuente esperada verificadas.
 - [ ] Consulta sin evidencia que produce abstención.

@@ -8,7 +8,7 @@ Las estructuras relacionadas con el RAG son provisionales y se revisarán cuando
 ## Contrato RAG pendiente
 
 Para recibir, mapear y verificar los contratos de ambos especialistas, seguir
-la [especificación de integración](integracion_especialistas.md). Incluye la
+la [especificación de integración](contratos.md). Incluye la
 ficha de entrega, los acuerdos previos al adaptador y los escenarios de aceptación.
 
 Héctor aportará la interfaz del RAG a partir de su implementación real:
@@ -18,6 +18,8 @@ Héctor aportará la interfaz del RAG a partir de su implementación real:
 - Cómo comunica la falta de evidencia.
 - Cómo comunica los errores.
 - Si la llamada es síncrona o asíncrona.
+
+> Está detallado dentro de RAG.
 
 ## Necesidades del supervisor y del grafo
 
@@ -29,6 +31,8 @@ Para integrar el especialista documental necesitamos poder:
 - Distinguir una respuesta válida, falta de evidencia y fallo técnico.
 
 Estas necesidades no fijan todavía la estructura de entrada y salida del conector.
+
+> Detallado dentro de RAG.
 
 ## Contrato interno del grafo síncrono
 
@@ -50,6 +54,8 @@ deberá concretar la actualización parcial que devuelve cada especialista.
 `needs_approval` se conserva por compatibilidad y el grafo lo ignora. La decisión
 humana es `approved` en el estado, escrita por el cliente al reanudar el mismo
 checkpoint. `PendingAction` no activa la pausa ni representa una aprobación.
+
+
 
 ## API síncrona de clientes
 
@@ -147,9 +153,6 @@ también puede requerir Poppler si su ejecutable no está en `PATH`.
 ```powershell
 winget install tesseract-ocr.tesseract
 
-# Sesión actual
-$env:Path = "$env:Path;$env:ProgramFiles\Tesseract-OCR"
-
 # Persistente para el usuario actual
 [Environment]::SetEnvironmentVariable(
   "Path",
@@ -175,10 +178,6 @@ sudo apt-get install tesseract-ocr
 brew install tesseract
 ```
 
-##### En Windows Powershell
-```powershell
-winget install tesseract-ocr.tesseract
-```
 
 Tras este primer paso, que se realiza una única vez por Sistema Operativo, es preciso tener un archivo `.env` con la variable `OCR_AGENT` fijada a `tesseract`:
 ```text
@@ -239,6 +238,88 @@ python -c "from agentes.tools import rag_preguntar; from agentes.nodes import no
 | `rag_preguntar` | `(consulta: str) -> str` | Wrap para agentes: solo devuelve texto |
 | `recuperar` | `(pregunta: str, top_k: int = 5, persist_dir=None, collection_name=None) -> list[dict]` | Retrieval puro (depuración/evaluación) |
 
+## Interfaz oficial del RAG para el grafo
+
+La interfaz que consumirá el especialista documental es:
+
+```python
+responder(pregunta: str, top_k: int | None = None) -> dict
+```
+
+La llamada es **síncrona y bloqueante**: el nodo documental espera a que `responder()` devuelva el resultado completo antes de continuar.
+
+No es asíncrona y no devuelve un `Future`, coroutine ni promesa.
+
+### Entrada
+
+| Campo | Tipo | Obligatorio | Descripción |
+|---|---|---|---|
+| `pregunta` | `str` | Sí | Consulta del usuario o consulta reformulada por el especialista |
+| `top_k` | `int \| None` | No | Número máximo de chunks a recuperar; si es `None`, se usa la configuración por defecto |
+
+### Salida
+
+`responder()` devuelve siempre un diccionario controlado:
+
+```python
+{
+    "respuesta": str,
+    "chunks": list[dict],
+    "fuentes": list[str],
+    "contexto": str,
+    "metrics": dict,
+    "abstained": bool,
+    "error": str | None,
+}
+```
+
+### Fuentes
+
+Las fuentes se devuelven en `fuentes` como lista de cadenas, únicas y en orden de aparición.
+
+Cada chunk de `chunks` conserva además:
+
+- `text`
+- `source`
+- `metadata`
+- `distance`
+
+### Falta de evidencia
+
+La falta de evidencia se comunica con:
+
+```python
+"abstained": True
+```
+
+Puede producirse por:
+
+- Guardrail de distancia: la mejor distancia coseno supera `UMBRAL_ABSTENCION`.
+- El LLM determina que no hay evidencia suficiente.
+
+En ambos casos, `error` debe ser `None`: una abstención no es un fallo técnico.
+
+### Errores
+
+Un fallo técnico se comunica con:
+
+```python
+"error": "<mensaje controlado>"
+```
+
+Por ejemplo, un fallo al recuperar contexto o al llamar al proveedor.
+
+En ese caso:
+
+- `abstained` permanece en `False`.
+- `respuesta` puede quedar vacía.
+- La excepción no se propaga hacia el grafo.
+
+### Funciones auxiliares
+
+- `recuperar()` es una función de depuración y evaluación; devuelve chunks, no el contrato completo del RAG.
+- `rag_preguntar()` es un wrapper para agentes que devuelve únicamente `str`; no debe usarse como contrato principal para el grafo porque pierde fuentes, abstención y error estructurados.
+
 ### Esquema de retorno
 
 El dict completo de responder() campo a campo, con tipo, contenido y cuándo está vacío:
@@ -251,7 +332,7 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 `abstained: bool` - ver sección de abstención.
 `error: str | None` - solo si falla antes de llamar al LLM.
 
-### COmportamientos de grounding y abstención
+### Comportamientos de grounding y abstención
 
 - **Dos capas de abstención independientes:**
   - **Guardrail de distancia:** si la mejor distancia coseno > UMBRAL_ABSTENCION (0.65) → `abstained=True` sin llamar al LLM.
@@ -269,7 +350,7 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
 ### Rendimiento y operación
 
 - Latencia esperada (retrieval + generación; recordad que el primer batch en frío de Ollama puede tardar mucho).
-- Retreintidos automáticos ante 503/429 en generación (3 intentos, backoff exponencial).
+- Reintentos automáticos ante 503/429 en generación (3 intentos, backoff exponencial).
 - Registro estructurado por consulta (línea JSON con pregunta, top_k, n_chunks, modelo, abstained, tiempos).
 
 ### Ejemplos de respuesta
@@ -340,4 +421,5 @@ El dict completo de responder() campo a campo, con tipo, contenido y cuándo est
   "abstained": false,
   "error": "Error recuperando contexto: <mensaje de la excepción>"
 }
+
 ```

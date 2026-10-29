@@ -25,6 +25,51 @@ def _tabla(filas: list[tuple[str, str, str]]) -> str:
         lineas.append(f"| `{var}` | {valor} | {nota} |")
     return "\n".join(lineas)
 
+def seccion_integridad_markdown(info: dict) -> str:
+    integridad = info.get("integridad_archivos")
+
+    if not integridad:
+        return ""
+
+    def escapar(valor: object) -> str:
+        return (
+            str(valor)
+            .replace("|", "\\|")
+            .replace("\r", " ")
+            .replace("\n", " ")
+        )
+
+    lineas = [
+        "## 8. Integridad de archivos",
+        "",
+        f"- Algoritmo: {integridad['algoritmo']}",
+        f"- Verificación UTC: {integridad['verificado_en_utc']}",
+        f"- Archivos comprobados: {integridad['total']}",
+        f"- Sin cambios: {integridad['sin_cambios']}",
+        f"- Modificados: {integridad['modificados']}",
+        f"- Errores de lectura: {integridad['errores']}",
+        "",
+        "| Archivo | SHA-256 de carga | SHA-256 final | Estado |",
+        "|---|---|---|---|",
+    ]
+
+    for archivo in integridad["archivos"]:
+        if archivo["error"]:
+            estado = f"ERROR: {archivo['error']}"
+        elif archivo["sin_cambios"]:
+            estado = "Sin cambios"
+        else:
+            estado = "MODIFICADO durante la ejecución"
+
+        lineas.append(
+            f"| {escapar(archivo['ruta'])} "
+            f"| {archivo['sha256_carga']} "
+            f"| {archivo['sha256_final'] or '—'} "
+            f"| {escapar(estado)} |"
+        )
+
+    lineas.append("")
+    return "\n".join(lineas)
 
 def formatear_duracion(segundos: float | None) -> str:
     """Duración legible: milisegundos para < 1 s, segundos (2 decimales) para el resto.
@@ -338,6 +383,7 @@ def generar_informe(datos: dict[str, Any], ruta: str | Path | None = None) -> Pa
         f"- **Corpus (rutas):** {', '.join(datos.get('rutas') or [])}",
         f"- **Tiempo total:** {formatear_duracion(datos.get('tiempo_total_s', 0))}",
         "",
+        "",
         "## 1. Parámetros aplicados",
         "",
         _tabla(datos.get("parametros") or []),
@@ -393,6 +439,8 @@ def generar_informe(datos: dict[str, Any], ruta: str | Path | None = None) -> Pa
         "## 7. Señales y criterios de decisión",
         "",
         * _senales(datos),
+        "",
+        "\n" + seccion_integridad_markdown(datos),
     ]
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text("\n".join(lineas) + "\n", encoding="utf-8")

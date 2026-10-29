@@ -12,7 +12,134 @@ OCR_PSM = os.getenv("OCR_PSM", "6")
 TESSERACT_CMD = os.getenv("TESSERACT_CMD") or os.getenv("OCR_AGENT", "")
 POPPLER_PATH = os.getenv("POPPLER_PATH") or None
 
+########################
 
+def extraer_piscinas(pdf: str | Path) -> list[dict]:
+    """Extrae los registros de PiscinasAireLibre2026.pdf.
+
+    Usa límites verticales explícitos para reconstruir las cuatro
+    columnas del documento y las líneas horizontales para separar filas.
+
+    Devuelve un registro por instalación:
+        {
+            "pagina": int,          # numeración desde 1
+            "tabla": int,           # numeración desde 1
+            "fila_extraida": int,   # posición desde 0 en la tabla extraída
+            "valores": {
+                "Distrito": str,
+                "Centro Deportivo Municipal": str,
+                "Dirección": str,
+                "Fechas": str,
+            },
+        }
+
+    Las coordenadas corresponden al diseño del PDF de piscinas de 2026.
+    No deben utilizarse como configuración genérica para otros PDF.
+
+    Raises:
+        ValueError: si cambia el ancho de página, no se encuentra la
+            cabecera esperada o aparece una fila incompleta.
+    """
+    import pdfplumber
+
+    columnas = [
+        "Distrito",
+        "Centro Deportivo Municipal",
+        "Dirección",
+        "Fechas",
+    ]
+
+    configuracion_tabla = {
+        "vertical_strategy": "explicit",
+        "explicit_vertical_lines": [
+            22.2,   # Borde izquierdo.
+            142,    # Distrito / Centro.
+            312,    # Centro / Dirección.
+            455,    # Dirección / Fechas.
+            573.7,  # Borde derecho.
+        ],
+        "horizontal_strategy": "lines",
+        "snap_tolerance": 3,
+        "join_tolerance": 3,
+    }
+
+    registros: list[dict] = []
+
+    with pdfplumber.open(pdf) as documento:
+        for numero_pagina, pagina in enumerate(documento.pages, start=1):
+            if abs(pagina.width - 595.32) > 1:
+                raise ValueError(
+                    f"{Path(pdf).name}: ancho de página inesperado "
+                    f"en página {numero_pagina}: {pagina.width:.2f}. "
+                    "El perfil de extracción requiere revisión."
+                )
+
+            tablas = pagina.extract_tables(configuracion_tabla)
+            cabecera_en_pagina = False
+
+            for numero_tabla, tabla in enumerate(tablas, start=1):
+                cabecera_encontrada = False
+
+                for numero_fila, fila in enumerate(tabla):
+                    # Unifica saltos de línea y espacios dentro de cada celda.
+                    celdas = [
+                        " ".join((celda or "").split())
+                        for celda in fila
+                    ]
+
+                    # El título y el subtítulo no son nombres de columna.
+                    if celdas == columnas:
+                        cabecera_encontrada = True
+                        cabecera_en_pagina = True
+                        continue
+
+                    if not cabecera_encontrada:
+                        continue
+
+                    if not any(celdas):
+                        continue
+
+                    # Nunca truncar con zip() antes de validar la anchura.
+                    if len(celdas) != len(columnas):
+                        raise ValueError(
+                            f"{Path(pdf).name}: número de columnas "
+                            f"incorrecto en página {numero_pagina}, "
+                            f"tabla {numero_tabla}, fila {numero_fila}: "
+                            f"{celdas!r}"
+                        )
+
+                    if not all(celdas):
+                        raise ValueError(
+                            f"{Path(pdf).name}: fila incompleta "
+                            f"en página {numero_pagina}, "
+                            f"tabla {numero_tabla}, fila {numero_fila}: "
+                            f"{celdas!r}"
+                        )
+
+                    registros.append(
+                        {
+                            "pagina": numero_pagina,
+                            "tabla": numero_tabla,
+                            "fila_extraida": numero_fila,
+                            "valores": dict(zip(columnas, celdas)),
+                        }
+                    )
+
+            if not cabecera_en_pagina:
+                raise ValueError(
+                    f"{Path(pdf).name}: no se encontró la cabecera "
+                    f"esperada en página {numero_pagina}."
+                )
+
+    if not registros:
+        raise ValueError(
+            f"{Path(pdf).name}: no se extrajo ningún registro."
+        )
+
+    return registros
+
+
+########################
 def _extraer_texto_tabla_a_textos(pdf: Path) -> list[str]:
     """
     Extrae el texto de las tablas de un PDF y lo divide en bloques de texto
@@ -249,6 +376,8 @@ def cargar_pdfs_especiales(directorio: Path) -> dict[str, list[dict]]:
                     )
 
     return resultados
+
+
 
 
 def main() -> None:
