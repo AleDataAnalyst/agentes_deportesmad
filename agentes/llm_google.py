@@ -40,13 +40,15 @@ class GoogleAdapter(LlmAdapter):
             if message.role != "system"
         ]
 
+        # Acepta el esquema plano y el anidado estilo OpenAI ({"function": {...}}).
+        planos = [tool.get("function", tool) for tool in tools]
         declaraciones = [
             types.FunctionDeclaration(
                 name=tool["name"],
                 description=tool["description"],
                 parameters_json_schema=tool["parameters"],
             )
-            for tool in tools
+            for tool in planos
         ]
 
         if timeout <= 0:
@@ -96,10 +98,8 @@ class GoogleAdapter(LlmAdapter):
                 role="model",
                 parts=[
                     types.Part.from_function_call(
-                        types.FunctionCall(
-                            name=call["name"],
-                            args=call.get("arguments", {}),
-                        )
+                        name=call["name"],
+                        args=call.get("arguments", {}),
                     )
                     for call in message.tool_calls
                 ],

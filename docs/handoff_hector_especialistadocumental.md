@@ -1,8 +1,11 @@
 # Handoff: Especialista documental y multimodal
 
 - **Fecha:** 2026-10-28
+- **Fecha:** 2026-10-28
 - **Autor/a:** Héctor González Lebredo
 - **Rama / PR:** `feature/especialista-documental` a `develop`
+- **Estado:** listo para revisión
+- 
 - **Estado:** listo para revisión
 - 
 ## 1. Objetivo
@@ -10,7 +13,27 @@
 Implementar el especialista documental con capacidades de recuperación sobre documentación municipal y descripción multimodal de imágenes.
 
 El módulo responde consultas relacionadas con el Deporte Municipal del Ayuntamiento de Madrid a partir de documentación curada: centros deportivos, horarios, características, competiciones, instalaciones, estación estival y otros contenidos oficiales.
+Implementar el especialista documental con capacidades de recuperación sobre documentación municipal y descripción multimodal de imágenes.
 
+El módulo responde consultas relacionadas con el Deporte Municipal del Ayuntamiento de Madrid a partir de documentación curada: centros deportivos, horarios, características, competiciones, instalaciones, estación estival y otros contenidos oficiales.
+
+El objetivo principal no es únicamente generar texto, sino devolver información **trazable, verificable y segura**:
+
+- Cada respuesta debe incluir fuentes recuperadas del corpus documental.
+- Si no hay evidencia suficiente, el sistema debe declarar abstención.
+- Si falla la recuperación, la indexación o la consulta, el sistema debe devolver un error controlado.
+- El agente no debe confundir un fallo técnico con una respuesta válida o una abstención.
+
+Flujo general:
+
+```text
+pedido
+  → supervisor
+  → especialista documental / RAG
+  → síntesis
+  → HITL
+  → aplicar
+```
 El objetivo principal no es únicamente generar texto, sino devolver información **trazable, verificable y segura**:
 
 - Cada respuesta debe incluir fuentes recuperadas del corpus documental.
@@ -116,8 +139,13 @@ ToolResult(
         "respuesta": "...",
         "fuentes": [...]
     },
+    data={
+        "respuesta": "...",
+        "fuentes": [...]
+    },
     sources=[...],
     abstained=False,
+    error=None
     error=None
 )
 ```
@@ -225,12 +253,21 @@ Esto permite auditar por qué el agente respondió de una determinada manera.
 | HITL | Estado del grafo | Usar fuentes, abstención y errores como evidencia para revisión humana |
 
 La aceptación con recursos reales debe realizarse de forma conjunta con Alejandra. No se considera aceptación real una respuesta generada por demo, un doble de prueba o un error controlado.
+| Alejandra / runtime | `crear_servicio(modo="real")` | Utilizar el montaje real del servicio y validar la aceptación conjunta con RAG |
+| David / Streamlit | `AgentService.procesar_turno(..., image_id=...)` | Enviar `image_id` por pedido, conservar `thread_id` y `plan_id`, y mostrar fuentes, abstenciones y errores |
+| Héctor / RAG | Adaptador documental e índice | Entregar un índice compatible, reproducible y una consulta de aceptación |
+| Supervisor / grafo | Nodo documental | Invocar la tool y propagar `ToolResult` |
+| HITL | Estado del grafo | Usar fuentes, abstención y errores como evidencia para revisión humana |
+
+La aceptación con recursos reales debe realizarse de forma conjunta con Alejandra. No se considera aceptación real una respuesta generada por demo, un doble de prueba o un error controlado.
 
 ## 6. Instrucciones de ejecución
 
 ### 6.1 Preparación del entorno
+### 6.1 Preparación del entorno
 
 ```console
+python -m venv .venv
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -298,6 +335,7 @@ Resultado esperado:
 - El transporte de `image_id` debe validarse sin ejecutar visión real.
 
 ### 7.2 Cobertura por capas
+### 7.2 Cobertura por capas
 
 | Capa | Archivo de prueba | Alcance |
 |---|---|---|
@@ -305,6 +343,7 @@ Resultado esperado:
 | Frontera de errores RAG | `tests/test_rag_error_boundary.py` | Normalización de `TimeoutError` y `ConnectionError` como error controlado |
 | Nodo documental | `tests/test_node_documental.py` | Contrato del nodo, fuentes, abstención, presupuesto de tools, contexto permitido y error de tool |
 | Adaptador documental | `tests/test_documental_adapter.py` | Conversión del sobre documental a `ToolResult`, validación de `request_id`, aislamiento del estado y opciones |
+| Imagen por pedido | `tests/test_image_por_pedido.py` | Validación de `image_id`, transporte hasta el documental, reinicio entre pedidos, aislamiento y ciclo HITL |
 | Imagen por pedido | `tests/test_image_por_pedido.py` | Validación de `image_id`, transporte hasta el documental, reinicio entre pedidos, aislamiento y ciclo HITL |
 | Integración simulada | `tests/test_golden_graph.py`, `tests/test_export_evidence.py` | Recorridos completos con especialistas dobles; no validan RAG ni visión reales |
 
@@ -374,14 +413,24 @@ La corrección de la ingesta de PDF especiales se documenta en detalle en
 | Decisión | Opciones | Impacto | Responsable de decidir |
 |---|---|---|---|
 | Renombrar `specialist` a `next_node` | Mantener / renombrar | Contrato y consumidores del grafo | Equipo |
+| Renombrar `specialist` a `next_node` | Mantener / renombrar | Contrato y consumidores del grafo | Equipo |
 | Historial conversacional en estado | Cliente / estado común | CLI y Streamlit | Equipo |
+| Modelo de embeddings definitivo | Local / remoto | Calidad de recuperación, coste y despliegue | Equipo RAG |
+| Estrategia de reranking | Sin reranking / cross-encoder | Precisión de recuperación y latencia | Equipo RAG |
+| Recuperación híbrida | Semántica / BM25 + RRF | Cobertura de consultas, complejidad y latencia | Equipo RAG |
 | Modelo de embeddings definitivo | Local / remoto | Calidad de recuperación, coste y despliegue | Equipo RAG |
 | Estrategia de reranking | Sin reranking / cross-encoder | Precisión de recuperación y latencia | Equipo RAG |
 | Recuperación híbrida | Semántica / BM25 + RRF | Cobertura de consultas, complejidad y latencia | Equipo RAG |
 
 ## 10. Riesgos y para no hacer
+## 10. Riesgos y para no hacer
 
 - No aprobar automáticamente un plan HITL.
+- No convertir un error técnico en evidencia.
+- No convertir un error en abstención.
+- No activar el modo demo como fallback del modo real.
+- No aceptar URLs, bytes ni base64 como `image_id`.
+- No arrastrar una imagen de un pedido anterior a un pedido nuevo.
 - No convertir un error técnico en evidencia.
 - No convertir un error en abstención.
 - No activar el modo demo como fallback del modo real.
@@ -395,6 +444,7 @@ La corrección de la ingesta de PDF especiales se documenta en detalle en
 
 > La corrección de PDF especiales se recoge como anexo en [handoff_pdf_especiales.md](.\handoff_pdf_especiales.md). Piscinas se considera resuelto a efectos de esta sesión, aunque su integración y reindexación permanecen pendientes; precios queda explícitamente como extracción no resuelta y tarea separada, sin bloquear este PR.
 
+## 11. Checklist de aceptación
 ## 11. Checklist de aceptación
 
 - [X] El módulo se ejecuta con los comandos documentados.

@@ -7,6 +7,21 @@ from types import ModuleType
 import pytest
 
 
+@pytest.mark.parametrize("valor", [None, [], {"fuentes": None}])
+@pytest.mark.parametrize("diagnostico", [False, True])
+def test_salida_malformada_respeta_contrato_incluso_con_diagnostico(monkeypatch, valor, diagnostico):
+    import agentes.tools.rag as tool
+    monkeypatch.setattr(tool, "responder", lambda consulta: valor)
+    r = tool.rag_preguntar("consulta", con_diagnostico=diagnostico)
+    assert r["error"]
+    assert r["respuesta"] == "" and r["fuentes"] == []
+    assert r["abstained"] is False
+    if diagnostico:
+        assert r["distancia_mejor"] is None
+        assert r["respuesta_llm"] is None
+        assert r["motivo"] is None
+
+
 @pytest.mark.parametrize('error_type', [TimeoutError, ConnectionError])
 def test_original_tool_normalizes_provider_error_without_success(monkeypatch, error_type):
     """Un fallo del RAG se convierte en error, nunca en respuesta ni abstención."""

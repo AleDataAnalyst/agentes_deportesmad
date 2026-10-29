@@ -5,6 +5,8 @@ Nodo especialista de instalaciones y avisos.
 Responsabilidad:
     - Leer `user_message` del AgentState para decidir modo y centro.
     - Llamar a `consultar_instalaciones` (modo catalogo o avisos).
+    - Consultar `hora_actual` en Europe/Madrid ante petición explícita del presente;
+      conservar su contrato en data sin inferir apertura de los centros.
     - Traducir el ToolResultInstalaciones al contrato compartido ToolResult
       (status, answer, evidence, error, data).
     - Añadir el resultado en `specialist_results["instalaciones"]`
@@ -19,9 +21,13 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
+from copy import deepcopy
 from typing import Any
 
 from agentes.contracts import Evidence, ToolResult
+from agentes.secret_filter import sin_secretos
+from agentes.tools.auxiliares import hora_actual
 from agentes.tools.externa import (
     ToolResultInstalaciones,
     _fecha_actual_iso,
@@ -29,9 +35,33 @@ from agentes.tools.externa import (
     resolver_centro_por_nombre,
 )
 
+from agentes.especialista_llm import FalloPlanificacion, Herramienta, ejecutar_especialista, modo_especialistas
+
 logger = logging.getLogger(__name__)
 
+MAX_STEPS_INSTALACIONES = 3
+# Un turno por propuesta LLM (también bloqueada/inválida) o llamada por reglas:
+# reloj, resolución de nombre contra catálogo y consulta municipal. Los reintentos
+# internos de cada tool no son turnos adicionales del especialista.
+
+PROMPT_INSTALACIONES = """Eres el especialista de instalaciones deportivas municipales de Madrid.
+Decide qué herramientas necesitas para responder:
+- consultar_instalaciones con modo "catalogo" para listar o buscar centros.
+- consultar_instalaciones con modo "avisos" y el identificador del centro (centro_id)
+  para incidencias, cierres u obras. Si no sabes el centro, no lo inventes.
+- hora_actual si la pregunta depende de la fecha u hora de hoy.
+Cuando tengas los datos, responde sin llamar a más herramientas."""
+
+# Palabras que indican que la respuesta depende de la fecha u hora actual.
+_PALABRAS_HORA = ("hora", "ahora", "hoy", "abierto", "abierta", "manana")
+
 TOOL_NAME = "consultar_instalaciones"
+
+# Solo referencias explícitas al presente; «horarios» o «abierto» no bastan.
+_PETICION_TEMPORAL = re.compile(
+    r"\b(?:hoy|ahora)\b|\b(?:hora|fecha|dia)\s+actual\b|"
+    r"\bque\s+(?:hora|fecha|dia)\s+es\b"
+)
 
 # Un PK de centro es un número de 6 dígitos que NO empieza por 28 (CP Madrid)
 # y NO es un año (19xx / 20xx). Aceptamos también "centro 114782" / "PK 114782"
@@ -79,7 +109,11 @@ def _es_ano_o_cp(numero: str) -> bool:
     return False
 
 
-def _decidir_consulta(user_message: str) -> tuple[str, str | None, bool]:
+def _decidir_consulta(
+    user_message: str,
+    *,
+    resolver: Callable[[str], list[dict[str, Any]]] | None = None,
+) -> tuple[str, str | None, bool]:
     """
     Decide (modo, centro_id, requiere_aclaracion).
 
@@ -110,8 +144,8 @@ def _decidir_consulta(user_message: str) -> tuple[str, str | None, bool]:
         if suelto and not _es_ano_o_cp(suelto.group(1)):
             return ("avisos", suelto.group(1), False)
 
-        # NUEVO: intentar resolver el centro por nombre contra el catálogo.
-        coincidencias = resolver_centro_por_nombre(texto)
+        # El nodo inyecta la resolución contabilizada en su presupuesto.
+        coincidencias = (resolver or resolver_centro_por_nombre)(texto)
         if len(coincidencias) == 1:
             pk = str(coincidencias[0].get("pk") or "").strip()
             if pk:
@@ -336,12 +370,183 @@ def _mapear_a_tool_result(
     )
 
 
+def _plan_llm(user_message: str) -> list[dict[str, Any]]:
+    """El LLM propone consultar_instalaciones y hora_actual; Python las ejecuta."""
+    herramientas = [
+        Herramienta(
+            TOOL_NAME, "Catálogo de centros deportivos municipales o avisos de un centro.",
+            {"type": "object", "properties": {
+                "modo": {"type": "string", "enum": ["catalogo", "avisos"]},
+                "centro_id": {"type": "string"},
+            }, "required": ["modo"]},
+            consultar_instalaciones,
+        ),
+        Herramienta(
+            "hora_actual", "Fecha y hora local actual en ISO 8601 con zona horaria.", 
+            {"type": "object", "properties": {}}, hora_actual,
+        ),
+    ]
+    return ejecutar_especialista(
+        prompt_sistema=PROMPT_INSTALACIONES, mensaje=user_message,
+        herramientas=herramientas, max_steps=MAX_STEPS_INSTALACIONES,
+    )
+
+def _hora_no_disponible() -> dict[str, Any]:
+    return {
+        "ok": False,
+        "resultado": None,
+        "fuentes": [],
+        "abstained": False,
+        "error": "Hora actual no disponible",
+    }
+
+def _hora_util(observacion: Any) -> bool:
+    if not _hora_valida(observacion):
+        return False
+
+    return (
+        observacion["ok"] is True
+        and not observacion.get("error")
+        and observacion["abstained"] is False
+        and isinstance(observacion.get("resultado"), dict)
+        and all(
+            isinstance(observacion["resultado"].get(campo), str)
+            and observacion["resultado"][campo]
+            for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
+        )
+    )
+
+def _hora_valida(observacion: Any) -> bool:
+    if not isinstance(observacion, dict):
+        return False
+
+    if (
+        type(observacion.get("ok")) is not bool
+        or type(observacion.get("abstained")) is not bool
+        or not isinstance(observacion.get("fuentes"), list)
+        or not all(isinstance(f, str) for f in observacion["fuentes"])
+    ):
+        return False
+
+    error = observacion.get("error")
+    if error is not None and not isinstance(error, str):
+        return False
+
+    if observacion["ok"] and not error and not observacion["abstained"]:
+        resultado = observacion.get("resultado")
+        if not isinstance(resultado, dict):
+            return False
+
+        return all(
+            isinstance(resultado.get(campo), str) and resultado[campo]
+            for campo in ("iso", "fecha", "hora", "dia_semana", "zona")
+        )
+
+    return True
+
+
 def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     user_message = state.get("user_message") or ""
-    modo, centro_id, requiere_aclaracion = _decidir_consulta(user_message)
+    texto_normalizado = _normalizar_texto(user_message)
+
+    llamadas: list[dict[str, Any]] = []
+
+    def ejecutar_regla(nombre: str, funcion: Callable, **args: Any) -> Any:
+        """Reserva el turno antes de ejecutar; también cuenta las excepciones."""
+        if len(llamadas) >= MAX_STEPS_INSTALACIONES:
+            raise RuntimeError("Límite de herramientas alcanzado")
+        llamada = {
+            "paso": len(llamadas) + 1, "tool": nombre, "args": args,
+            "status": "error", "preview": "",
+            "resultado": {"error": f"No se pudo completar {nombre}."},
+        }
+        llamadas.append(llamada)
+        resultado = funcion(**args)
+        llamada["resultado"] = deepcopy(resultado)
+        llamada["status"] = (
+            "error" if isinstance(resultado, dict) and resultado.get("error") else "ok"
+        )
+        return resultado
+
+    evento_hora: str | None = None
+    aviso_llm: str | None = None
+    usar_llm = modo_especialistas() == "llm"
+
+    if usar_llm:
+        try:
+            llamadas = _plan_llm(user_message)
+
+        except FalloPlanificacion as exc:
+            # Conservar consultas y resultados anteriores al fallo.
+            llamadas = exc.llamadas
+            aviso_llm = (
+                "planificación LLM interrumpida; "
+                "se conservan las llamadas realizadas"
+                if llamadas
+                else "planificación LLM no disponible; se usan reglas"
+            )
+            logger.warning("Instalaciones: %s", aviso_llm)
+
+        except Exception:
+            aviso_llm = "planificación LLM no disponible; se usan reglas"
+            logger.exception("Instalaciones: %s", aviso_llm)
+            llamadas = []
+
+    elif MAX_STEPS_INSTALACIONES > 0 and _PETICION_TEMPORAL.search(texto_normalizado):
+        try:
+            observacion = ejecutar_regla("hora_actual", hora_actual, zona="Europe/Madrid")
+        except Exception:
+            observacion = _hora_no_disponible()
+        llamadas[-1].update(
+            status="ok" if _hora_util(observacion) else "error",
+            resultado=deepcopy(observacion),
+        )
+
+    hora: dict[str, Any] | None = None
+    consulta_llm: dict[str, Any] | None = None
+
+    for llamada in llamadas:
+        if llamada["tool"] == "hora_actual":
+            observacion = llamada.get("resultado")
+            if _hora_util(observacion):
+                hora = observacion
+                evento_hora = (
+                    "instalaciones.tool: hora_actual "
+                    "zona=Europe/Madrid status=ok"
+                )
+            else:
+                hora = _hora_no_disponible()
+                evento_hora = (
+                    "instalaciones.tool: hora_actual "
+                    "zona=Europe/Madrid status=error"
+                )
+
+        elif (
+            llamada["tool"] == TOOL_NAME
+            and llamada["status"] in {"ok", "error"}
+        ):
+            consulta_llm = llamada
+
+    modo, centro_id, requiere_aclaracion = "catalogo", None, False
+    error_resolucion: str | None = None
+    if consulta_llm is not None:
+        modo = consulta_llm["args"].get("modo", "catalogo")
+        centro_id = consulta_llm["args"].get("centro_id") or None
+    elif len(llamadas) < MAX_STEPS_INSTALACIONES:
+        try:
+            modo, centro_id, requiere_aclaracion = _decidir_consulta(
+                user_message,
+                resolver=lambda texto: ejecutar_regla(
+                    "resolver_centro_por_nombre",
+                    lambda texto: resolver_centro_por_nombre(texto), texto=texto,
+                ),
+            )
+        except Exception:
+            logger.exception("Fallo al resolver el centro por nombre")
+            modo = "avisos"
+            error_resolucion = "No se pudo resolver el centro por nombre."
 
     if requiere_aclaracion:
-        # No llamamos a la tool: pedimos aclaración directamente.
         resultado: ToolResultInstalaciones = {
             "ok": False,
             "modo": "avisos",
@@ -356,15 +561,31 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
             ),
             "requiere_aclaracion": True,
         }
+    elif consulta_llm is not None:
+        resultado = consulta_llm["resultado"]
+    elif error_resolucion or len(llamadas) >= MAX_STEPS_INSTALACIONES:
+        # Reglas y LLM comparten el límite, incluida la resolución por nombre.
+        resultado = {
+            "ok": False,
+            "modo": modo,
+            "datos": [],
+            "fuente": "",
+            "origen": "api",
+            "fecha_consulta": _fecha_actual_iso(),
+            "fecha_captura_fallback": None,
+            "advertencias": [],
+            "error": error_resolucion or "Límite de herramientas alcanzado sin consultar instalaciones.",
+            "requiere_aclaracion": False,
+        }
     else:
         try:
-            resultado = consultar_instalaciones(
-                modo=modo, centro_id=centro_id,
+            resultado = ejecutar_regla(
+                TOOL_NAME, consultar_instalaciones,
+                modo=modo,
+                centro_id=centro_id,
             )
         except Exception:
-            logger.exception(
-                "Fallo inesperado en la herramienta de instalaciones"
-            )
+            logger.exception("Fallo inesperado en la herramienta de instalaciones")
             resultado = {
                 "ok": False,
                 "modo": modo,
@@ -383,6 +604,30 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
 
     tool_result = _mapear_a_tool_result(resultado)
 
+    if usar_llm:
+        # Historial diagnóstico adicional; no mezcla respuestas ni procedencias.
+        tool_result.data["llamadas_tools"] = deepcopy(llamadas)
+        consultas = [ll for ll in llamadas if ll["tool"] == TOOL_NAME
+                     and ll["status"] in {"ok", "error"}]
+        if len(consultas) > 1:
+            tool_result.data["advertencias"].append(
+                "La respuesta y sus fuentes representan solo la última consulta municipal; "
+                "las anteriores se conservan en el historial de herramientas."
+            )
+
+    if hora is not None:
+        tool_result.data["hora_actual"] = deepcopy(hora)
+
+        if hora.get("ok") is False:
+            advertencias = list(tool_result.data.get("advertencias") or [])
+            advertencias.append("Hora actual no disponible")
+            tool_result.data["advertencias"] = advertencias
+
+    if aviso_llm:
+        advertencias = list(tool_result.data.get("advertencias") or [])
+        advertencias.append(aviso_llm)
+        tool_result.data["advertencias"] = advertencias
+
     previos = dict(state.get("specialist_results") or {})
     nuevos = dict(previos)
     nuevos["instalaciones"] = tool_result
@@ -397,7 +642,22 @@ def nodo_instalaciones(state: dict[str, Any]) -> dict[str, Any]:
     if tool_result.status == "error":
         evento += " error=consulta_no_completada"
 
+    traza: list[str] = [evento]
+
+    if aviso_llm:
+        traza.append(f"instalaciones: {aviso_llm}")
+
+    if usar_llm:
+        traza.extend(
+            f"instalaciones.tool: {sin_secretos(ll['tool'])[:80]} "
+            f"paso={ll['paso']} args={sin_secretos(ll['args'])[:200]} "
+            f"status={ll['status']} preview={sin_secretos(ll['resultado'])[:200]}"
+            for ll in llamadas
+        )
+    elif evento_hora:
+        traza.append(evento_hora)
+
     return {
         "specialist_results": nuevos,
-        "debug_trace": [evento],
+        "debug_trace": traza,
     }

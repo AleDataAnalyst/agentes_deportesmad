@@ -104,8 +104,9 @@ class TestNodoInstalaciones(unittest.TestCase):
         self.assertEqual(len(tr.evidence), 1)
         self.assertIn("Cierre por obras", tr.evidence[0].content)
 
+    @patch.object(instalaciones, "resolver_centro_por_nombre", return_value=[])
     @patch.object(instalaciones, "consultar_instalaciones")
-    def test_palabras_aviso_sin_pk(self, mock_tool):
+    def test_palabras_aviso_sin_pk(self, mock_tool, mock_resolver):
         state = {
             "user_message": "¿hay algún cierre por obras?",
             "specialist_results": {},
@@ -114,6 +115,7 @@ class TestNodoInstalaciones(unittest.TestCase):
 
         # Ya no se llama a la tool: se pide aclaración (abstained).
         mock_tool.assert_not_called()
+        mock_resolver.assert_called_once_with("¿hay algún cierre por obras?")
 
         tr = resultado["specialist_results"]["instalaciones"]
         self.assertEqual(tr.status, "abstained")

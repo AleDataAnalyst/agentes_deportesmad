@@ -1,47 +1,27 @@
+"""Aceptación explícita del RAG real; recopilar tests nunca consulta modelos."""
 import json
-import sys
 from pathlib import Path
-sys.path.insert(0, r'E:\PROY_AGENTE_LANGGRAPH\agentes_deportesmad')
-
-from agentes.tools.rag import rag_preguntar
-from rag.logic import UMBRAL_ABSTENCION
 import re
 
-# Load evaluation questions
-EVAL = Path('tests/evaluation_questions.json')
-preguntas = json.loads(EVAL.read_text(encoding='utf-8'))
+import pytest
 
-print("=== Probar preguntas de evaluación ===\n")
+EVAL = Path(__file__).with_name("evaluation_questions.json")
+PREGUNTAS = json.loads(EVAL.read_text(encoding="utf-8"))
 
-for item in preguntas:
-    pregunta = item["pregunta"]
-    out_of_corpus = bool(item.get("out_of_corpus"))
-    fuente_esperada = item.get("fuente_esperada")
-    
-    r = rag_preguntar(pregunta)
-    
-    error = r.get("error")
-    respuesta = r.get("respuesta", "")
-    abstained = r.get("abstained", False)
-    fuentes = r.get("fuentes", [])
-    
-    # Check expected source
-    if fuente_esperada:
-        esperada_norm = re.sub(r"\s+", " ", fuente_esperada).strip().lower()
-        fuentes_norm = [re.sub(r"\s+", " ", str(f)).strip().lower() for f in fuentes]
-        fuente_encontrada = any(esperada_norm in f for f in fuentes_norm)
-    else:
-        fuente_encontrada = True  # No source expected is OK
-    
-    status = "OK" if (
-        (out_of_corpus and abstained) or
-        (not out_of_corpus and respuesta and fuentes and fuente_encontrada and not error)
-    ) else "FAIL"
-    
-    print(f"Q: {pregunta[:50]}...")
-    print(f"  out_of_corpus={out_of_corpus}, abstained={abstained}")
-    print(f"  respuesta={'OK' if respuesta else 'FAIL'}, fuentes={fuentes}")
-    if fuente_esperada:
-        print(f"  fuente_esperada={fuente_esperada}, encontrada={fuente_encontrada}")
-    print(f"  --> {status}")
-    print()
+
+@pytest.mark.integration
+@pytest.mark.parametrize("item", PREGUNTAS, ids=lambda item: item["pregunta"])
+def test_pregunta_real(item):
+    from agentes.tools.rag import rag_preguntar
+
+    r = rag_preguntar(item["pregunta"])
+    assert r["error"] is None, r["error"]
+    if item.get("out_of_corpus"):
+        assert r["abstained"] is True
+        return
+    assert not r["abstained"]
+    assert r["respuesta"].strip()
+    assert r["fuentes"]
+    if esperada := item.get("fuente_esperada"):
+        normalizar = lambda texto: re.sub(r"\s+", " ", str(texto)).strip().lower()
+        assert any(normalizar(esperada) in normalizar(f) for f in r["fuentes"])

@@ -4,6 +4,52 @@ Project Break 02 · Asistente de deporte municipal con agentes y LangGraph.
 
 El proyecto integra el RAG existente mediante un especialista documental y un supervisor síncrono. El flujo conserva fuentes, errores y abstenciones, prepara un plan informativo y exige una decisión humana antes del cierre.
 
+## Desarrollo posterior a la entrega — 26/10/2026
+
+La rama `fix/post-entrega-correcciones-tests-mejoras` parte de la entrega
+integrada en `main` (`18ca29d`). Sus correcciones, pruebas y mejoras son trabajo
+posterior; no forman parte de la evidencia de la entrega del 25/10/2026.
+El [registro de mantenimiento](docs/post_entrega.md) recoge los errores resueltos,
+la validación y los pendientes del proyecto con sus criterios de cierre.
+
+### Adaptador Google y documentación — 28/10/2026
+
+Sobre `develop` (`03da0ee`, integración de #30), se corrige el `TypeError` al
+convertir el historial del segundo turno después de una llamada a herramientas.
+`GoogleAdapter` construye `Part.from_function_call(name=..., args=...)` con los
+argumentos por nombre que exige el SDK. Conserva nombre, argumentos, resultado
+de la herramienta y roles; no cambia proveedor, modelo ni configuración.
+
+La regresión `tests/test_llm_google.py` recorre los bucles RAG y de especialistas
+con tipos del SDK instalado y cliente doble, sin clave ni red. La validación
+local inicial dio **130 passed** en la selección afectada y **937 passed,
+50 skipped** en la suite completa. Fecha, entorno, commit probado, comandos y
+revalidación en [la evidencia del arreglo](docs/google_adapter_tool_calls.md).
+Son pruebas con dobles; la aceptación con Google y recursos reales sigue abierta.
+
+El mapeo de mensajes y el contrato de las herramientas se describen en
+[contratos](docs/specs/contratos.md). El workflow existente ejecuta la suite
+offline en PR hacia `develop`.
+
+La suite predeterminada no ejecuta las consultas de aceptación con modelos e
+índices reales. Para ejecutar todas las pruebas locales, incluidos backend,
+clientes, instalaciones y utilidades RAG:
+
+```console
+python -m pytest -q -p no:cacheprovider
+```
+
+Las pruebas con recursos reales requieren configuración e índice compatibles
+y activación explícita:
+
+```console
+python -m pytest -q -p no:cacheprovider --run-integration -m integration
+```
+
+En Windows, si el temporal del sistema no es accesible, añadir `--basetemp`
+con una carpeta nueva dedicada a pytest dentro de `tmp/`. Las omisiones de
+integración no acreditan aceptación real.
+
 ## Estado de esta entrega — 25/10/2026
 
 > El modo real sigue pendiente de aceptación con RAG operativo y fuentes externas reales. Miguel ya entregó el nodo público de instalaciones y runtime lo conecta; las pruebas de montaje usan dependencias externas dobles y no acreditan esa aceptación conjunta.
@@ -282,6 +328,9 @@ La cobertura del especialista documental se organiza por capas para evitar dupli
 | Frontera de errores RAG | `tests/test_rag_error_boundary.py` | Normalización de `TimeoutError` y `ConnectionError` como error controlado, sin respuesta ni abstención |
 | Nodo documental | `tests/test_node_documental.py` | Contrato del nodo, fuentes, abstención, presupuesto de tools, contexto permitido y error de tool |
 | Adaptador documental | `tests/test_documental_adapter.py` | Conversión del sobre documental a `ToolResult`, aislamiento del estado, validación de `request_id` y opciones |
+| Imagen por pedido | `tests/test_image_por_pedido.py` | Validación de image_id, transporte al documental, reinicio entre pedidos, aislamiento y ciclo HITL con dobles |
+| Visión | `tests/test_vision.py` | Imagen inexistente, formato no soportado, falta de clave, MIME y fuentes; recorrido por nodo y adaptador con proveedor doble |
+| Historial Google | `tests/test_llm_google.py` | Primera tool call, ejecución de herramienta y segundo turno en RAG/especialista; tipos del SDK con cliente doble |
 | Integración simulada | `tests/test_golden_graph.py` y `tests/test_export_evidence.py` | Recorridos completos con especialistas dobles; no validan RAG ni visión reales |
 
 
@@ -292,10 +341,13 @@ python -B -m pytest -q -p no:cacheprovider \
   tests/test_tool_rag.py \
   tests/test_rag_error_boundary.py \
   tests/test_node_documental.py \
-  tests/test_documental_adapter.py
+  tests/test_documental_adapter.py \
+  tests/test_image_por_pedido.py
 ```
 
-La visión multimodal aún no dispone de una suite dedicada. El caso actual de imagen no disponible está cubierto en `tests/test_node_documental.py`; la herramienta de visión real requerirá `tests/test_tool_vision.py` con casos de imagen válida, inexistente, formato no soportado y contenido ilegible.
+La suite de visión está en `tests/test_vision.py`. Sus pruebas con proveedor
+doble verifican payload, MIME, fuentes y montaje; interpretar contenido real,
+incluida una imagen ilegible, sigue requiriendo aceptación con el modelo real.
 
 Pruebas de CLI y guardias con especialistas dobles, sin índice ni modelos:
 

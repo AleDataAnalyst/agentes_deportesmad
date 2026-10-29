@@ -17,7 +17,6 @@ def crear_servicio_real(
 ) -> AgentService:
     """Carga configuración y monta el proveedor y especialistas sin consultarlos."""
     load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
-    from agentes.nodes.vision import vision_node
     from agentes.nodes.instalaciones import nodo_instalaciones
     from agentes.supervisor_llm_real import crear_proveedor_configurado
 
@@ -29,6 +28,10 @@ def crear_servicio_real(
         # abrir Chroma o cargar embeddings durante la construcción del servicio.
         from agentes.grafo_documental import obtener_grafo_documental
         return obtener_grafo_documental().invoke(state)
+
+    def vision_node(state):
+        from agentes.nodes.vision import vision_node as ejecutar_vision
+        return ejecutar_vision(state)
 
     return AgentService(
         documental_node=crear_adaptador_documental(

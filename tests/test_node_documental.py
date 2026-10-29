@@ -7,6 +7,7 @@ Contrato: nodo_documental(state) -> {"documental": {...}}
 Solo se actualiza la clave autorizada "documental".
 """
 import agentes.nodes.documental as nod
+import pytest
 from agentes.nodes.documental import nodo_documental
 
 CLAVES_DOCUMENTAL = {
@@ -70,3 +71,51 @@ def test_error_de_tool_no_lanza(monkeypatch):
     assert d["errores"]
     assert d["abstained"] is True
     assert d["resultado"] == ""
+    assert d["eventos"][0]["ok"] is False
+
+
+@pytest.mark.parametrize("cambio", [
+    {"ok": False}, {"error": "Timeout del proveedor"},
+    {"resultado": " "}, {"abstained": True},
+])
+def test_observacion_no_util_nunca_se_presenta_como_evidencia(monkeypatch, cambio):
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: {**_obs_ok(), **cambio})
+    d = nodo_documental({"request_id": "fallo", "pedido": "consulta"})["documental"]
+    assert d["abstained"] is True
+    assert d["resultado"] == ""
+    assert d["fuentes"] == []
+
+
+@pytest.mark.parametrize("observacion", [None, [], {"fuentes": None},
+                                           {"fuentes": [], "resultado": 42}])
+def test_observacion_malformada_se_registra_sin_lanzar(monkeypatch, observacion):
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: observacion)
+    d = nodo_documental({"request_id": "malformada", "pedido": "consulta"})["documental"]
+    assert d["errores"]
+    assert d["abstained"] is True
+    assert len(d["eventos"]) == 1
+    assert d["eventos"][0]["ok"] is False
+
+
+def test_fuentes_mixtas_no_filtran_texto_fuera_del_contexto(monkeypatch):
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda consulta: {
+        **_obs_ok(), "fuentes": ["permitida.csv", "privada.pdf"],
+        "resultado": "Texto que incluye datos de privada.pdf",
+    })
+    d = nodo_documental({"request_id": "contexto", "pedido": "consulta",
+                        "contexto_permitido": ["permitida.csv"]})["documental"]
+    assert d["resultado"] == "" and d["fuentes"] == []
+    assert d["abstained"] is True
+
+
+def test_presupuesto_uno_limita_imagen_y_rag(monkeypatch, tmp_path):
+    imagen = tmp_path / "cartel.png"
+    imagen.write_bytes(b"doble")
+    calls = []
+    monkeypatch.setitem(nod.REGISTRY, "imagen", lambda **kwargs: (calls.append("imagen") or _obs_ok()))
+    monkeypatch.setitem(nod.REGISTRY, "rag", lambda **kwargs: (calls.append("rag") or _obs_ok()))
+    d = nodo_documental({"request_id": "limite", "pedido": "consulta",
+                        "image_id": str(imagen), "presupuesto_tools": 1})["documental"]
+    assert calls == ["imagen"]
+    assert len(d["eventos"]) == 1
+    assert any("presupuesto" in l for l in d["limitaciones"])
