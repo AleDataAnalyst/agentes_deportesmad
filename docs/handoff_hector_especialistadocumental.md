@@ -133,22 +133,26 @@ La tool RAG devuelve un diccionario controlado:
 El adaptador documental convierte ese resultado en un `ToolResult` compatible con el grafo:
 
 ```python
+from agentes.contracts import ToolResult
+
 ToolResult(
-    ok=True,
+    status="abstained",
+    answer="",
+    evidence=[],
+    error=None,
     data={
-        "respuesta": "...",
-        "fuentes": [...]
+        "resultado": "",
+        "fuentes": [],
+        "abstained": True,
+        "limitaciones": ["Sin evidencia documental suficiente."],
     },
-    data={
-        "respuesta": "...",
-        "fuentes": [...]
-    },
-    sources=[...],
-    abstained=False,
-    error=None
-    error=None
 )
 ```
+
+Ejemplo simplificado de abstención. El contrato interno `ToolResult` utiliza
+`status`, `answer`, `evidence`, `error` y `data`. Los campos `ok` y `abstained`
+pertenecen a las observaciones de herramientas y no son argumentos de esta
+dataclass. El adaptador transforma el sobre documental al contrato interno.
 
 ### 3.4 Semántica de los campos
 
