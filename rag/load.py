@@ -502,8 +502,10 @@ _LOADERS: dict[str, Loader] = {
 }
 
 
-def cargar_archivos(rutas: list[str] | str,
-    auditoria_archivos: list[dict] | str) -> list[Document]:
+def cargar_archivos(
+    rutas: list[str] | str,
+    auditoria_archivos: list[dict] | None = None,
+) -> list[Document]:
     """
     Punto de entrada público.
 
