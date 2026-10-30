@@ -1,0 +1,201 @@
+1.0000  `PiscinasAireLibre2026.pdf` · doc 36 · chunk 0 · #20669 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: AIRE LIBRE"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 0 · chunk 0 · #20633 (fila None) · score 0.5479
+              "PISCINAS MUNICIPALES VERANO 2026: AIRE LIBRE"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 32 · chunk 0 · #20665 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Puente de Vallecas"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 30 · chunk 0 · #20663 (fila None) · score 0.5299
+              "PISCINAS MUNICIPALES VERANO 2026: Puente de Vallecas"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 34 · chunk 0 · #20667 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Puente de Vallecas"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 30 · chunk 0 · #20663 (fila None) · score 0.5299
+              "PISCINAS MUNICIPALES VERANO 2026: Puente de Vallecas"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 16 · chunk 0 · #20649 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Hortaleza"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 14 · chunk 0 · #20647 (fila None) · score 0.5231
+              "PISCINAS MUNICIPALES VERANO 2026: Hortaleza"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 44 · chunk 0 · #20677 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Usera"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 42 · chunk 0 · #20675 (fila None) · score 0.5225
+              "PISCINAS MUNICIPALES VERANO 2026: Usera"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 46 · chunk 0 · #20679 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Usera"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 42 · chunk 0 · #20675 (fila None) · score 0.5225
+              "PISCINAS MUNICIPALES VERANO 2026: Usera"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 28 · chunk 0 · #20661 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Moratalaz"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 26 · chunk 0 · #20659 (fila None) · score 0.5219
+              "PISCINAS MUNICIPALES VERANO 2026: Moratalaz"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 37 · chunk 0 · #20670 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Distrito : Centro Deportivo Municipal : Dirección : Fechas"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 1 · chunk 0 · #20634 (fila None) · score 0.5213
+              "PISCINAS MUNICIPALES VERANO 2026: Distrito : Centro Deportivo Municipal : Dirección : Fechas"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 22 · chunk 0 · #20655 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Moncloa - Aravaca"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 20 · chunk 0 · #20653 (fila None) · score 0.5212
+              "PISCINAS MUNICIPALES VERANO 2026: Moncloa - Aravaca"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 24 · chunk 0 · #20657 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Moncloa - Aravaca"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 20 · chunk 0 · #20653 (fila None) · score 0.5212
+              "PISCINAS MUNICIPALES VERANO 2026: Moncloa - Aravaca"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 5 · chunk 0 · #20638 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 7 · chunk 0 · #20640 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 9 · chunk 0 · #20642 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 11 · chunk 0 · #20644 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 13 · chunk 0 · #20646 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 15 · chunk 0 · #20648 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 17 · chunk 0 · #20650 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 19 · chunk 0 · #20652 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 21 · chunk 0 · #20654 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 23 · chunk 0 · #20656 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 25 · chunk 0 · #20658 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 27 · chunk 0 · #20660 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 29 · chunk 0 · #20662 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 31 · chunk 0 · #20664 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 33 · chunk 0 · #20666 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 35 · chunk 0 · #20668 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 39 · chunk 0 · #20672 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 41 · chunk 0 · #20674 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 43 · chunk 0 · #20676 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 45 · chunk 0 · #20678 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 47 · chunk 0 · #20680 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 49 · chunk 0 · #20682 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 51 · chunk 0 · #20684 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 53 · chunk 0 · #20686 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026:"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 3 · chunk 0 · #20636 (fila None) · score 0.5174
+              "PISCINAS MUNICIPALES VERANO 2026:"
+1.0000  `PiscinasAireLibre2026.pdf` · doc 12 · chunk 0 · #20645 (fila None)
+    descartado: "PISCINAS MUNICIPALES VERANO 2026: Fuencarral - El Pardo"
+         vira a: `PiscinasAireLibre2026.pdf` · doc 10 · chunk 0 · #20643 (fila None) · score 0.5116
+              "PISCINAS MUNICIPALES VERANO 2026: Fuencarral - El Pardo"
+0.9839  `normativaGeneral46jdm.pdf` · doc 7 · chunk 0 · #20559 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 8  2. Generalidades"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9837  `normativaGeneral46jdm.pdf` · doc 5 · chunk 0 · #20552 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 6"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9833  `normativaGeneral46jdm.pdf` · doc 4 · chunk 0 · #20549 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 5"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9814  `normativaGeneral46jdm.pdf` · doc 3 · chunk 0 · #20548 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 4  1. Introducción"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9814  `normativaGeneral46jdm.pdf` · doc 26 · chunk 0 · #20601 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 27"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9803  `normativaGeneral46jdm.pdf` · doc 27 · chunk 0 · #20604 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 28"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9793  `normativaGeneral46jdm.pdf` · doc 25 · chunk 0 · #20597 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 26"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9769  `normativaGeneral46jdm.pdf` · doc 40 · chunk 0 · #20632 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 41"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9761  `normativaGeneral46jdm.pdf` · doc 39 · chunk 0 · #20629 (fila None)
+    descartado: "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 40"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9687  `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 8 · chunk 2 · #20493 (fila None)
+    descartado: "20 y 21 marzo 2027 RECUPERACIÓN RECUPERACIÓN RECUPERACIÓN 3 y 4 abril 2027 18ª JORNADA RECUPERACIÓN RECUPERACIÓN 10 y 11"
+         vira a: `normativaGeneral46jdm.pdf` · doc 6 · chunk 2 · #20557 (fila None) · score 0.6608
+              "27 y 28 febrero 2027 15.ª JORNADA 12.ª JORNADA 12.ª JORNADA 6 y 7 marzo 2027 16.ª JORNADA 13.ª JORNADA 13.ª JORNADA 13 y"
+0.9656  `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 4 · chunk 1 · #20485 (fila None)
+    descartado: "Por ello, promover la salud comunitaria constituye uno de los objetivos centrales de las competiciones municipales.  Otr"
+         vira a: `normativaGeneral46jdm.pdf` · doc 4 · chunk 2 · #20551 (fila None) · score 0.6648
+              "competiciones municipales. Otros objetivos son: • Trabajar en la disminución de la brecha de género, fomentando la parti"
+0.9541  `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 3 · chunk 0 · #20483 (fila None)
+    descartado: "4  47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS DEPORTES DE EQUIPO AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADR"
+         vira a: `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 6 · chunk 0 · #20488 (fila None) · score 0.5924
+              "7  47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS DEPORTES DE EQUIPO AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADR"
+0.9480  `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 29 · chunk 0 · #20538 (fila None)
+    descartado: "30  47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS DEPORTES DE EQUIPO AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MAD"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+0.9436  `DecretoAnulacionReservasConCoste.pdf` · doc 0 · chunk 0 · #20539 (fila None)
+    descartado: "Información de Firmantes del Documento ANGEL NIÑO QUESADA - CONCEJAL PRESIDENTE DISTRITO PUENTE VALLECAS Y CONCEJAL AREA"
+         vira a: `DecretoAnulacionReservasConCoste.pdf` · doc 1 · chunk 0 · #20540 (fila None) · score 0.6374
+              "Información de Firmantes del Documento ANGEL NIÑO QUESADA - CONCEJAL PRESIDENTE DISTRITO PUENTE VALLECAS Y CONCEJAL AREA"
+0.9400  `BasesDeportesEquipo47jdm_1Sp.pdf` · doc 1 · chunk 0 · #20481 (fila None)
+    descartado: "2  47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS DEPORTES DE EQUIPO AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADR"
+         vira a: `normativaGeneral46jdm.pdf` · doc 1 · chunk 0 · #20545 (fila None) · score 0.6613
+              "47 JUEGOS DEPORTIVOS MUNICIPALES BASES REGULADORAS AREA DELEGADA DE DEPORTE - AYUNTAMIENTO DE MADRID 2  BASES REGULADORA"
+(50 pares)

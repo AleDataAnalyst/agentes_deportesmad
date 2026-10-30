@@ -80,7 +80,7 @@ def test_pdf_ocr_usa_bloques_ocr(monkeypatch, tmp_path: Path):
 
 
 def test_pdf_ocr_sin_bloques_cae_a_nativo(monkeypatch, tmp_path: Path):
-    pdf = tmp_path / "PiscinasAireLibre2026.pdf"
+    pdf = tmp_path / "DocumentoOCR.pdf"
     pdf.write_bytes(b"%PDF-1.4 fake")
 
     monkeypatch.setattr(
@@ -91,7 +91,7 @@ def test_pdf_ocr_sin_bloques_cae_a_nativo(monkeypatch, tmp_path: Path):
 
     documento_nativo = Document(
         page_content="texto nativo",
-        metadata={"source": "PiscinasAireLibre2026.pdf"},
+        metadata={"source": "DocumentoOCR.pdf"},
     )
 
     class FakePyPDFLoader:
@@ -107,9 +107,9 @@ def test_pdf_ocr_sin_bloques_cae_a_nativo(monkeypatch, tmp_path: Path):
         path=str(pdf),
         directorio_raiz=tmp_path,
         pdfs_tabulares=set(),
-        pdfs_ocr={"PiscinasAireLibre2026.pdf"},
+        pdfs_ocr={"DocumentoOCR.pdf"},
     )
 
     assert len(docs) == 1
     assert docs[0].page_content == "texto nativo"
-    assert docs[0].metadata["source"] == "PiscinasAireLibre2026.pdf"
+    assert docs[0].metadata["source"] == "DocumentoOCR.pdf"

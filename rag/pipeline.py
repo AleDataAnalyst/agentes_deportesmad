@@ -53,6 +53,9 @@ from .load import cargar_archivos
 from .tsd.dedup import deduplicar
 from .tsd.scoring import puntuar
 from .tsd.tag import etiquetar
+from .file_hash import verificar_archivos_al_final
+from .load import cargar_archivos
+
 
 def _log(fase: str, msg: str) -> None:
     """Marca de tiempo + fase: formato único en consola (evita repetir strftime)."""
@@ -199,7 +202,12 @@ def ejecutar_pipeline(
     # --- LOAD
     t_load0 = time.perf_counter()
     _log("LOAD", "inicio")
-    documentos = cargar_archivos(rutas)
+    auditoria_archivos: list[dict] = []
+    documentos = cargar_archivos(
+        rutas,
+        auditoria_archivos=auditoria_archivos,
+    )
+
     n_cargados = len(documentos)
     _log("LOAD", f"{n_cargados} documentos cargados")
     _crono("LOAD", t_load0)
@@ -418,6 +426,9 @@ def ejecutar_pipeline(
             "vectores_totales": totales,
             "recreado": recreate_index,
         },
+        "integridad_archivos": verificar_archivos_al_final(
+            auditoria_archivos
+        ),
         "tiempo_total_s": tiempo_total,
     }
 
@@ -426,7 +437,6 @@ def ejecutar_pipeline(
         _log("INFORME", f"informe generado: {ruta_informe}")
 
     return info
-
 
 if __name__ == "__main__":
     # Uso (desde la raíz del proyecto):
@@ -455,5 +465,5 @@ if __name__ == "__main__":
         chunk_overlap=args.chunk_overlap,
         persist_dir=args.persist_dir,
         collection_name=args.collection,
-        recreate_index=args.recreate_index,
+        recreate_index=args.recreate_index
     ))
