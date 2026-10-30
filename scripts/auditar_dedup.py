@@ -89,8 +89,11 @@ def main(argv: list[str] | None = None) -> None:
                         help="Filtro por motivo: coseno | clave (o dedup_coseno/dedup_clave)")
     parser.add_argument("--top", type=int, default=None,
                         help="Máximo de pares a mostrar")
-    parser.add_argument("--ruta",
-                        help=f"Ruta del JSONL")
+    parser.add_argument(
+        "--ruta",
+        default="output/dedup_audit.jsonl",
+        help="Ruta del JSONL de auditoría",
+    )
     args = parser.parse_args(argv)
 
     if not Path(args.ruta).is_file():
