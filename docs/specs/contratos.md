@@ -340,7 +340,13 @@ En ese caso:
 ### Funciones auxiliares
 
 - `recuperar()` es una función de depuración y evaluación; devuelve chunks, no el contrato completo del RAG.
-- `rag_preguntar()` es un wrapper para agentes que devuelve únicamente `str`; no debe usarse como contrato principal para el grafo porque pierde fuentes, abstención y error estructurados.
+- `rag_preguntar()` es el wrapper utilizado por el especialista documental.
+Devuelve un diccionario con `respuesta`, `fuentes`, `abstained` y `error`.
+Puede añadir campos de diagnóstico cuando se solicitan. Conserva las fuentes,
+la abstención y los errores; no devuelve únicamente texto.
+
+`rag_ask()` es el envoltorio que devuelve solo texto y no conserva el contrato
+estructurado completo.
 
 ### Esquema de retorno
 
