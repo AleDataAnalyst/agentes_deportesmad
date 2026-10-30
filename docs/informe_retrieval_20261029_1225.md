@@ -9,6 +9,13 @@
 - **Umbral de abstención coseno:** 0.65
 - **Preguntas evaluadas:** 24
 
+- > **Limitación de evaluación:** las cifras de abstención y falsos positivos
+> de BM25 y RRF no deben utilizarse como evidencia de aceptación. El evaluador
+> identifica ausencia de fuente esperada con abstención, incluso cuando se
+> recuperan documentos. Estas métricas requieren corregir el criterio y
+> repetir la evaluación. La latencia mostrada corresponde al recorrido
+> conjunto, no a una medición independiente de cada estrategia.
+
 ## 1. Criterios
 
 - **Hit@1:** la fuente esperada aparece en la primera posición.
