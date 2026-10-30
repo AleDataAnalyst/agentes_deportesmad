@@ -23,9 +23,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from rag.logic import responder
 import os
-con_diagnostico = os.environ.get("RAG_CON_DIAGNOSTICO", "").lower() in {"1", "true", "yes"}
+
+
+def responder(consulta: str) -> dict[str, Any]:
+    """Carga el pipeline solo al consultar; conserva el punto de inyección."""
+    from rag.logic import responder as responder_real
+
+    return responder_real(consulta)
 
 def rag_preguntar(consulta: str, con_diagnostico: bool | None = None) -> dict[str, Any]:
     """Devuelve el dict de contrato (4 claves) por defecto.
@@ -40,21 +45,21 @@ def rag_preguntar(consulta: str, con_diagnostico: bool | None = None) -> dict[st
     
     try:
         resultado = responder(consulta)
+        # La normalización también pertenece al límite de errores de la tool.
+        r = {
+            "respuesta": resultado.get("respuesta", ""),
+            "fuentes": list(resultado.get("fuentes", [])),
+            "abstained": bool(resultado.get("abstained", False)),
+            "error": resultado.get("error"),
+        }
     except Exception as e:
-        return {
+        resultado = {}
+        r = {
             "respuesta": "",
             "fuentes": [],
             "abstained": False,
             "error": f"Error interno del RAG: {e}",
         }
-
-    # Camino de éxito: SIEMPRE las 4 claves del contrato
-    r = {
-        "respuesta": resultado.get("respuesta", ""),
-        "fuentes": list(resultado.get("fuentes", [])),
-        "abstained": bool(resultado.get("abstained", False)),
-        "error": resultado.get("error"),
-    }
 
     # Campos de diagnóstico: solo si el agente los pide explícitamente
     if con_diagnostico:

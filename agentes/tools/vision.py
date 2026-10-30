@@ -15,25 +15,34 @@ Contrato:
 
 Reglas:
 - Nunca lanza excepciones: los errores viajan en "error".
-- Acepta JPG/JPEG y PNG.
-- Si no hay GOOGLE_API_KEY, devuelve una respuesta simulada para poder probar el grafo.
+- Acepta JPG/JPEG, WEBP y PNG.
+- Si no hay GOOGLE_API_KEY, informa de visión no disponible y se abstiene.
 """
 
 from __future__ import annotations
 
 import base64
+import os
 from pathlib import Path
 
 import requests
 from langchain_core.tools import tool
 
-from rag.config import (
-    GOOGLE_API_KEY,
-    IMAGE_VISION_MODEL,
-)
+from rag.config import IMAGE_VISION_MODEL
 
 FORMATOS_PERMITIDOS = {".jpg", ".jpeg", ".png", ".webp"}
+MIME_POR_EXTENSION = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp",}
+RAIZ_PROYECTO = Path(__file__).resolve().parents[2]
+IMAGEN_DEMO = RAIZ_PROYECTO / "assets" / "imagen_demo.jpg"
+_API_KEY_AL_IMPORTAR = os.getenv("GOOGLE_API_KEY")
+GOOGLE_API_KEY = _API_KEY_AL_IMPORTAR
 
+def _api_key() -> str:
+    """Resuelve la clave: el parche del módulo tiene prioridad; si no, el entorno."""
+    if GOOGLE_API_KEY != _API_KEY_AL_IMPORTAR:
+        return GOOGLE_API_KEY or ""
+
+    return os.getenv("GOOGLE_API_KEY") or ""
 
 def _abstencion(error: str) -> dict:
     return {
@@ -63,12 +72,9 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
         image_id: Ruta o identificador de la imagen.
         pregunta: Pregunta que debe responderse usando solo información visible.
     """
-    if not GOOGLE_API_KEY:
-        return _abstencion(
-            "Visión no disponible: GOOGLE_API_KEY no está definida."
-        )
-
-    ruta = Path(image_id)
+    # Primero se valida la imagen y después la clave: así el error es útil
+    # aunque no haya GOOGLE_API_KEY.
+    ruta = IMAGEN_DEMO if image_id == "imagen_demo" else Path(image_id)
 
     if not ruta.exists():
         return _error(f"No hay imagen en la ruta indicada: {image_id}")
@@ -78,12 +84,19 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
             f"Formato no soportado: {ruta.suffix}. "
             f"Formatos permitidos: {', '.join(sorted(FORMATOS_PERMITIDOS))}."
         )
+    api_key = _api_key()
+    if not api_key:
+        return _abstencion(
+            "Visión no disponible: GOOGLE_API_KEY no está definida."
+        )
 
     try:
         imagen_base64 = base64.b64encode(ruta.read_bytes()).decode("utf-8")
     except OSError as exc:
         return _error(f"No se pudo leer la imagen: {exc}")
-
+    
+    mime_type = MIME_POR_EXTENSION[ruta.suffix.lower()]
+  
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{IMAGE_VISION_MODEL}:generateContent"
@@ -92,7 +105,7 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
     try:
         respuesta = requests.post(
             url,
-            headers={"x-goog-api-key": GOOGLE_API_KEY},
+            headers={"x-goog-api-key": api_key},
             json={
                 "contents": [
                     {
@@ -100,7 +113,7 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
                             {"text": pregunta},
                             {
                                 "inline_data": {
-                                    "mime_type": "image/jpeg",
+                                    "mime_type": mime_type,
                                     "data": imagen_base64,
                                 }
                             },
@@ -119,7 +132,7 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
         partes = respuesta.json()["candidates"][0]["content"]["parts"]
         texto = "".join(parte.get("text", "") for parte in partes).strip()
 
-    except (requests.RequestException, KeyError, IndexError, TypeError) as exc:
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError) as exc:
         return _abstencion(f"Error al consultar el modelo de visión: {exc}")
 
     if not texto:
@@ -130,13 +143,7 @@ def imagen_preguntar(image_id: str, pregunta: str = "Describe objetivamente la i
     return {
         "ok": True,
         "resultado": texto,
-        "fuentes": [
-            {
-                "tipo": "imagen",
-                "ruta": str(ruta),
-                "modelo": IMAGE_VISION_MODEL,
-            }
-        ],
+        "fuentes": [str(ruta)],
         "abstained": False,
         "error": None,
     }
